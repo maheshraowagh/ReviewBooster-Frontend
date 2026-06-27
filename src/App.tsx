@@ -6,6 +6,7 @@ import {
   OnboardingGuard,
   // AdminGuard,      // Enabled in Phase 7
 } from './components/RouteGuards';
+import DashboardLayout from './components/DashboardLayout';
 
 // Pages
 import SignInPage from './pages/SignInPage';
@@ -33,10 +34,13 @@ export default function App() {
             {/* Onboarding (no guard — accessible to users without a business) */}
             <Route path="/onboarding" element={<OnboardingPage />} />
 
-            {/* Routes that require a business — wrapped with OnboardingGuard */}
+            {/* Routes that require a business — wrapped with OnboardingGuard + DashboardLayout */}
             <Route element={<OnboardingGuard />}>
-              <Route path="/dashboard" element={<DashboardPage />} />
-              {/* Phase 6: <Route path="/inbox" element={<InboxPage />} /> */}
+              <Route element={<DashboardLayout />}>
+                <Route path="/dashboard" element={<DashboardPage />} />
+                {/* Phase 6: <Route path="/inbox" element={<InboxPage />} /> */}
+                {/* Phase 6: <Route path="/settings" element={<SettingsPage />} /> */}
+              </Route>
             </Route>
           </Route>
 

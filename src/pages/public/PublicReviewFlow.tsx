@@ -41,6 +41,11 @@ function getInitials(name: string): string {
     .slice(0, 2);
 }
 
+function ensureProtocol(url: string): string {
+  if (!/^https?:\/\//i.test(url)) return 'https://' + url;
+  return url;
+}
+
 async function apiGet<T>(path: string, headers?: Record<string, string>): Promise<T> {
   const res = await axios.get(`${API_URL}${path}`, { headers });
   if (!res.data.success) throw new Error(res.data.error?.message || 'Request failed');
@@ -225,7 +230,7 @@ export default function PublicReviewFlow() {
   useEffect(() => {
     if (step !== 'redirect' || !business) return;
     if (countdown <= 0) {
-      window.location.href = business.googleReviewUrl;
+      window.location.href = ensureProtocol(business.googleReviewUrl);
       return;
     }
     const timer = setTimeout(() => setCountdown((c) => c - 1), 1000);
@@ -510,7 +515,7 @@ export default function PublicReviewFlow() {
             <button
               className="public-btn-primary"
               onClick={() => {
-                if (business) window.location.href = business.googleReviewUrl;
+                if (business) window.location.href = ensureProtocol(business.googleReviewUrl);
               }}
             >
               Go to Google now →
