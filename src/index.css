@@ -1,0 +1,241 @@
+@import "tailwindcss";
+
+/* =========================================================================
+   ReviewBoost — Tailwind CSS v4 Theme + Global Base Styles
+   Premium, modern SaaS aesthetic with Inter font
+   ========================================================================= */
+
+/* ---- Tailwind v4 Theme (extends the default palette) ---- */
+@theme {
+  --color-brand: #6366f1;
+  --color-brand-hover: #4f46e5;
+  --color-brand-light: #818cf8;
+  --color-brand-subtle: rgba(99, 102, 241, 0.08);
+
+  --color-accent: #06b6d4;
+  --color-accent-hover: #0891b2;
+
+  --color-surface: #0f0f17;
+  --color-surface-elevated: #1a1a2e;
+  --color-surface-card: #16162a;
+  --color-surface-input: #1e1e38;
+
+  --color-border-subtle: rgba(255, 255, 255, 0.08);
+  --color-border-hover: rgba(255, 255, 255, 0.16);
+
+  --color-text-primary: #f1f5f9;
+  --color-text-secondary: #94a3b8;
+  --color-text-muted: #64748b;
+
+  --font-family-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-family-mono: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+/* ---- Reset & Base ---- */
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: var(--font-family-sans);
+  background-color: var(--color-surface);
+  color: var(--color-text-primary);
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+a {
+  color: var(--color-brand-light);
+  text-decoration: none;
+  transition: color 150ms ease;
+}
+
+a:hover {
+  color: var(--color-brand);
+}
+
+button {
+  font-family: var(--font-family-sans);
+  cursor: pointer;
+  border: none;
+  outline: none;
+}
+
+/* ---- Loading Screen ---- */
+.loading-screen {
+  @apply flex flex-col items-center justify-center min-h-screen gap-4;
+  color: var(--color-text-secondary);
+}
+
+.loading-spinner {
+  @apply w-10 h-10 rounded-full;
+  border: 3px solid var(--color-border-subtle);
+  border-top-color: var(--color-brand);
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.4s ease-out;
+}
+
+/* ---- Auth Pages ---- */
+.auth-page {
+  @apply flex items-center justify-center min-h-screen relative overflow-hidden;
+  background: var(--color-surface);
+}
+
+.auth-page::before {
+  content: '';
+  @apply absolute pointer-events-none;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(ellipse at 50% 0%, rgba(99, 102, 241, 0.15) 0%, transparent 60%);
+  opacity: 0.5;
+}
+
+.auth-container {
+  @apply relative z-10;
+}
+
+/* ---- Dashboard Layout ---- */
+.dashboard-page {
+  @apply min-h-screen flex flex-col;
+}
+
+.dashboard-header {
+  @apply flex items-center justify-between px-8 py-4 sticky top-0 z-50;
+  background: var(--color-surface-elevated);
+  border-bottom: 1px solid var(--color-border-subtle);
+  backdrop-filter: blur(12px);
+}
+
+.dashboard-header h1 {
+  @apply text-xl font-bold;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #06b6d4 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.dashboard-header-right {
+  @apply flex items-center gap-4;
+}
+
+.user-greeting {
+  @apply text-sm;
+  color: var(--color-text-secondary);
+}
+
+.user-role-badge {
+  @apply text-xs font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full;
+  background: var(--color-brand-subtle);
+  color: var(--color-brand-light);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+}
+
+.dashboard-main {
+  @apply flex-1 p-12 max-w-7xl mx-auto w-full;
+}
+
+.dashboard-welcome {
+  @apply flex flex-col gap-6;
+}
+
+.dashboard-welcome h2 {
+  @apply text-3xl font-bold;
+}
+
+.dashboard-welcome p {
+  @apply text-base;
+  color: var(--color-text-secondary);
+}
+
+/* ---- User Info Card ---- */
+.user-info-card {
+  @apply p-8 rounded-2xl transition-all duration-250;
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-border-subtle);
+  background-image: linear-gradient(145deg, rgba(99, 102, 241, 0.05) 0%, rgba(6, 182, 212, 0.03) 100%);
+}
+
+.user-info-card:hover {
+  border-color: var(--color-border-hover);
+  box-shadow: 0 0 20px rgba(99, 102, 241, 0.2);
+}
+
+.user-info-card h3 {
+  @apply text-lg font-semibold mb-4;
+  color: var(--color-text-primary);
+}
+
+.user-info-card dl {
+  @apply grid gap-x-4 gap-y-2 text-sm;
+  grid-template-columns: 120px 1fr;
+}
+
+.user-info-card dt {
+  @apply font-medium;
+  color: var(--color-text-muted);
+}
+
+.user-info-card dd {
+  color: var(--color-text-primary);
+}
+
+.monospace {
+  @apply text-xs;
+  font-family: var(--font-family-mono);
+  color: var(--color-text-secondary);
+}
+
+/* ---- Responsive ---- */
+@media (max-width: 768px) {
+  .dashboard-header {
+    @apply px-4 py-2;
+  }
+
+  .dashboard-main {
+    @apply p-6;
+  }
+
+  .user-info-card dl {
+    grid-template-columns: 1fr;
+  }
+
+  .user-greeting {
+    @apply hidden;
+  }
+}
