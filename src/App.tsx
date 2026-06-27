@@ -12,6 +12,7 @@ import DashboardLayout from './components/DashboardLayout';
 import SignInPage from './pages/SignInPage';
 import SignUpPage from './pages/SignUpPage';
 import DashboardPage from './pages/DashboardPage';
+import InboxPage from './pages/InboxPage';
 import OnboardingPage from './pages/OnboardingPage';
 import PublicReviewFlow from './pages/public/PublicReviewFlow';
 
@@ -38,8 +39,8 @@ export default function App() {
             <Route element={<OnboardingGuard />}>
               <Route element={<DashboardLayout />}>
                 <Route path="/dashboard" element={<DashboardPage />} />
-                {/* Phase 6: <Route path="/inbox" element={<InboxPage />} /> */}
-                {/* Phase 6: <Route path="/settings" element={<SettingsPage />} /> */}
+                <Route path="/inbox" element={<InboxPage />} />
+                {/* Phase 7: <Route path="/settings" element={<SettingsPage />} /> */}
               </Route>
             </Route>
           </Route>

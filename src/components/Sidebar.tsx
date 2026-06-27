@@ -1,6 +1,8 @@
+import { useState, useEffect, useCallback } from 'react';
 import { NavLink } from 'react-router-dom';
 import { UserButton } from '@clerk/clerk-react';
 import { useAppAuth } from '../providers/AuthProvider';
+import api, { type ApiResponse } from '../lib/api';
 
 const NAV_ITEMS = [
   {
@@ -18,7 +20,7 @@ const NAV_ITEMS = [
   {
     to: '/inbox',
     label: 'Feedback Inbox',
-    alertCount: 3,
+    hasBadge: true,
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
@@ -43,6 +45,24 @@ interface SidebarProps {
 
 export default function Sidebar({ businessName }: SidebarProps) {
   const { appUser } = useAppAuth();
+  const [atRiskCount, setAtRiskCount] = useState(0);
+
+  const fetchBadge = useCallback(async () => {
+    try {
+      const res = await api.get<ApiResponse<{ atRiskCount: number }>>('/inbox/badge-count');
+      if (res.data.success && res.data.data) {
+        setAtRiskCount(res.data.data.atRiskCount);
+      }
+    } catch {
+      // Silently ignore — badge is non-critical
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchBadge();
+    const interval = setInterval(fetchBadge, 60_000);
+    return () => clearInterval(interval);
+  }, [fetchBadge]);
 
   return (
     <aside className="sidebar">
@@ -77,8 +97,8 @@ export default function Sidebar({ businessName }: SidebarProps) {
           >
             <span className="sidebar-nav-icon">{item.icon}</span>
             <span className="sidebar-nav-text">{item.label}</span>
-            {item.alertCount != null && item.alertCount > 0 && (
-              <span className="sidebar-alert-badge">{item.alertCount}</span>
+            {item.hasBadge && atRiskCount > 0 && (
+              <span className="sidebar-alert-badge">{atRiskCount}</span>
             )}
           </NavLink>
         ))}
@@ -97,3 +117,4 @@ export default function Sidebar({ businessName }: SidebarProps) {
     </aside>
   );
 }
+

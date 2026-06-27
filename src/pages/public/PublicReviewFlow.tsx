@@ -363,48 +363,24 @@ export default function PublicReviewFlow() {
             </h2>
             <p className="tags-subtext">select all that apply</p>
 
-            {rating <= 3 ? (
-              /* Low rating: vertical list with checkmarks */
-              <div className="tags-list-vertical">
-                {availableTags.map((tag) => {
-                  const isSelected = selectedTags.includes(tag);
-                  return (
-                    <button
-                      key={tag}
-                      className={`tag-pill ${isSelected ? 'selected' : ''}`}
-                      onClick={() =>
-                        setSelectedTags((prev) =>
-                          isSelected ? prev.filter((t) => t !== tag) : [...prev, tag]
-                        )
-                      }
-                    >
-                      <span className="tag-check">✓</span>
-                      {tag}
-                    </button>
-                  );
-                })}
-              </div>
-            ) : (
-              /* High rating: horizontal wrap chips */
-              <div className="tags-list-horizontal">
-                {availableTags.map((tag) => {
-                  const isSelected = selectedTags.includes(tag);
-                  return (
-                    <button
-                      key={tag}
-                      className={`tag-chip ${isSelected ? 'selected' : ''}`}
-                      onClick={() =>
-                        setSelectedTags((prev) =>
-                          isSelected ? prev.filter((t) => t !== tag) : [...prev, tag]
-                        )
-                      }
-                    >
-                      {tag}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
+            <div className="tags-list-horizontal tags-list-scroll">
+              {availableTags.map((tag) => {
+                const isSelected = selectedTags.includes(tag);
+                return (
+                  <button
+                    key={tag}
+                    className={`tag-chip ${isSelected ? 'selected' : ''} ${rating <= 3 ? 'tag-chip--negative' : ''}`}
+                    onClick={() =>
+                      setSelectedTags((prev) =>
+                        isSelected ? prev.filter((t) => t !== tag) : [...prev, tag]
+                      )
+                    }
+                  >
+                    {tag}
+                  </button>
+                );
+              })}
+            </div>
 
             <textarea
               className="note-textarea"
@@ -490,10 +466,25 @@ export default function PublicReviewFlow() {
               </svg>
             </div>
 
-            <h2 className="redirect-title">Your review is on your clipboard</h2>
+            <h2 className="redirect-title">Almost done! 🎉</h2>
             <p className="redirect-subtitle">
-              Tap the review box below and paste, then post
+              Your review has been copied to your clipboard
             </p>
+
+            <div className="redirect-steps">
+              <div className="redirect-step">
+                <span className="redirect-step-num">1</span>
+                <span>Tap the review box on Google and <strong>paste</strong> your review</span>
+              </div>
+              <div className="redirect-step">
+                <span className="redirect-step-num">2</span>
+                <span>Adjust the <strong>star rating</strong> if needed</span>
+              </div>
+              <div className="redirect-step">
+                <span className="redirect-step-num">3</span>
+                <span>Tap <strong>Post</strong> — you're done!</span>
+              </div>
+            </div>
 
             {clipboardFailed ? (
               <>
@@ -504,7 +495,7 @@ export default function PublicReviewFlow() {
               </>
             ) : (
               <div className="paste-hint-box">
-                Tap here and paste (long-press → paste)
+                📋 Review copied — long-press the text box on Google → Paste
               </div>
             )}
 

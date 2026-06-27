@@ -126,53 +126,35 @@
   margin-top: -0.5rem;
 }
 
-/* Low-rating tags (vertical list) */
-.tags-list-vertical {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.tag-pill {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 0.875rem;
-  border-radius: 0.75rem;
-  font-size: 0.875rem;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  border: 1px solid var(--color-border-subtle);
-  background: var(--color-surface-elevated);
-  color: var(--color-text-secondary);
-  -webkit-tap-highlight-color: transparent;
-}
-
-.tag-pill:hover {
-  border-color: var(--color-border-hover);
-}
-
-.tag-pill.selected {
-  border-color: rgba(239, 68, 68, 0.3);
-  background: rgba(239, 68, 68, 0.08);
-  color: #fca5a5;
-}
-
-.tag-pill.selected .tag-check {
-  opacity: 1;
-}
-
-.tag-check {
-  opacity: 0;
-  font-size: 0.875rem;
-  transition: opacity 0.15s ease;
-}
+/* Low-rating tags (vertical list) — DEPRECATED, kept for reference */
+/* Both sentiments now use .tags-list-horizontal */
 
 /* High-rating tags (horizontal wrap) */
 .tags-list-horizontal {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
+}
+
+/* Scrollable wrapper when tags overflow */
+.tags-list-scroll {
+  max-height: 240px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+/* Thin custom scrollbar for tag area */
+.tags-list-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+
+.tags-list-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.tags-list-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 99px;
 }
 
 .tag-chip {
@@ -191,10 +173,18 @@
   border-color: var(--color-border-hover);
 }
 
+/* Positive selected state (teal) */
 .tag-chip.selected {
   border-color: rgba(20, 184, 166, 0.3);
   background: rgba(20, 184, 166, 0.08);
   color: #5eead4;
+}
+
+/* Negative selected state (red) */
+.tag-chip--negative.selected {
+  border-color: rgba(239, 68, 68, 0.3);
+  background: rgba(239, 68, 68, 0.08);
+  color: #fca5a5;
 }
 
 /* ---- Note textarea ---- */
@@ -355,6 +345,42 @@
 .redirect-countdown {
   font-size: 0.8125rem;
   color: var(--color-text-muted);
+}
+
+/* ---- Redirect step instructions ---- */
+.redirect-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  width: 100%;
+  padding: 0.75rem 0;
+}
+
+.redirect-step {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+  line-height: 1.4;
+}
+
+.redirect-step strong {
+  color: var(--color-text-primary);
+}
+
+.redirect-step-num {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(6, 182, 212, 0.15));
+  color: var(--color-brand-light);
+  font-size: 0.75rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
 /* ---- Buttons ---- */
