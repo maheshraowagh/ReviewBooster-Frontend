@@ -271,10 +271,10 @@ export default function PublicReviewFlow() {
         <div className="public-card">
           <div className="public-error-screen">
             <div className="public-error-screen-icon">🔍</div>
-            <h2 style={{ color: 'var(--color-text-primary)', fontSize: '1.25rem', fontWeight: 600 }}>
+            <h2 style={{ color: '#1A1A1A', fontSize: '1.25rem', fontWeight: 600 }}>
               Business not found
             </h2>
-            <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem' }}>
+            <p style={{ color: '#6B6B63', fontSize: '0.875rem' }}>
               This QR code may be invalid or the business no longer exists.
             </p>
           </div>
@@ -289,10 +289,10 @@ export default function PublicReviewFlow() {
         <div className="public-card">
           <div className="public-error-screen">
             <div className="public-error-screen-icon">⏸️</div>
-            <h2 style={{ color: 'var(--color-text-primary)', fontSize: '1.25rem', fontWeight: 600 }}>
+            <h2 style={{ color: '#1A1A1A', fontSize: '1.25rem', fontWeight: 600 }}>
               Currently unavailable
             </h2>
-            <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem' }}>
+            <p style={{ color: '#6B6B63', fontSize: '0.875rem' }}>
               This business is temporarily not accepting reviews.
             </p>
           </div>

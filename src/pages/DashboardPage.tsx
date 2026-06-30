@@ -1,5 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { QRCodeCanvas } from 'qrcode.react';
+import { useState, useEffect, useCallback } from 'react';
 import api, { type ApiResponse } from '../lib/api';
 
 
@@ -119,16 +118,6 @@ export default function DashboardPage() {
   const [data, setData] = useState<OverviewData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const qrRef = useRef<HTMLCanvasElement>(null);
-
-  const downloadQR = () => {
-    const canvas = qrRef.current;
-    if (!canvas) return;
-    const link = document.createElement('a');
-    link.href = canvas.toDataURL('image/png');
-    link.download = `qr-${data?.businessName || 'reviewboost'}.png`;
-    link.click();
-  };
 
   const fetchOverview = useCallback(async (p: Period) => {
     try {
@@ -293,39 +282,36 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* ---- QR Code Card ---- */}
+          {/* ---- QR Code Quick Link ---- */}
           {data.businessCode && (
-            <div className="db-card db-qr-card">
-              <h2 className="db-card-title">Your Review QR Code</h2>
-              <div className="db-qr-inner">
-                <div className="db-qr-wrap">
-                  <div className="db-qr-canvas-bg">
-                    <QRCodeCanvas
-                      ref={qrRef}
-                      value={`${window.location.origin}/r/${data.businessCode}`}
-                      size={200}
-                      level="H"
-                      bgColor="#ffffff"
-                      fgColor="#1a1a2e"
-                    />
-                  </div>
-                </div>
-                <div className="db-qr-info">
-                  <p className="db-qr-label">Scan link</p>
-                  <p className="db-qr-url">{window.location.origin}/r/{data.businessCode}</p>
-                  <p className="db-qr-hint">
-                    Print this QR code and place it where customers can easily scan it to leave a review.
-                  </p>
-                  <button className="db-qr-download" onClick={downloadQR}>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16">
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                      <polyline points="7 10 12 15 17 10" />
-                      <line x1="12" y1="15" x2="12" y2="3" />
-                    </svg>
-                    Download PNG
-                  </button>
-                </div>
-              </div>
+            <div className="db-card" style={{ marginTop: '1rem', textAlign: 'center', padding: '1.5rem' }}>
+              <p style={{ fontSize: '0.875rem', color: '#6B6B63', marginBottom: '1rem' }}>
+                Need your QR code? View and download it on the dedicated page.
+              </p>
+              <a
+                href="/qr-locations"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  padding: '0.75rem 1.5rem',
+                  borderRadius: '8px',
+                  fontSize: '0.9375rem',
+                  fontWeight: 600,
+                  color: '#FFFFFF',
+                  background: '#1A1A1A',
+                  textDecoration: 'none',
+                  transition: 'all 0.2s',
+                }}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="18" height="18">
+                  <rect x="3" y="3" width="7" height="7" rx="1" />
+                  <rect x="14" y="3" width="7" height="7" rx="1" />
+                  <rect x="14" y="14" width="7" height="7" rx="1" />
+                  <rect x="3" y="14" width="7" height="7" rx="1" />
+                </svg>
+                View QR Code & Locations
+              </a>
             </div>
           )}
         </>

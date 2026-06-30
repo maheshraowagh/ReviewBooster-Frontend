@@ -13,6 +13,10 @@ import SignInPage from './pages/SignInPage';
 import SignUpPage from './pages/SignUpPage';
 import DashboardPage from './pages/DashboardPage';
 import InboxPage from './pages/InboxPage';
+import InsightsPage from './pages/InsightsPage';
+import QrLocationsPage from './pages/QrLocationsPage';
+import BillingPage from './pages/BillingPage';
+import HelpPage from './pages/HelpPage';
 import OnboardingPage from './pages/OnboardingPage';
 import PublicReviewFlow from './pages/public/PublicReviewFlow';
 
@@ -40,6 +44,10 @@ export default function App() {
               <Route element={<DashboardLayout />}>
                 <Route path="/dashboard" element={<DashboardPage />} />
                 <Route path="/inbox" element={<InboxPage />} />
+                <Route path="/insights" element={<InsightsPage />} />
+                <Route path="/qr-locations" element={<QrLocationsPage />} />
+                <Route path="/billing" element={<BillingPage />} />
+                <Route path="/help" element={<HelpPage />} />
                 {/* Phase 7: <Route path="/settings" element={<SettingsPage />} /> */}
               </Route>
             </Route>
