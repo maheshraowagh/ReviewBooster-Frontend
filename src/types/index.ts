@@ -3,7 +3,7 @@
  * Mirrors the backend models.
  */
 
-export type UserRole = 'owner' | 'staff' | 'admin';
+export type UserRole = "owner" | "staff" | "admin";
 
 export interface AppUser {
   _id: string;
@@ -26,5 +26,6 @@ export interface Business {
   timezone: string;
   city: string;
   isActive: boolean;
+  menuItems: string[];
   createdAt: string;
 }

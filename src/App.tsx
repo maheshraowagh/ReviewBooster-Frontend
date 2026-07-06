@@ -1,24 +1,25 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './providers/AuthProvider';
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider } from "./providers/AuthProvider";
 import {
   ProtectedRoute,
   PublicOnlyRoute,
   OnboardingGuard,
   // AdminGuard,      // Enabled in Phase 7
-} from './components/RouteGuards';
-import DashboardLayout from './components/DashboardLayout';
+} from "./components/RouteGuards";
+import DashboardLayout from "./components/DashboardLayout";
 
 // Pages
-import SignInPage from './pages/SignInPage';
-import SignUpPage from './pages/SignUpPage';
-import DashboardPage from './pages/DashboardPage';
-import InboxPage from './pages/InboxPage';
-import InsightsPage from './pages/InsightsPage';
-import QrLocationsPage from './pages/QrLocationsPage';
-import BillingPage from './pages/BillingPage';
-import HelpPage from './pages/HelpPage';
-import OnboardingPage from './pages/OnboardingPage';
-import PublicReviewFlow from './pages/public/PublicReviewFlow';
+import SignInPage from "./pages/SignInPage";
+import SignUpPage from "./pages/SignUpPage";
+import DashboardPage from "./pages/DashboardPage";
+import InboxPage from "./pages/InboxPage";
+import InsightsPage from "./pages/InsightsPage";
+import QrLocationsPage from "./pages/QrLocationsPage";
+import BillingPage from "./pages/BillingPage";
+import HelpPage from "./pages/HelpPage";
+import OnboardingPage from "./pages/OnboardingPage";
+import SettingsPage from "./pages/SettingsPage";
+import PublicReviewFlow from "./pages/public/PublicReviewFlow";
 
 export default function App() {
   return (
@@ -48,7 +49,7 @@ export default function App() {
                 <Route path="/qr-locations" element={<QrLocationsPage />} />
                 <Route path="/billing" element={<BillingPage />} />
                 <Route path="/help" element={<HelpPage />} />
-                {/* Phase 7: <Route path="/settings" element={<SettingsPage />} /> */}
+                <Route path="/settings" element={<SettingsPage />} />
               </Route>
             </Route>
           </Route>

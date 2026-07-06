@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import api, { type ApiResponse } from '../lib/api';
+import { useState, useEffect, useCallback, useRef } from "react";
+import api, { type ApiResponse } from "../lib/api";
 
 // ---- Types ----------------------------------------------------------------
 
@@ -10,7 +10,7 @@ interface FeedbackItem {
   note: string;
   aiDraftText: string;
   finalText: string;
-  status: 'draft' | 'copied_to_google' | 'resolved';
+  status: "draft" | "copied_to_google" | "resolved";
   createdAt: string;
   sessionId: string;
 }
@@ -23,59 +23,59 @@ interface InboxResponse {
   atRiskCount: number;
 }
 
-type SortOption = 'newest' | 'oldest' | 'rating_high' | 'rating_low';
+type SortOption = "newest" | "oldest" | "rating_high" | "rating_low";
 
 const SORT_OPTIONS: { key: SortOption; label: string }[] = [
-  { key: 'newest', label: 'Newest First' },
-  { key: 'oldest', label: 'Oldest First' },
-  { key: 'rating_high', label: 'Rating: High → Low' },
-  { key: 'rating_low', label: 'Rating: Low → High' },
+  { key: "newest", label: "Newest First" },
+  { key: "oldest", label: "Oldest First" },
+  { key: "rating_high", label: "Rating: High → Low" },
+  { key: "rating_low", label: "Rating: Low → High" },
 ];
 
 const STATUS_OPTIONS = [
-  { key: 'draft', label: 'Draft' },
-  { key: 'copied_to_google', label: 'Copied to Google' },
-  { key: 'resolved', label: 'Resolved' },
+  { key: "draft", label: "Draft" },
+  { key: "copied_to_google", label: "Copied to Google" },
+  { key: "resolved", label: "Resolved" },
 ];
 
 // ---- Helpers --------------------------------------------------------------
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
-  return d.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
+  return d.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
   });
 }
 
 function truncate(text: string, max: number): string {
-  if (!text) return '';
-  return text.length > max ? text.slice(0, max) + '…' : text;
+  if (!text) return "";
+  return text.length > max ? text.slice(0, max) + "…" : text;
 }
 
 function renderStars(rating: number): string {
-  return '★'.repeat(rating) + '☆'.repeat(5 - rating);
+  return "★".repeat(rating) + "☆".repeat(5 - rating);
 }
 
 const starColor = (rating: number) => {
   const map: Record<number, string> = {
-    1: '#ef4444',
-    2: '#f97316',
-    3: '#eab308',
-    4: '#22c55e',
-    5: '#6366f1',
+    1: "#ef4444",
+    2: "#f97316",
+    3: "#eab308",
+    4: "#22c55e",
+    5: "#6366f1",
   };
-  return map[rating] || '#64748b';
+  return map[rating] || "#64748b";
 };
 
 const statusLabel = (s: string) => {
   const map: Record<string, string> = {
-    draft: 'Draft',
-    copied_to_google: 'Copied to Google',
-    resolved: 'Resolved',
+    draft: "Draft",
+    copied_to_google: "Copied to Google",
+    resolved: "Resolved",
   };
   return map[s] || s;
 };
@@ -95,13 +95,19 @@ function FeedbackCard({
 }) {
   return (
     <div
-      className={`inbox-card${selected ? ' inbox-card--selected' : ''}`}
+      className={`inbox-card${selected ? " inbox-card--selected" : ""}`}
       onClick={onClick}
       role="button"
       tabIndex={0}
-      onKeyDown={(e) => e.key === 'Enter' && onClick()}
+      onKeyDown={(e) => e.key === "Enter" && onClick()}
     >
-      <div className="inbox-card-check" onClick={(e) => { e.stopPropagation(); onToggle(); }}>
+      <div
+        className="inbox-card-check"
+        onClick={(e) => {
+          e.stopPropagation();
+          onToggle();
+        }}
+      >
         <input
           type="checkbox"
           checked={selected}
@@ -112,7 +118,10 @@ function FeedbackCard({
       </div>
       <div className="inbox-card-body">
         <div className="inbox-card-top">
-          <span className="inbox-card-stars" style={{ color: starColor(item.rating) }}>
+          <span
+            className="inbox-card-stars"
+            style={{ color: starColor(item.rating) }}
+          >
             {renderStars(item.rating)}
           </span>
           <span className={`inbox-status-badge inbox-status--${item.status}`}>
@@ -121,14 +130,21 @@ function FeedbackCard({
         </div>
         <div className="inbox-card-tags">
           {item.tags.slice(0, 4).map((tag) => (
-            <span key={tag} className="inbox-tag">{tag}</span>
+            <span key={tag} className="inbox-tag">
+              {tag}
+            </span>
           ))}
           {item.tags.length > 4 && (
-            <span className="inbox-tag inbox-tag--more">+{item.tags.length - 4}</span>
+            <span className="inbox-tag inbox-tag--more">
+              +{item.tags.length - 4}
+            </span>
           )}
         </div>
         <p className="inbox-card-note">
-          {truncate(item.note || item.finalText || item.aiDraftText || 'No note', 120)}
+          {truncate(
+            item.note || item.finalText || item.aiDraftText || "No note",
+            120,
+          )}
         </p>
         <span className="inbox-card-date">{formatDate(item.createdAt)}</span>
       </div>
@@ -147,15 +163,77 @@ function DrawerDetail({
   onResolve: (id: string) => void;
   resolving: boolean;
 }) {
+  // ---- Owner reply state (Phase 9) — self-contained, stateless on the backend ----
+  const [replyDraft, setReplyDraft] = useState("");
+  const [replyStarted, setReplyStarted] = useState(false);
+  const [replyLoading, setReplyLoading] = useState(false);
+  const [replyError, setReplyError] = useState("");
+  const [showMatchBox, setShowMatchBox] = useState(false);
+  const [toastMsg, setToastMsg] = useState("");
+
+  const fetchReply = async () => {
+    setReplyLoading(true);
+    setReplyError("");
+    setShowMatchBox(false);
+    try {
+      const res = await api.post<ApiResponse<{ draft: string }>>(
+        `/inbox/${item._id}/reply-suggestion`,
+      );
+      if (res.data.success && res.data.data) {
+        setReplyDraft(res.data.data.draft.slice(0, 300));
+        setReplyStarted(true);
+      } else {
+        setReplyError(res.data.error?.message || "Failed to generate a reply");
+      }
+    } catch {
+      setReplyError("Could not generate a reply. Please try again.");
+    } finally {
+      setReplyLoading(false);
+    }
+  };
+
+  const handleCopyAndOpen = async () => {
+    try {
+      await navigator.clipboard.writeText(replyDraft);
+    } catch {
+      // Clipboard may fail silently on some browsers — still proceed, the
+      // owner can select the text manually from the textarea.
+    }
+    window.open(
+      "https://business.google.com/reviews",
+      "_blank",
+      "noopener,noreferrer",
+    );
+    setShowMatchBox(true);
+    setToastMsg("Reply copied — paste it under the review on Google");
+    setTimeout(() => setToastMsg(""), 3000);
+  };
+
+  const referenceText = item.finalText || item.aiDraftText || item.note || "";
+
   return (
     <>
       <div className="inbox-drawer-overlay" onClick={onClose} />
       <aside className="inbox-drawer">
         <div className="inbox-drawer-header">
           <h2 className="inbox-drawer-title">Feedback Detail</h2>
-          <button className="inbox-drawer-close" onClick={onClose} aria-label="Close drawer">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="20" height="20">
-              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+          <button
+            className="inbox-drawer-close"
+            onClick={onClose}
+            aria-label="Close drawer"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              width="20"
+              height="20"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
             </svg>
           </button>
         </div>
@@ -164,7 +242,10 @@ function DrawerDetail({
           {/* Rating */}
           <div className="inbox-drawer-section">
             <span className="inbox-drawer-label">Rating</span>
-            <span className="inbox-drawer-stars" style={{ color: starColor(item.rating) }}>
+            <span
+              className="inbox-drawer-stars"
+              style={{ color: starColor(item.rating) }}
+            >
               {renderStars(item.rating)}
             </span>
           </div>
@@ -183,7 +264,9 @@ function DrawerDetail({
               <span className="inbox-drawer-label">Tags</span>
               <div className="inbox-drawer-tags">
                 {item.tags.map((tag) => (
-                  <span key={tag} className="inbox-tag">{tag}</span>
+                  <span key={tag} className="inbox-tag">
+                    {tag}
+                  </span>
                 ))}
               </div>
             </div>
@@ -201,7 +284,9 @@ function DrawerDetail({
           {item.aiDraftText && (
             <div className="inbox-drawer-section">
               <span className="inbox-drawer-label">AI Draft</span>
-              <p className="inbox-drawer-text inbox-drawer-text--ai">{item.aiDraftText}</p>
+              <p className="inbox-drawer-text inbox-drawer-text--ai">
+                {item.aiDraftText}
+              </p>
             </div>
           )}
 
@@ -216,12 +301,115 @@ function DrawerDetail({
           {/* Timestamp */}
           <div className="inbox-drawer-section">
             <span className="inbox-drawer-label">Submitted</span>
-            <span className="inbox-drawer-date">{formatDate(item.createdAt)}</span>
+            <span className="inbox-drawer-date">
+              {formatDate(item.createdAt)}
+            </span>
+          </div>
+
+          {/* Owner reply (Phase 9) — the core action-driving feature, styled
+              as a prominent card and placed in the scrollable body so
+              "Mark Resolved" below stays the final, always-visible step. */}
+          <div className="inbox-reply-card">
+            <div className="inbox-reply-card-header">
+              <span className="inbox-reply-card-icon">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  width="16"
+                  height="16"
+                >
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                </svg>
+              </span>
+              <div>
+                <span className="inbox-reply-card-title">Owner reply</span>
+                <p className="inbox-reply-card-subtitle">
+                  AI-drafted reply based on this review — edit it and post in
+                  under a minute
+                </p>
+              </div>
+            </div>
+
+            {!replyStarted && (
+              <button
+                className="inbox-reply-draft-btn"
+                onClick={fetchReply}
+                disabled={replyLoading}
+              >
+                {replyLoading ? (
+                  <>
+                    <span className="loading-spinner loading-spinner--sm" />{" "}
+                    Generating...
+                  </>
+                ) : (
+                  <>✨ Draft a reply</>
+                )}
+              </button>
+            )}
+
+            {replyError && <p className="inbox-reply-error">{replyError}</p>}
+
+            {replyStarted && (
+              <>
+                <textarea
+                  className="inbox-reply-textarea"
+                  value={replyDraft}
+                  onChange={(e) => setReplyDraft(e.target.value.slice(0, 300))}
+                  maxLength={300}
+                  rows={3}
+                />
+                <p className="inbox-reply-count">{replyDraft.length}/300</p>
+
+                <div className="inbox-reply-actions">
+                  <button
+                    className="inbox-reply-regenerate-btn"
+                    onClick={fetchReply}
+                    disabled={replyLoading}
+                  >
+                    {replyLoading ? (
+                      <span className="loading-spinner loading-spinner--sm" />
+                    ) : (
+                      "↻ Regenerate"
+                    )}
+                  </button>
+                  <button
+                    className="inbox-reply-copy-btn"
+                    onClick={handleCopyAndOpen}
+                    disabled={!replyDraft.trim()}
+                  >
+                    Copy and open Google Business Profile
+                  </button>
+                </div>
+
+                <p className="inbox-reply-hint">
+                  Copy this and paste it under the review in your Google
+                  Business Profile dashboard.
+                </p>
+
+                {showMatchBox && (
+                  <div className="inbox-reply-match-box">
+                    <p className="inbox-reply-match-label">
+                      Looking for the review? Match this:
+                    </p>
+                    <p className="inbox-reply-match-text">
+                      {referenceText || "(no review text captured)"}
+                    </p>
+                    <p className="inbox-reply-match-footer">
+                      Find this review on Google and paste your reply.
+                    </p>
+                  </div>
+                )}
+              </>
+            )}
           </div>
         </div>
 
-        {/* Actions */}
-        {item.status !== 'resolved' && (
+        {/* Actions — always the final, sticky step: resolve after replying */}
+        {item.status !== "resolved" && (
           <div className="inbox-drawer-actions">
             <button
               className="inbox-resolve-btn"
@@ -231,7 +419,16 @@ function DrawerDetail({
               {resolving ? (
                 <span className="loading-spinner loading-spinner--sm" />
               ) : (
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  width="16"
+                  height="16"
+                >
                   <polyline points="20 6 9 17 4 12" />
                 </svg>
               )}
@@ -240,6 +437,8 @@ function DrawerDetail({
           </div>
         )}
       </aside>
+
+      {toastMsg && <div className="inbox-toast">{toastMsg}</div>}
     </>
   );
 }
@@ -247,7 +446,9 @@ function DrawerDetail({
 function SkeletonCard() {
   return (
     <div className="inbox-card inbox-card--skeleton">
-      <div className="inbox-card-check"><div className="skeleton-box skeleton-check" /></div>
+      <div className="inbox-card-check">
+        <div className="skeleton-box skeleton-check" />
+      </div>
       <div className="inbox-card-body">
         <div className="inbox-card-top">
           <div className="skeleton-box skeleton-stars" />
@@ -275,12 +476,12 @@ export default function InboxPage() {
   const [error, setError] = useState<string | null>(null);
 
   // Filters
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState("");
   const [ratingFilter, setRatingFilter] = useState<number[]>([]);
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
-  const [sort, setSort] = useState<SortOption>('newest');
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [sort, setSort] = useState<SortOption>("newest");
 
   // Selection
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -292,7 +493,7 @@ export default function InboxPage() {
 
   // Debounce search
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState("");
 
   useEffect(() => {
     if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
@@ -312,29 +513,39 @@ export default function InboxPage() {
       setError(null);
 
       const params = new URLSearchParams();
-      params.set('page', String(page));
-      params.set('limit', '20');
-      params.set('sort', sort);
-      if (debouncedSearch) params.set('search', debouncedSearch);
-      if (ratingFilter.length > 0) params.set('rating', ratingFilter.join(','));
-      if (statusFilter.length > 0) params.set('status', statusFilter.join(','));
-      if (dateFrom) params.set('dateFrom', dateFrom);
-      if (dateTo) params.set('dateTo', dateTo);
+      params.set("page", String(page));
+      params.set("limit", "20");
+      params.set("sort", sort);
+      if (debouncedSearch) params.set("search", debouncedSearch);
+      if (ratingFilter.length > 0) params.set("rating", ratingFilter.join(","));
+      if (statusFilter.length > 0) params.set("status", statusFilter.join(","));
+      if (dateFrom) params.set("dateFrom", dateFrom);
+      if (dateTo) params.set("dateTo", dateTo);
 
-      const res = await api.get<ApiResponse<InboxResponse>>(`/inbox?${params.toString()}`);
+      const res = await api.get<ApiResponse<InboxResponse>>(
+        `/inbox?${params.toString()}`,
+      );
       if (res.data.success && res.data.data) {
         setItems(res.data.data.items);
         setTotal(res.data.data.total);
         setTotalPages(res.data.data.totalPages);
       } else {
-        setError(res.data.error?.message || 'Failed to load inbox');
+        setError(res.data.error?.message || "Failed to load inbox");
       }
     } catch {
-      setError('Could not connect to server. Please try again.');
+      setError("Could not connect to server. Please try again.");
     } finally {
       setLoading(false);
     }
-  }, [page, sort, debouncedSearch, ratingFilter, statusFilter, dateFrom, dateTo]);
+  }, [
+    page,
+    sort,
+    debouncedSearch,
+    ratingFilter,
+    statusFilter,
+    dateFrom,
+    dateTo,
+  ]);
 
   useEffect(() => {
     fetchInbox();
@@ -369,10 +580,14 @@ export default function InboxPage() {
     try {
       await api.patch(`/inbox/${id}/resolve`);
       setItems((prev) =>
-        prev.map((i) => (i._id === id ? { ...i, status: 'resolved' as const } : i))
+        prev.map((i) =>
+          i._id === id ? { ...i, status: "resolved" as const } : i,
+        ),
       );
       if (drawerItem?._id === id) {
-        setDrawerItem((prev) => (prev ? { ...prev, status: 'resolved' as const } : null));
+        setDrawerItem((prev) =>
+          prev ? { ...prev, status: "resolved" as const } : null,
+        );
       }
     } catch {
       // silently fail — user sees the status didn't change
@@ -386,11 +601,11 @@ export default function InboxPage() {
     if (selected.size === 0) return;
     setBulkResolving(true);
     try {
-      await api.patch('/inbox/bulk-resolve', { ids: Array.from(selected) });
+      await api.patch("/inbox/bulk-resolve", { ids: Array.from(selected) });
       setItems((prev) =>
         prev.map((i) =>
-          selected.has(i._id) ? { ...i, status: 'resolved' as const } : i
-        )
+          selected.has(i._id) ? { ...i, status: "resolved" as const } : i,
+        ),
       );
       setSelected(new Set());
     } catch {
@@ -403,31 +618,35 @@ export default function InboxPage() {
   // Rating filter toggle
   const toggleRating = (r: number) => {
     setRatingFilter((prev) =>
-      prev.includes(r) ? prev.filter((x) => x !== r) : [...prev, r]
+      prev.includes(r) ? prev.filter((x) => x !== r) : [...prev, r],
     );
   };
 
   // Status filter toggle
   const toggleStatus = (s: string) => {
     setStatusFilter((prev) =>
-      prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]
+      prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s],
     );
   };
 
   // Clear all filters
   const clearFilters = () => {
-    setSearch('');
-    setDebouncedSearch('');
+    setSearch("");
+    setDebouncedSearch("");
     setRatingFilter([]);
     setStatusFilter([]);
-    setDateFrom('');
-    setDateTo('');
-    setSort('newest');
+    setDateFrom("");
+    setDateTo("");
+    setSort("newest");
     setPage(1);
   };
 
   const hasActiveFilters =
-    debouncedSearch || ratingFilter.length > 0 || statusFilter.length > 0 || dateFrom || dateTo;
+    debouncedSearch ||
+    ratingFilter.length > 0 ||
+    statusFilter.length > 0 ||
+    dateFrom ||
+    dateTo;
 
   // Pagination range
   const pageRange = () => {
@@ -444,15 +663,28 @@ export default function InboxPage() {
       <div className="db-topbar">
         <div>
           <h1 className="db-title">Feedback Inbox</h1>
-          <p className="db-subtitle">{total} total feedback{total !== 1 ? 's' : ''}</p>
+          <p className="db-subtitle">
+            {total} total feedback{total !== 1 ? "s" : ""}
+          </p>
         </div>
       </div>
 
       {/* ---- Search & Filters ---- */}
       <div className="inbox-toolbar">
         <div className="inbox-search-wrap">
-          <svg className="inbox-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="18" height="18">
-            <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+          <svg
+            className="inbox-search-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            width="18"
+            height="18"
+          >
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
           </svg>
           <input
             id="inbox-search"
@@ -463,9 +695,24 @@ export default function InboxPage() {
             onChange={(e) => setSearch(e.target.value)}
           />
           {search && (
-            <button className="inbox-search-clear" onClick={() => { setSearch(''); setDebouncedSearch(''); }} aria-label="Clear search">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
-                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+            <button
+              className="inbox-search-clear"
+              onClick={() => {
+                setSearch("");
+                setDebouncedSearch("");
+              }}
+              aria-label="Clear search"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                width="14"
+                height="14"
+              >
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
               </svg>
             </button>
           )}
@@ -479,7 +726,9 @@ export default function InboxPage() {
             onChange={(e) => setSort(e.target.value as SortOption)}
           >
             {SORT_OPTIONS.map((o) => (
-              <option key={o.key} value={o.key}>{o.label}</option>
+              <option key={o.key} value={o.key}>
+                {o.label}
+              </option>
             ))}
           </select>
         </div>
@@ -492,9 +741,13 @@ export default function InboxPage() {
           {[1, 2, 3, 4, 5].map((r) => (
             <button
               key={r}
-              className={`inbox-chip${ratingFilter.includes(r) ? ' inbox-chip--active' : ''}`}
+              className={`inbox-chip${ratingFilter.includes(r) ? " inbox-chip--active" : ""}`}
               onClick={() => toggleRating(r)}
-              style={ratingFilter.includes(r) ? { borderColor: starColor(r), color: starColor(r) } : {}}
+              style={
+                ratingFilter.includes(r)
+                  ? { borderColor: starColor(r), color: starColor(r) }
+                  : {}
+              }
             >
               {r}★
             </button>
@@ -505,7 +758,7 @@ export default function InboxPage() {
           {STATUS_OPTIONS.map((s) => (
             <button
               key={s.key}
-              className={`inbox-chip${statusFilter.includes(s.key) ? ' inbox-chip--active' : ''}`}
+              className={`inbox-chip${statusFilter.includes(s.key) ? " inbox-chip--active" : ""}`}
               onClick={() => toggleStatus(s.key)}
             >
               {s.label}
@@ -531,7 +784,10 @@ export default function InboxPage() {
           />
         </div>
         {hasActiveFilters && (
-          <button className="inbox-chip inbox-chip--clear" onClick={clearFilters}>
+          <button
+            className="inbox-chip inbox-chip--clear"
+            onClick={clearFilters}
+          >
             ✕ Clear All
           </button>
         )}
@@ -557,7 +813,16 @@ export default function InboxPage() {
             {bulkResolving ? (
               <span className="loading-spinner loading-spinner--sm" />
             ) : (
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                width="16"
+                height="16"
+              >
                 <polyline points="20 6 9 17 4 12" />
               </svg>
             )}
@@ -569,11 +834,22 @@ export default function InboxPage() {
       {/* ---- Error ---- */}
       {error && (
         <div className="db-error" role="alert">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20">
-            <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            width="20"
+            height="20"
+          >
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
           </svg>
           {error}
-          <button className="db-error-retry" onClick={fetchInbox}>Retry</button>
+          <button className="db-error-retry" onClick={fetchInbox}>
+            Retry
+          </button>
         </div>
       )}
 
@@ -614,7 +890,7 @@ export default function InboxPage() {
               {pageRange().map((p) => (
                 <button
                   key={p}
-                  className={`inbox-page-btn${p === page ? ' inbox-page-btn--active' : ''}`}
+                  className={`inbox-page-btn${p === page ? " inbox-page-btn--active" : ""}`}
                   onClick={() => setPage(p)}
                 >
                   {p}
@@ -636,18 +912,30 @@ export default function InboxPage() {
       {!loading && items.length === 0 && !error && (
         <div className="inbox-empty">
           <div className="inbox-empty-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" width="48" height="48">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              width="48"
+              height="48"
+            >
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
             </svg>
           </div>
           <h3 className="inbox-empty-title">No feedback found</h3>
           <p className="inbox-empty-text">
             {hasActiveFilters
-              ? 'Try adjusting your filters or search query.'
-              : 'Feedback from customers will appear here once they scan your QR code.'}
+              ? "Try adjusting your filters or search query."
+              : "Feedback from customers will appear here once they scan your QR code."}
           </p>
           {hasActiveFilters && (
-            <button className="inbox-chip inbox-chip--clear" onClick={clearFilters}>
+            <button
+              className="inbox-chip inbox-chip--clear"
+              onClick={clearFilters}
+            >
               Clear Filters
             </button>
           )}
@@ -657,6 +945,7 @@ export default function InboxPage() {
       {/* ---- Side drawer ---- */}
       {drawerItem && (
         <DrawerDetail
+          key={drawerItem._id}
           item={drawerItem}
           onClose={() => setDrawerItem(null)}
           onResolve={resolveOne}
