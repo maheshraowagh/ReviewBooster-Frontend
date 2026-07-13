@@ -21,6 +21,7 @@ import OnboardingPage from "./pages/OnboardingPage";
 import SettingsPage from "./pages/SettingsPage";
 import PublicReviewFlow from "./pages/public/PublicReviewFlow";
 import WhatsAppPage from "./pages/WhatsAppPage";
+import CampaignsPage from "./pages/CampaignsPage";
 
 export default function App() {
   return (
@@ -49,6 +50,7 @@ export default function App() {
                 <Route path="/insights" element={<InsightsPage />} />
                 <Route path="/qr-locations" element={<QrLocationsPage />} />
                 <Route path="/whatsapp" element={<WhatsAppPage />} />
+                <Route path="/campaigns" element={<CampaignsPage />} />
                 <Route path="/billing" element={<BillingPage />} />
                 <Route path="/help" element={<HelpPage />} />
                 <Route path="/settings" element={<SettingsPage />} />

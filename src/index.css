@@ -2634,4 +2634,339 @@ button {
         width: 220px;
         height: 220px;
     }
+    .wa-usage-grid {
+        grid-template-columns: 1fr 1fr !important;
+    }
+    .wa-form-row {
+        flex-direction: column !important;
+    }
+    .wa-messages-table-wrap {
+        font-size: 0.75rem;
+    }
+}
+
+/* ── Phase 2A additions ────────────────────────────────────────── */
+
+/* Icon color variants */
+.wa-card-icon-blue {
+    background: #eff6ff;
+}
+.wa-card-icon-blue svg {
+    stroke: #3b82f6;
+}
+
+.wa-card-icon-green {
+    background: #f0fdf4;
+}
+.wa-card-icon-green svg {
+    stroke: #22c55e;
+}
+
+.wa-card-icon-purple {
+    background: #faf5ff;
+}
+.wa-card-icon-purple svg {
+    stroke: #a855f7;
+}
+
+/* Small button variant */
+.wa-btn-sm {
+    padding: 0.375rem 0.875rem;
+    font-size: 0.75rem;
+    border-radius: 8px;
+}
+
+/* Paused banner */
+.wa-paused-banner {
+    padding: 0.625rem 1rem;
+    border-radius: 8px;
+    background: #fef9c3;
+    border: 1px solid rgba(234, 179, 8, 0.2);
+    color: #92400e;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    margin-bottom: 1rem;
+}
+
+/* Usage grid */
+.wa-usage-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+}
+
+.wa-usage-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 0.875rem;
+    border-radius: 10px;
+    background: var(--color-surface, #fafafa);
+    border: 1px solid var(--color-border-subtle, #e5e5e5);
+}
+
+.wa-usage-label {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--color-text-muted, #999);
+}
+
+.wa-usage-value {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: var(--color-text-primary, #1a1a1a);
+    line-height: 1.2;
+}
+
+.wa-usage-sub {
+    font-size: 0.6875rem;
+    color: var(--color-text-muted, #999);
+}
+
+/* Form row (side-by-side) */
+.wa-form-row {
+    display: flex;
+    gap: 1rem;
+}
+
+/* Messages table */
+.wa-messages-table-wrap {
+    overflow-x: auto;
+    border-radius: 10px;
+    border: 1px solid var(--color-border-subtle, #e5e5e5);
+}
+
+.wa-messages-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8125rem;
+}
+
+.wa-messages-table th {
+    text-align: left;
+    padding: 0.625rem 0.875rem;
+    font-weight: 600;
+    font-size: 0.6875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--color-text-muted, #999);
+    background: var(--color-surface, #fafafa);
+    border-bottom: 1px solid var(--color-border-subtle, #e5e5e5);
+    white-space: nowrap;
+}
+
+.wa-messages-table td {
+    padding: 0.625rem 0.875rem;
+    border-bottom: 1px solid var(--color-border-subtle, #e5e5e5);
+    vertical-align: top;
+}
+
+.wa-messages-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.wa-messages-table tbody tr:hover {
+    background: rgba(0, 0, 0, 0.015);
+}
+
+.wa-msg-customer {
+    display: block;
+    font-weight: 600;
+    color: var(--color-text-primary, #1a1a1a);
+    font-size: 0.8125rem;
+}
+
+.wa-msg-phone {
+    display: block;
+    font-size: 0.6875rem;
+    color: var(--color-text-muted, #999);
+    font-variant-numeric: tabular-nums;
+}
+
+.wa-msg-time {
+    font-size: 0.75rem;
+    color: var(--color-text-secondary, #666);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+/* Message type badges */
+.wa-msg-type {
+    display: inline-block;
+    padding: 0.15rem 0.5rem;
+    border-radius: 6px;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: capitalize;
+    white-space: nowrap;
+}
+
+.wa-type-review_request {
+    background: #f0fdf4;
+    color: #15803d;
+}
+
+.wa-type-test {
+    background: #f5f5f5;
+    color: #737373;
+}
+
+.wa-type-campaign {
+    background: #eff6ff;
+    color: #1d4ed8;
+}
+
+.wa-type-thank_you {
+    background: #fefce8;
+    color: #a16207;
+}
+
+.wa-type-negative_alert {
+    background: #fef2f2;
+    color: #b91c1c;
+}
+
+.wa-type-opt_out_confirmation {
+    background: #faf5ff;
+    color: #7e22ce;
+}
+
+/* Message status badges */
+.wa-msg-status {
+    display: inline-block;
+    padding: 0.15rem 0.5rem;
+    border-radius: 6px;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.wa-mstatus-created,
+.wa-mstatus-queued,
+.wa-mstatus-sending {
+    background: #f5f5f5;
+    color: #737373;
+}
+
+.wa-mstatus-accepted,
+.wa-mstatus-sent {
+    background: #eff6ff;
+    color: #1d4ed8;
+}
+
+.wa-mstatus-delivered {
+    background: #f0fdf4;
+    color: #15803d;
+}
+
+.wa-mstatus-read {
+    background: #ecfdf5;
+    color: #059669;
+}
+
+.wa-mstatus-failed {
+    background: #fef2f2;
+    color: #b91c1c;
+}
+
+.wa-mstatus-suppressed {
+    background: #fef9c3;
+    color: #92400e;
+}
+
+/* Empty state */
+.wa-empty-text {
+    text-align: center;
+    padding: 2rem 1rem;
+    color: var(--color-text-muted, #999);
+    font-size: 0.875rem;
+}
+
+/* Pagination */
+.wa-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    padding: 0.875rem 0 0;
+}
+
+.wa-page-info {
+    font-size: 0.75rem;
+    color: var(--color-text-muted, #999);
+}
+
+/* ── Phase 2B — Campaigns ──────────────────────────────────────── */
+
+/* Campaign progress bar */
+.camp-progress-bar {
+    display: flex;
+    height: 8px;
+    border-radius: 999px;
+    background: var(--color-surface, #f0f0f0);
+    overflow: hidden;
+    margin-bottom: 0.5rem;
+}
+
+.camp-progress-fill {
+    height: 100%;
+    transition: width 0.5s ease;
+}
+
+.camp-progress-success {
+    background: #22c55e;
+}
+
+.camp-progress-failed {
+    background: #ef4444;
+}
+
+.camp-progress-skipped {
+    background: #f59e0b;
+}
+
+/* Campaign summary box */
+.camp-summary-box {
+    padding: 1rem;
+    border-radius: 10px;
+    background: var(--color-surface, #fafafa);
+    border: 1px solid var(--color-border-subtle, #e5e5e5);
+    margin-bottom: 1rem;
+    font-size: 0.8125rem;
+    line-height: 1.8;
+}
+
+.camp-summary-box p {
+    margin: 0;
+}
+
+/* Toast error variant */
+.wa-toast-error {
+    background: #fef2f2 !important;
+    color: #b91c1c !important;
+    border-color: rgba(220, 38, 38, 0.15) !important;
+}
+
+/* Danger button */
+.wa-btn-danger {
+    background: #fef2f2;
+    color: #dc2626;
+    border: 1px solid rgba(220, 38, 38, 0.15);
+    padding: 0.5rem 1rem;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 0.8125rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.wa-btn-danger:hover {
+    background: #fee2e2;
+}
+
+.wa-btn-danger:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
