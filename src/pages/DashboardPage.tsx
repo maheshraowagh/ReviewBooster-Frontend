@@ -21,6 +21,12 @@ interface OverviewData {
   insight: string | null;
   ratingTrend: TrendPoint[];
   ratingDistribution: Record<string, number>;
+  reviewVelocity: {
+    thisWeek: number;
+    lastWeek: number;
+    weeklyAvgLast30Days: number;
+    trend: 'up' | 'down' | 'stable';
+  };
   businessName: string;
   businessCode: string;
 }
@@ -240,6 +246,29 @@ export default function DashboardPage() {
                 </svg>
               }
             />
+            {/* Review Velocity Card */}
+            {data.reviewVelocity && (
+              <div className={`stat-card stat-card--velocity stat-card--velocity-${data.reviewVelocity.trend}`}>
+                <div className="stat-card-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" width="22" height="22">
+                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                  </svg>
+                </div>
+                <div className="stat-card-body">
+                  <p className="stat-card-label">Review Velocity</p>
+                  <p className="stat-card-value">{data.reviewVelocity.thisWeek} <span style={{ fontSize: '0.75rem', fontWeight: 400, color: '#6B6B63' }}>this week</span></p>
+                  <div className="velocity-details">
+                    <span className="velocity-detail">Last week: {data.reviewVelocity.lastWeek}</span>
+                    <span className="velocity-detail">Avg: {data.reviewVelocity.weeklyAvgLast30Days}/wk</span>
+                  </div>
+                  <div className={`velocity-trend velocity-trend--${data.reviewVelocity.trend}`}>
+                    {data.reviewVelocity.trend === 'up' && '↑ Trending up — good momentum'}
+                    {data.reviewVelocity.trend === 'down' && '↓ Momentum slowing — try placing QR codes more visibly'}
+                    {data.reviewVelocity.trend === 'stable' && '→ Steady pace'}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* ---- AI Insight ---- */}

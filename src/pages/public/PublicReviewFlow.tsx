@@ -17,33 +17,37 @@ interface BusinessData {
   googleReviewUrl: string;
   menuItems: string[];
   sessionId: string;
+  positiveTags: string[];
+  negativeTags: string[];
 }
 
 type Step = "landing" | "details" | "review" | "redirect";
 
-// Fixed universal tag set — must match backend's aiReviewService.js sentence bank keys.
-const POSITIVE_TAGS = [
-  "Great taste",
-  "Friendly staff",
-  "Fast service",
-  "Good value",
-  "Nice ambience",
-  "Clean place",
-];
-const NEGATIVE_TAGS = [
-  "Food was cold",
-  "Slow service",
-  "Rude staff",
-  "Wrong order",
-  "Dirty tables",
-  "Overpriced",
-];
 // Must match MAX_TAGS in backend/src/services/aiReviewService.js
 const MAX_TAGS = 4;
+
+// Dynamic labels per business type for Section A
+const SECTION_A_CONFIG: Record<string, { label: string; placeholder: string }> = {
+  restaurant: { label: 'What did you order?',           placeholder: 'e.g. Paneer Tikka, Cold Coffee' },
+  cafe:       { label: 'What did you order?',           placeholder: 'e.g. Cappuccino, Sandwich' },
+  bakery:     { label: 'What did you get?',             placeholder: 'e.g. Croissant, Brownie' },
+  salon:      { label: 'What did you have done?',       placeholder: 'e.g. Haircut, Hair Colour' },
+  spa:        { label: 'What treatment did you have?',  placeholder: 'e.g. Deep Tissue Massage' },
+  gym:        { label: 'What did you use?',             placeholder: 'e.g. Treadmill, Yoga Class' },
+  clinic:     { label: 'What was your visit for?',      placeholder: 'e.g. Dental Cleaning, Eye Checkup' },
+  hotel:      { label: 'What room type did you stay in?', placeholder: 'e.g. Deluxe Room, Suite' },
+  retail:     { label: 'What did you buy?',             placeholder: 'e.g. Shoes, Electronics' },
+};
+const DEFAULT_SECTION_A = { label: 'What service did you use?', placeholder: 'e.g. SEO Package, Consulting' };
 
 // Above this many menu items, switch from inline chips to a searchable
 // modal so the list doesn't overwhelm the screen.
 const MENU_MODAL_THRESHOLD = 6;
+
+const GROUP_SIZES = ['Solo', 'Couple', 'Family', 'Friends', 'Work'] as const;
+
+// Only show the group size question for hospitality / leisure businesses
+const SHOW_GROUP_SIZE_FOR = new Set(['restaurant', 'cafe', 'bakery', 'hotel', 'spa']);
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -107,6 +111,7 @@ export default function PublicReviewFlow() {
   const [note, setNote] = useState("");
   const [showMenuModal, setShowMenuModal] = useState(false);
   const [menuSearch, setMenuSearch] = useState("");
+  const [groupSize, setGroupSize] = useState<string | null>(null);
 
   // Step 3 state
   const [feedbackId, setFeedbackId] = useState("");
@@ -215,6 +220,7 @@ export default function PublicReviewFlow() {
         tags: selectedTags,
         note: note.trim(),
         dishesOrdered,
+        groupSize: groupSize ? groupSize.toLowerCase() as string : undefined,
       });
 
       setFeedbackId(result._id);
@@ -374,12 +380,23 @@ export default function PublicReviewFlow() {
 
   if (!business) return null;
 
-  // Order tag groups so the sentiment matching the rating appears first —
-  // both groups are always shown (no gating), this only affects scroll order.
-  const orderedTags =
-    rating <= 3
-      ? [...NEGATIVE_TAGS, ...POSITIVE_TAGS]
-      : [...POSITIVE_TAGS, ...NEGATIVE_TAGS];
+  // Determine which tags to show based on the star rating:
+  // 1-2 stars: Only negative
+  // 3 stars: Both negative and positive
+  // 4-5 stars: Only positive
+  const positiveTags = business.positiveTags || [];
+  const negativeTags = business.negativeTags || [];
+  
+  let orderedTags: string[] = [];
+  if (rating <= 2) {
+    orderedTags = [...negativeTags];
+  } else if (rating === 3) {
+    orderedTags = [...negativeTags, ...positiveTags];
+  } else {
+    orderedTags = [...positiveTags];
+  }
+  
+  const negativeTagSet = new Set(negativeTags);
   const useMenuModal = business.menuItems.length > MENU_MODAL_THRESHOLD;
 
   // ---- Render steps ----
@@ -431,6 +448,7 @@ export default function PublicReviewFlow() {
                 setDishFreeText("");
                 setSelectedTags([]);
                 setNote("");
+                setGroupSize(null);
                 setStep("details");
               }}
             >
@@ -446,17 +464,17 @@ export default function PublicReviewFlow() {
           <>
             <h2 className="tags-header">Tell us a bit more</h2>
 
-            {/* Section A — What did you order? (optional) */}
+            {/* Section A — What did you order/use/have done? (optional, label varies by business type) */}
             <div className="detail-section">
               <p className="detail-section-label">
-                What did you order?{" "}
+                {(SECTION_A_CONFIG[business.businessType?.toLowerCase()] || DEFAULT_SECTION_A).label}{" "}
                 <span className="detail-optional">(optional)</span>
               </p>
               {business.menuItems.length === 0 ? (
                 <input
                   type="text"
                   className="dish-text-input"
-                  placeholder="e.g. Paneer Tikka, Cold Coffee"
+                  placeholder={(SECTION_A_CONFIG[business.businessType?.toLowerCase()] || DEFAULT_SECTION_A).placeholder}
                   value={dishFreeText}
                   onChange={(e) =>
                     setDishFreeText(e.target.value.slice(0, 200))
@@ -516,13 +534,13 @@ export default function PublicReviewFlow() {
             {/* Section B — What stood out? (must select at least one, or write a note) */}
             <div className="detail-section">
               <p className="detail-section-label">
-                What stood out?{" "}
+                {rating <= 2 ? "What went wrong?" : rating === 3 ? "What went well / wrong?" : "What went well?"}{" "}
                 <span className="detail-optional">(pick up to {MAX_TAGS})</span>
               </p>
               <div className="tags-list-horizontal tags-list-scroll">
                 {orderedTags.map((tag) => {
                   const isSelected = selectedTags.includes(tag);
-                  const isNegative = NEGATIVE_TAGS.includes(tag);
+                  const isNegative = negativeTagSet.has(tag);
                   return (
                     <button
                       key={tag}
@@ -547,6 +565,32 @@ export default function PublicReviewFlow() {
               rows={2}
             />
             <p className="note-count">{note.length}/500</p>
+
+            {/* Section D — Who did you visit with? (optional, only for relevant business types) */}
+            {business.businessType && SHOW_GROUP_SIZE_FOR.has(business.businessType.toLowerCase()) && (
+              <div className="detail-section">
+                <p className="detail-section-label">
+                  Who did you visit with?{" "}
+                  <span className="detail-optional">(optional)</span>
+                </p>
+                <div className="tags-list-horizontal">
+                  {GROUP_SIZES.map((size) => {
+                    const isSelected = groupSize === size;
+                    return (
+                      <button
+                        key={size}
+                        className={`tag-chip ${isSelected ? "selected" : ""}`}
+                        onClick={() =>
+                          setGroupSize(isSelected ? null : size)
+                        }
+                      >
+                        {size}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {error && <p className="public-error">{error}</p>}
 

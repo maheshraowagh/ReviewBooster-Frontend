@@ -5,6 +5,23 @@ import type { Business } from "../types";
 const MAX_ITEMS = 20;
 const MAX_LENGTH = 50;
 
+// Dynamic labels for the items section based on business type
+const ITEMS_LABELS: Record<string, { heading: string; hint: string; placeholder: string; footnote: string }> = {
+  salon:      { heading: 'Services offered', hint: 'Add your services so customers can mention them in reviews.', placeholder: 'e.g. Haircut, Hair Colour', footnote: 'These appear as tap-to-select chips in your customer review flow.' },
+  spa:        { heading: 'Treatments offered', hint: 'Add your treatments so customers can mention them in reviews.', placeholder: 'e.g. Deep Tissue Massage', footnote: 'These appear as tap-to-select chips in your customer review flow.' },
+  gym:        { heading: 'Facilities / Classes', hint: 'Add your facilities or classes so customers can mention them.', placeholder: 'e.g. Yoga Class, Swimming Pool', footnote: 'These appear as tap-to-select chips in your customer review flow.' },
+  clinic:     { heading: 'Services offered', hint: 'Add your services so patients can mention them in reviews.', placeholder: 'e.g. Dental Cleaning, Eye Checkup', footnote: 'These appear as tap-to-select chips in your customer review flow.' },
+  hotel:      { heading: 'Room types / Amenities', hint: 'Add room types or amenities so guests can mention them.', placeholder: 'e.g. Deluxe Room, Rooftop Pool', footnote: 'These appear as tap-to-select chips in your customer review flow.' },
+  retail:     { heading: 'Product categories', hint: 'Add your product categories so customers can mention them.', placeholder: 'e.g. Electronics, Clothing', footnote: 'These appear as tap-to-select chips in your customer review flow.' },
+};
+
+const DEFAULT_LABELS = {
+  heading: 'Menu items',
+  hint: 'Add your dishes so customers can tap to recommend them when leaving a review.',
+  placeholder: 'e.g. KitKat Shake',
+  footnote: 'These appear as tap-to-select chips in your customer review flow.',
+};
+
 export default function SettingsPage() {
   const [business, setBusiness] = useState<Business | null>(null);
   const [menuItems, setMenuItems] = useState<string[]>([]);
@@ -186,10 +203,9 @@ export default function SettingsPage() {
       {/* ---- Content ---- */}
       {!loading && business && (
         <div className="db-card">
-          <h2 className="db-card-title">Menu items</h2>
+          <h2 className="db-card-title">{(ITEMS_LABELS[business.businessType?.toLowerCase()] || DEFAULT_LABELS).heading}</h2>
           <p className="settings-menu-hint">
-            Add your dishes so customers can tap to recommend them when leaving
-            a review.
+            {(ITEMS_LABELS[business.businessType?.toLowerCase()] || DEFAULT_LABELS).hint}
           </p>
 
           {!bulkMode ? (
@@ -198,7 +214,7 @@ export default function SettingsPage() {
                 <input
                   type="text"
                   className="settings-menu-input"
-                  placeholder="e.g. KitKat Shake"
+                  placeholder={(ITEMS_LABELS[business.businessType?.toLowerCase()] || DEFAULT_LABELS).placeholder}
                   value={newItem}
                   maxLength={MAX_LENGTH}
                   onChange={(e) => setNewItem(e.target.value)}
@@ -296,7 +312,7 @@ export default function SettingsPage() {
           </div>
 
           <p className="settings-menu-footnote">
-            These appear as tap-to-select chips in your customer review flow.
+            {(ITEMS_LABELS[business.businessType?.toLowerCase()] || DEFAULT_LABELS).footnote}
           </p>
         </div>
       )}
