@@ -142,6 +142,30 @@ export default function WhatsAppPage() {
     return () => stopPolling();
   }, [fetchStatus, fetchUsage, fetchMessages]);
 
+  // Auto-recover: if DB says qr_generated but we have no QR data, fetch a fresh QR
+  useEffect(() => {
+    if (!loading && instance && !qrBase64) {
+      if (instance.status === "qr_generated") {
+        // Stale QR state — auto-fetch a new QR and start polling
+        (async () => {
+          try {
+            const res = await api.get<ApiResponse<{ qr?: { base64?: string }; needsQr: boolean }>>("/whatsapp/qr");
+            if (res.data.success && res.data.data?.needsQr && res.data.data.qr) {
+              setQrBase64(res.data.data.qr.base64 || null);
+              startPolling();
+            } else {
+              // Instance may have reconnected — refresh status
+              fetchStatus();
+            }
+          } catch {
+            // QR fetch failed — reset to disconnected so Connect button shows
+            setInstance((prev) => prev ? { ...prev, status: "disconnected" } : prev);
+          }
+        })();
+      }
+    }
+  }, [loading, instance?.status]);  // eslint-disable-line react-hooks/exhaustive-deps
+
   // ─── Polling ──────────────────────────────────────────────────
 
   const startPolling = useCallback(() => {

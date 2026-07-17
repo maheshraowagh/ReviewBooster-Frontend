@@ -1,8 +1,7 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { NavLink } from "react-router-dom";
-import { UserButton } from "@clerk/clerk-react";
+import { useAuth, UserButton } from "@clerk/clerk-react";
 import { useAppAuth } from "../providers/AuthProvider";
-import api, { type ApiResponse } from "../lib/api";
 
 const NAV_ITEMS = [
   {
@@ -172,27 +171,50 @@ interface SidebarProps {
 
 export default function Sidebar({ businessName }: SidebarProps) {
   const { appUser } = useAppAuth();
+  const { getToken } = useAuth();
   const [atRiskCount, setAtRiskCount] = useState(0);
 
-  const fetchBadge = useCallback(async () => {
-    try {
-      const res =
-        await api.get<ApiResponse<{ atRiskCount: number }>>(
-          "/inbox/badge-count",
-        );
-      if (res.data.success && res.data.data) {
-        setAtRiskCount(res.data.data.atRiskCount);
-      }
-    } catch {
-      // Silently ignore — badge is non-critical
-    }
-  }, []);
-
   useEffect(() => {
-    fetchBadge();
-    const interval = setInterval(fetchBadge, 60_000);
-    return () => clearInterval(interval);
-  }, [fetchBadge]);
+    let es: EventSource | null = null;
+    let closed = false;
+
+    const connect = async () => {
+      try {
+        const token = await getToken();
+        if (!token || closed) return;
+
+        const base = import.meta.env.VITE_API_URL || '/api';
+        const url = `${base}/inbox/badge-count/stream?token=${encodeURIComponent(token)}`;
+        es = new EventSource(url);
+
+        es.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data) as { atRiskCount: number };
+            setAtRiskCount(data.atRiskCount);
+          } catch {
+            // ignore malformed frames
+          }
+        };
+
+        es.onerror = () => {
+          es?.close();
+          es = null;
+          // Reconnect after 10 s if not intentionally closed
+          if (!closed) setTimeout(connect, 10_000);
+        };
+      } catch {
+        // Token fetch failed — retry later
+        if (!closed) setTimeout(connect, 10_000);
+      }
+    };
+
+    connect();
+
+    return () => {
+      closed = true;
+      es?.close();
+    };
+  }, [getToken]);
 
   return (
     <aside className="sidebar">

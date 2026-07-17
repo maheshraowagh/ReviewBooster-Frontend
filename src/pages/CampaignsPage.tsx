@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { Link } from "react-router-dom";
 import api, { type ApiResponse } from "../lib/api";
 
 // ─── Types ───────────────────────────────────────────────────────
@@ -76,6 +77,10 @@ export default function CampaignsPage() {
   const [toast, setToast] = useState<{ type: "success" | "error"; msg: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // WhatsApp Status
+  const [whatsappStatus, setWhatsappStatus] = useState<string | null>(null);
+  const [whatsappChecking, setWhatsappChecking] = useState(true);
+
   // ─── Fetchers ─────────────────────────────────────────────────
 
   const fetchCampaigns = useCallback(async () => {
@@ -116,7 +121,27 @@ export default function CampaignsPage() {
     } catch { /* silent */ }
   }, []);
 
-  useEffect(() => { fetchCampaigns(); }, [fetchCampaigns]);
+  const fetchWhatsappStatus = useCallback(async () => {
+    try {
+      // The API returns status and liveStatus. We prioritize liveStatus.
+      const res = await api.get<ApiResponse<{ status: string; liveStatus?: { state: string } }>>("/whatsapp/status");
+      if (res.data.success && res.data.data) {
+        const state = res.data.data.liveStatus?.state || res.data.data.status || "disconnected";
+        setWhatsappStatus(state);
+      } else {
+        setWhatsappStatus("disconnected");
+      }
+    } catch { 
+      setWhatsappStatus("disconnected");
+    } finally {
+      setWhatsappChecking(false);
+    }
+  }, []);
+
+  useEffect(() => { 
+    fetchCampaigns(); 
+    fetchWhatsappStatus();
+  }, [fetchCampaigns, fetchWhatsappStatus]);
 
   // ─── Actions ──────────────────────────────────────────────────
 
@@ -261,6 +286,30 @@ export default function CampaignsPage() {
       </div>
 
       {toast && <div className={`wa-success-toast wa-toast-${toast.type}`} role="status">{toast.msg}</div>}
+
+      {/* WhatsApp Status Banner */}
+      {!whatsappChecking && whatsappStatus !== "open" && (
+        <div style={{
+          backgroundColor: "#fef2f2",
+          border: "1px solid #f87171",
+          borderRadius: "8px",
+          padding: "1rem",
+          marginBottom: "1.5rem",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center"
+        }}>
+          <div>
+            <h3 style={{ margin: "0 0 0.25rem 0", color: "#991b1b", fontSize: "1rem" }}>WhatsApp Status</h3>
+            <p style={{ margin: 0, color: "#b91c1c", fontSize: "0.875rem" }}>
+              🔴 Not Connected {whatsappStatus === "connecting" && "(Connecting...)"}
+            </p>
+          </div>
+          <Link to="/whatsapp" className="wa-btn wa-btn-primary" style={{ textDecoration: "none" }}>
+            Connect WhatsApp
+          </Link>
+        </div>
+      )}
 
       {/* ──── Campaign List ──── */}
       {view === "list" && (
@@ -451,7 +500,11 @@ export default function CampaignsPage() {
 
               <div style={{ display: "flex", gap: "0.75rem" }}>
                 <button className="wa-btn wa-btn-secondary" onClick={() => setWizardStep(2)}>← Back</button>
-                <button className="wa-btn wa-btn-primary" disabled={creating || csvPreview.valid === 0} onClick={handleCreateCampaign}>
+                <button 
+                  className="wa-btn wa-btn-primary" 
+                  disabled={creating || csvPreview.valid === 0 || whatsappStatus !== "open"} 
+                  onClick={handleCreateCampaign}
+                >
                   {creating ? "Creating..." : `Create Campaign (${csvPreview.valid} recipients)`}
                 </button>
               </div>
@@ -509,7 +562,11 @@ export default function CampaignsPage() {
             {/* Actions */}
             <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginTop: "0.75rem" }}>
               {["draft", "paused", "scheduled"].includes(detail.status) && (
-                <button className="wa-btn wa-btn-primary" disabled={!!actionLoading} onClick={() => handleAction(detail._id, "start")}>
+                <button 
+                  className="wa-btn wa-btn-primary" 
+                  disabled={!!actionLoading || whatsappStatus !== "open"} 
+                  onClick={() => handleAction(detail._id, "start")}
+                >
                   {actionLoading === "start" ? "Starting..." : "▶ Start Campaign"}
                 </button>
               )}
@@ -519,7 +576,11 @@ export default function CampaignsPage() {
                 </button>
               )}
               {detail.status === "paused" && (
-                <button className="wa-btn wa-btn-primary" disabled={!!actionLoading} onClick={() => handleAction(detail._id, "resume")}>
+                <button 
+                  className="wa-btn wa-btn-primary" 
+                  disabled={!!actionLoading || whatsappStatus !== "open"} 
+                  onClick={() => handleAction(detail._id, "resume")}
+                >
                   {actionLoading === "resume" ? "..." : "▶ Resume"}
                 </button>
               )}
