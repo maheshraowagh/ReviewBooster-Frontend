@@ -4,7 +4,7 @@ import {
   ProtectedRoute,
   PublicOnlyRoute,
   OnboardingGuard,
-  // AdminGuard,      // Enabled in Phase 7
+  AdminGuard,
 } from "./components/RouteGuards";
 import DashboardLayout from "./components/DashboardLayout";
 
@@ -22,6 +22,12 @@ import SettingsPage from "./pages/SettingsPage";
 import PublicReviewFlow from "./pages/public/PublicReviewFlow";
 import WhatsAppPage from "./pages/WhatsAppPage";
 import CampaignsPage from "./pages/CampaignsPage";
+
+// Admin Pages
+import AdminLayout from "./components/AdminLayout";
+import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
+import AdminBusinessesPage from "./pages/admin/AdminBusinessesPage";
+import AdminUsersPage from "./pages/admin/AdminUsersPage";
 
 export default function App() {
   return (
@@ -59,7 +65,14 @@ export default function App() {
           </Route>
 
           {/* ---- Admin routes ---- */}
-          {/* Phase 7: <Route element={<AdminGuard />}> ... </Route> */}
+          <Route element={<AdminGuard />}>
+            <Route element={<AdminLayout />}>
+              <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
+              <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
+              <Route path="/admin/businesses" element={<AdminBusinessesPage />} />
+              <Route path="/admin/users" element={<AdminUsersPage />} />
+            </Route>
+          </Route>
 
           {/* ---- Catch-all redirect ---- */}
           <Route path="*" element={<Navigate to="/dashboard" replace />} />

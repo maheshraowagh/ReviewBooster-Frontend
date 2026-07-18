@@ -368,11 +368,11 @@ export default function WhatsAppPage() {
           </div>
           <div>
             <h2 className="wa-card-title">WhatsApp Connection</h2>
-            <p className="wa-card-desc">{isConnected ? "Connected and ready" : "Connect to get started"}</p>
+            <p className="wa-card-desc">{isConnected ? "Connected and ready" : isQrPhase ? "Scan QR code to connect" : "Connect to get started"}</p>
           </div>
           <div className={`wa-status-badge wa-status-${instance?.status || "disconnected"}`}>
             <span className="wa-status-dot" />
-            {isConnected ? "Connected" : instance?.status === "qr_generated" ? "Scanning..." : "Disconnected"}
+            {isConnected ? "Connected" : instance?.status === "qr_generated" ? "Awaiting Scan" : "Disconnected"}
           </div>
         </div>
 

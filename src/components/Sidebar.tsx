@@ -284,6 +284,21 @@ export default function Sidebar({ businessName }: SidebarProps) {
 
       {/* User Profile Footer */}
       <div className="sidebar-footer">
+        {appUser?.role === 'admin' && (
+          <NavLink 
+            to="/admin/dashboard" 
+            style={{ 
+              display: "block", 
+              marginBottom: "1rem", 
+              color: "var(--color-brand)", 
+              fontSize: "0.9rem", 
+              fontWeight: 500, 
+              textDecoration: "none" 
+            }}
+          >
+            🛡️ Go to Admin Panel
+          </NavLink>
+        )}
         <div className="sidebar-user">
           <UserButton afterSignOutUrl="/sign-in" />
           <div className="sidebar-user-info">

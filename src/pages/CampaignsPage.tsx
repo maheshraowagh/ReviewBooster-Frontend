@@ -50,6 +50,14 @@ export default function CampaignsPage() {
   // Views
   const [view, setView] = useState<"list" | "create" | "detail">("list");
   const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [confirmModal, setConfirmModal] = useState<{
+    title: string;
+    message: string;
+    confirmText?: string;
+    onConfirm: () => void;
+  } | null>(null);
+
 
   // Campaign list
   const [campaigns, setCampaigns] = useState<CampaignSummary[]>([]);
@@ -124,9 +132,9 @@ export default function CampaignsPage() {
   const fetchWhatsappStatus = useCallback(async () => {
     try {
       // The API returns status and liveStatus. We prioritize liveStatus.
-      const res = await api.get<ApiResponse<{ status: string; liveStatus?: { state: string } }>>("/whatsapp/status");
+      const res = await api.get<ApiResponse<{ status: string; liveStatus?: any }>>("/whatsapp/status");
       if (res.data.success && res.data.data) {
-        const state = res.data.data.liveStatus?.state || res.data.data.status || "disconnected";
+        const state = res.data.data.liveStatus?.instance?.state || res.data.data.liveStatus?.state || res.data.data.status || "disconnected";
         setWhatsappStatus(state);
       } else {
         setWhatsappStatus("disconnected");
@@ -142,6 +150,18 @@ export default function CampaignsPage() {
     fetchCampaigns(); 
     fetchWhatsappStatus();
   }, [fetchCampaigns, fetchWhatsappStatus]);
+
+  // Poll for campaign detail updates when running
+  useEffect(() => {
+    let interval: ReturnType<typeof setInterval>;
+    if (view === "detail" && detail?._id && detail?.status === "running") {
+      interval = setInterval(() => {
+        fetchDetail(detail._id);
+        fetchCampaigns(); // To update the list in the background too
+      }, 5000);
+    }
+    return () => clearInterval(interval);
+  }, [view, detail?._id, detail?.status, fetchDetail, fetchCampaigns]);
 
   // ─── Actions ──────────────────────────────────────────────────
 
@@ -236,6 +256,75 @@ export default function CampaignsPage() {
     }
   };
 
+  const handleDeleteCampaign = (id: string, name: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setConfirmModal({
+      title: "Delete Campaign",
+      message: `Are you sure you want to delete campaign "${name}"? This action cannot be undone.`,
+      confirmText: "Delete Campaign",
+      onConfirm: async () => {
+        setActionLoading(`delete-${id}`);
+        try {
+          const res = await api.delete<ApiResponse<any>>(`/campaigns/${id}`);
+          if (res.data.success) {
+            showToast("success", `Campaign "${name}" deleted ✅`);
+            setSelectedIds((prev) => prev.filter((item) => item !== id));
+            if (selectedCampaignId === id && view === "detail") {
+              setView("list");
+            }
+            fetchCampaigns();
+          } else {
+            showToast("error", res.data.error?.message || "Failed to delete campaign");
+          }
+        } catch (err: unknown) {
+          showToast("error", err instanceof Error ? err.message : "Failed to delete campaign");
+        } finally {
+          setActionLoading("");
+        }
+      },
+    });
+  };
+
+  const handleBulkDelete = () => {
+    if (selectedIds.length === 0) return;
+    setConfirmModal({
+      title: "Delete Selected Campaigns",
+      message: `Are you sure you want to delete ${selectedIds.length} selected campaign(s)? All associated recipient records and queued messages will be permanently removed.`,
+      confirmText: `Delete ${selectedIds.length} Campaign(s)`,
+      onConfirm: async () => {
+        setActionLoading("bulk-delete");
+        try {
+          const res = await api.post<ApiResponse<any>>("/campaigns/bulk-delete", { ids: selectedIds });
+          if (res.data.success) {
+            showToast("success", `Deleted ${selectedIds.length} campaign(s) ✅`);
+            setSelectedIds([]);
+            fetchCampaigns();
+          } else {
+            showToast("error", res.data.error?.message || "Failed to bulk delete campaigns");
+          }
+        } catch (err: unknown) {
+          showToast("error", err instanceof Error ? err.message : "Failed to bulk delete campaigns");
+        } finally {
+          setActionLoading("");
+        }
+      },
+    });
+  };
+
+
+  const toggleSelect = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]));
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.length === campaigns.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(campaigns.map((c) => c._id));
+    }
+  };
+
   const openDetail = (id: string) => {
     setSelectedCampaignId(id);
     setView("detail");
@@ -269,18 +358,27 @@ export default function CampaignsPage() {
   return (
     <div className="db-page animate-fade-in">
       <div className="db-topbar">
-        <div>
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+          {view !== "list" && (
+            <button
+              className="wa-btn wa-btn-secondary"
+              style={{ alignSelf: "flex-start", marginBottom: "0.5rem" }}
+              onClick={() => { setView("list"); fetchCampaigns(); }}
+            >
+              ← Back to List
+            </button>
+          )}
           <h1 className="db-title">Campaigns</h1>
           <p className="db-subtitle">Send WhatsApp review requests in bulk</p>
         </div>
         {view !== "create" && (
-          <button className="wa-btn wa-btn-primary" onClick={() => { resetWizard(); setView("create"); }}>
+          <button
+            className="wa-btn wa-btn-primary"
+            disabled={!whatsappChecking && whatsappStatus !== "open" && whatsappStatus !== "connected"}
+            title={!whatsappChecking && whatsappStatus !== "open" && whatsappStatus !== "connected" ? "Please connect WhatsApp first to create campaigns" : ""}
+            onClick={() => { resetWizard(); setView("create"); }}
+          >
             + New Campaign
-          </button>
-        )}
-        {view !== "list" && (
-          <button className="wa-btn wa-btn-secondary" onClick={() => { setView("list"); fetchCampaigns(); }}>
-            ← Back to List
           </button>
         )}
       </div>
@@ -288,7 +386,7 @@ export default function CampaignsPage() {
       {toast && <div className={`wa-success-toast wa-toast-${toast.type}`} role="status">{toast.msg}</div>}
 
       {/* WhatsApp Status Banner */}
-      {!whatsappChecking && whatsappStatus !== "open" && (
+      {!whatsappChecking && whatsappStatus !== "open" && whatsappStatus !== "connected" && (
         <div style={{
           backgroundColor: "#fef2f2",
           border: "1px solid #f87171",
@@ -302,7 +400,7 @@ export default function CampaignsPage() {
           <div>
             <h3 style={{ margin: "0 0 0.25rem 0", color: "#991b1b", fontSize: "1rem" }}>WhatsApp Status</h3>
             <p style={{ margin: 0, color: "#b91c1c", fontSize: "0.875rem" }}>
-              🔴 Not Connected {whatsappStatus === "connecting" && "(Connecting...)"}
+              🔴 Not Connected {whatsappStatus === "connecting" && "(Connecting...)"} — Connect your WhatsApp to create and start campaigns.
             </p>
           </div>
           <Link to="/whatsapp" className="wa-btn wa-btn-primary" style={{ textDecoration: "none" }}>
@@ -315,15 +413,27 @@ export default function CampaignsPage() {
       {view === "list" && (
         <div className="wa-card">
           <div className="wa-card-header">
-            <div className="wa-card-icon wa-card-icon-blue">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="24" height="24">
-                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" /><polyline points="22,6 12,13 2,6" />
-              </svg>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+              <div className="wa-card-icon wa-card-icon-blue">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="24" height="24">
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" /><polyline points="22,6 12,13 2,6" />
+                </svg>
+              </div>
+              <div>
+                <h2 className="wa-card-title">All Campaigns</h2>
+                <p className="wa-card-desc">{campaigns.length} campaigns</p>
+              </div>
             </div>
-            <div>
-              <h2 className="wa-card-title">All Campaigns</h2>
-              <p className="wa-card-desc">{campaigns.length} campaigns</p>
-            </div>
+            {selectedIds.length > 0 && (
+              <button
+                className="wa-btn wa-btn-danger wa-btn-sm"
+                style={{ marginLeft: "auto" }}
+                onClick={handleBulkDelete}
+                disabled={actionLoading === "bulk-delete"}
+              >
+                {actionLoading === "bulk-delete" ? "Deleting..." : `Delete Selected (${selectedIds.length})`}
+              </button>
+            )}
           </div>
 
           {listLoading ? (
@@ -334,18 +444,47 @@ export default function CampaignsPage() {
             <div className="wa-messages-table-wrap">
               <table className="wa-messages-table">
                 <thead>
-                  <tr><th>Name</th><th>Status</th><th>Recipients</th><th>Sent</th><th>Failed</th><th>Created</th><th></th></tr>
+                  <tr>
+                    <th style={{ width: "40px" }}>
+                      <input
+                        type="checkbox"
+                        checked={campaigns.length > 0 && selectedIds.length === campaigns.length}
+                        onChange={toggleSelectAll}
+                      />
+                    </th>
+                    <th>Name</th><th>Status</th><th>Recipients</th><th>Sent</th><th>Failed</th><th>Created</th><th>Actions</th>
+                  </tr>
                 </thead>
                 <tbody>
                   {campaigns.map((c) => (
                     <tr key={c._id} style={{ cursor: "pointer" }} onClick={() => openDetail(c._id)}>
+                      <td onClick={(e) => toggleSelect(c._id, e)}>
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.includes(c._id)}
+                          onChange={() => {}}
+                        />
+                      </td>
                       <td><strong>{c.name}</strong></td>
                       <td><span className="wa-msg-status" style={{ background: `${statusColor(c.status)}15`, color: statusColor(c.status) }}>{c.status}</span></td>
                       <td>{c.totalRecipients}</td>
                       <td>{c.successCount}</td>
                       <td>{c.failedCount}</td>
                       <td className="wa-msg-time">{new Date(c.createdAt).toLocaleDateString()}</td>
-                      <td><button className="wa-btn wa-btn-secondary wa-btn-sm" onClick={(e) => { e.stopPropagation(); openDetail(c._id); }}>View</button></td>
+                      <td>
+                        <div style={{ display: "flex", gap: "0.5rem" }} onClick={(e) => e.stopPropagation()}>
+                          <button className="wa-btn wa-btn-secondary wa-btn-sm" onClick={() => openDetail(c._id)}>View</button>
+                          <button
+                            className="wa-btn wa-btn-danger wa-btn-sm"
+                            style={{ padding: "0.25rem 0.5rem" }}
+                            disabled={actionLoading === `delete-${c._id}`}
+                            onClick={(e) => handleDeleteCampaign(c._id, c.name, e)}
+                            title="Delete campaign"
+                          >
+                            {actionLoading === `delete-${c._id}` ? "..." : "🗑️"}
+                          </button>
+                        </div>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -585,10 +724,28 @@ export default function CampaignsPage() {
                 </button>
               )}
               {!["completed", "cancelled"].includes(detail.status) && (
-                <button className="wa-btn wa-btn-danger" disabled={!!actionLoading} onClick={() => { if (confirm("Cancel this campaign?")) handleAction(detail._id, "cancel"); }}>
+                <button
+                  className="wa-btn wa-btn-danger"
+                  disabled={!!actionLoading}
+                  onClick={() => {
+                    setConfirmModal({
+                      title: "Cancel Campaign",
+                      message: "Are you sure you want to cancel this campaign? Any unsent messages will be stopped immediately.",
+                      confirmText: "Yes, Cancel Campaign",
+                      onConfirm: () => handleAction(detail._id, "cancel"),
+                    });
+                  }}
+                >
                   {actionLoading === "cancel" ? "..." : "✕ Cancel"}
                 </button>
               )}
+              <button
+                className="wa-btn wa-btn-danger"
+                disabled={!!actionLoading}
+                onClick={() => handleDeleteCampaign(detail._id, detail.name)}
+              >
+                {actionLoading === `delete-${detail._id}` ? "Deleting..." : "🗑️ Delete Campaign"}
+              </button>
               <button className="wa-btn wa-btn-secondary wa-btn-sm" onClick={() => fetchDetail(detail._id)}>
                 ↻ Refresh
               </button>
@@ -623,7 +780,15 @@ export default function CampaignsPage() {
                               : r.deliveredAt ? `✓✓ ${new Date(r.deliveredAt).toLocaleTimeString()}`
                               : "—"}
                           </td>
-                          <td className="wa-msg-time" style={{ color: "#dc2626" }}>{r.lastError || r.skipReason || ""}</td>
+                          <td className="wa-msg-time" style={{ color: "#dc2626" }}>
+                            {(() => {
+                              const raw = r.lastError || r.skipReason || "";
+                              if (!raw) return "";
+                              if (raw.includes("[object Object]")) return "Send failed — invalid phone format (missing country code?)";
+                              if (raw.toLowerCase().includes("phone") && raw.includes("400")) return "Invalid phone number — ensure it includes country code (e.g. 91XXXXXXXXXX)";
+                              return raw;
+                            })()}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -641,6 +806,41 @@ export default function CampaignsPage() {
           </div>
         </>
       )}
+
+      {/* Confirmation Modal */}
+      {confirmModal && (
+        <div className="wa-modal-overlay" onClick={() => setConfirmModal(null)}>
+          <div className="wa-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="wa-modal-header">
+              <div className="wa-modal-icon-danger">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20">
+                  <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+              </div>
+              <h3 className="wa-modal-title">{confirmModal.title}</h3>
+            </div>
+            <div className="wa-modal-body">
+              {confirmModal.message}
+            </div>
+            <div className="wa-modal-actions">
+              <button className="wa-btn wa-btn-secondary" onClick={() => setConfirmModal(null)}>
+                Cancel
+              </button>
+              <button
+                className="wa-btn wa-btn-danger"
+                onClick={() => {
+                  const onConfirm = confirmModal.onConfirm;
+                  setConfirmModal(null);
+                  onConfirm();
+                }}
+              >
+                {confirmModal.confirmText || "Confirm Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+

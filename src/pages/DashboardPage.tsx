@@ -75,7 +75,7 @@ function RatingBar({ star, count, max }: { star: number; count: number; max: num
   );
 }
 
-function TrendChart({ data, period }: { data: TrendPoint[]; period: Period }) {
+function TrendChart({ data }: { data: TrendPoint[] }) {
   if (!data || data.length === 0) {
     return (
       <div className="trend-empty">
@@ -292,7 +292,7 @@ export default function DashboardPage() {
             {/* Rating Trend */}
             <div className="db-card db-card--trend">
               <h2 className="db-card-title">Rating Trend</h2>
-              <TrendChart data={data.ratingTrend} period={period} />
+              <TrendChart data={data.ratingTrend} />
             </div>
 
             {/* Rating Distribution */}

@@ -2335,11 +2335,11 @@ button {
 }
 
 .wa-status-qr_generated {
-    background: #fef9c3;
-    color: #a16207;
+    background: #eff6ff;
+    color: #1d4ed8;
 }
 .wa-status-qr_generated .wa-status-dot {
-    background: #eab308;
+    background: #3b82f6;
     animation: wa-pulse 1.5s ease-in-out infinite;
 }
 
@@ -2358,6 +2358,83 @@ button {
 @keyframes wa-pulse {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.4; }
+}
+
+/* WhatsApp & Campaigns Modal */
+.wa-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 1rem;
+    animation: fadeIn 150ms ease;
+}
+
+.wa-modal {
+    background: var(--color-surface-card);
+    border: 1px solid var(--color-border-subtle);
+    border-radius: 16px;
+    padding: 1.75rem;
+    width: 100%;
+    max-width: 440px;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    animation: scaleUp 150ms ease;
+}
+
+.wa-modal-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.wa-modal-icon-danger {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: #fef2f2;
+    color: #dc2626;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.wa-modal-title {
+    font-size: 1.125rem;
+    font-weight: 650;
+    color: var(--color-text-primary);
+    margin: 0;
+}
+
+.wa-modal-body {
+    font-size: 0.9375rem;
+    color: var(--color-text-secondary);
+    line-height: 1.5;
+    margin-bottom: 1.5rem;
+}
+
+.wa-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes scaleUp {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
 }
 
 /* Connected info */
