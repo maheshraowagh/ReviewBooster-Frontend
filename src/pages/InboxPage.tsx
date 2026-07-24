@@ -82,71 +82,57 @@ const statusLabel = (s: string) => {
 
 // ---- Sub-components -------------------------------------------------------
 
-function FeedbackCard({
-  item,
-  selected,
-  onToggle,
-  onClick,
-}: {
-  item: FeedbackItem;
-  selected: boolean;
-  onToggle: () => void;
-  onClick: () => void;
-}) {
+function RadialConversionRate({ scans, clicks }: { scans: number; clicks: number }) {
+  const rate = scans > 0 ? Math.round((clicks / scans) * 100) : 0;
+  
+  // SVG Donut params
+  const radius = 30;
+  const stroke = 5.5;
+  const normalizedRadius = radius - stroke * 2;
+  const circumference = normalizedRadius * 2 * Math.PI;
+  const strokeDashoffset = circumference - (rate / 100) * circumference;
+
   return (
-    <div
-      className={`inbox-card${selected ? " inbox-card--selected" : ""}`}
-      onClick={onClick}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => e.key === "Enter" && onClick()}
-    >
-      <div
-        className="inbox-card-check"
-        onClick={(e) => {
-          e.stopPropagation();
-          onToggle();
-        }}
-      >
-        <input
-          type="checkbox"
-          checked={selected}
-          onChange={onToggle}
-          className="inbox-checkbox"
-          aria-label={`Select feedback ${item._id}`}
-        />
+    <div className="inbox-analytics-card">
+      <div style={{ position: 'relative', width: '60px', height: '60px', flexShrink: 0 }}>
+        <svg height="60" width="60" style={{ transform: 'rotate(-90deg)' }}>
+          <circle
+            stroke="#f2f0ea"
+            fill="transparent"
+            strokeWidth={stroke}
+            r={normalizedRadius}
+            cx="30"
+            cy="30"
+          />
+          <circle
+            stroke="var(--color-brand)"
+            fill="transparent"
+            strokeWidth={stroke}
+            strokeDasharray={circumference + ' ' + circumference}
+            style={{ strokeDashoffset, transition: 'stroke-dashoffset 0.5s ease-in-out' }}
+            strokeLinecap="round"
+            r={normalizedRadius}
+            cx="30"
+            cy="30"
+          />
+        </svg>
+        <div style={{
+          position: 'absolute',
+          inset: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}>
+          <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--color-text-primary)' }}>{rate}%</span>
+        </div>
       </div>
-      <div className="inbox-card-body">
-        <div className="inbox-card-top">
-          <span
-            className="inbox-card-stars"
-            style={{ color: starColor(item.rating) }}
-          >
-            {renderStars(item.rating)}
-          </span>
-          <span className={`inbox-status-badge inbox-status--${item.status}`}>
-            {statusLabel(item.status)}
-          </span>
-        </div>
-        <div className="inbox-card-tags">
-          {item.tags.slice(0, 4).map((tag) => (
-            <span key={tag} className="inbox-tag">
-              {tag}
-            </span>
-          ))}
-          {item.tags.length > 4 && (
-            <span className="inbox-tag inbox-tag--more">
-              +{item.tags.length - 4}
-            </span>
-          )}
-        </div>
-        <p className="inbox-card-note">
-          {truncate(
-            item.note || item.finalText || item.aiDraftText || "No note",
-            120,
-          )}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <h3 style={{ margin: '0 0 0.15rem 0', fontSize: '0.8125rem', fontWeight: 700, color: 'var(--color-text-primary)' }}>
+          Google Redirection Rate
+        </h3>
+        <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--color-text-secondary)', lineHeight: 1.35 }}>
+          {clicks} redirections out of {scans} total scans.
         </p>
-        <span className="inbox-card-date">{formatDate(item.createdAt)}</span>
       </div>
     </div>
   );
@@ -163,7 +149,6 @@ function DrawerDetail({
   onResolve: (id: string) => void;
   resolving: boolean;
 }) {
-  // ---- Owner reply state (Phase 9) — self-contained, stateless on the backend ----
   const [replyDraft, setReplyDraft] = useState("");
   const [replyStarted, setReplyStarted] = useState(false);
   const [replyLoading, setReplyLoading] = useState(false);
@@ -196,8 +181,7 @@ function DrawerDetail({
     try {
       await navigator.clipboard.writeText(replyDraft);
     } catch {
-      // Clipboard may fail silently on some browsers — still proceed, the
-      // owner can select the text manually from the textarea.
+      // fallback
     }
     window.open(
       "https://business.google.com/reviews",
@@ -229,8 +213,8 @@ function DrawerDetail({
               strokeWidth="2"
               strokeLinecap="round"
               strokeLinejoin="round"
-              width="20"
-              height="20"
+              width="18"
+              height="18"
             >
               <line x1="18" y1="6" x2="6" y2="18" />
               <line x1="6" y1="6" x2="18" y2="18" />
@@ -253,9 +237,11 @@ function DrawerDetail({
           {/* Status */}
           <div className="inbox-drawer-section">
             <span className="inbox-drawer-label">Status</span>
-            <span className={`inbox-status-badge inbox-status--${item.status}`}>
-              {statusLabel(item.status)}
-            </span>
+            <div>
+              <span className={`inbox-status-badge inbox-status--${item.status}`}>
+                {statusLabel(item.status)}
+              </span>
+            </div>
           </div>
 
           {/* Tags */}
@@ -298,17 +284,18 @@ function DrawerDetail({
             </div>
           )}
 
-          {/* Timestamp */}
-          <div className="inbox-drawer-section">
+          {/* Submitted */}
+          <div className="inbox-drawer-section" style={{ borderBottom: 'none', paddingBottom: 0 }}>
             <span className="inbox-drawer-label">Submitted</span>
             <span className="inbox-drawer-date">
               {formatDate(item.createdAt)}
             </span>
           </div>
+        </div>
 
-          {/* Owner reply (Phase 9) — the core action-driving feature, styled
-              as a prominent card and placed in the scrollable body so
-              "Mark Resolved" below stays the final, always-visible step. */}
+        {/* Fixed Footer for Actions and Reply Draft */}
+        <div className="inbox-drawer-footer">
+          {/* Owner Reply card */}
           <div className="inbox-reply-card">
             <div className="inbox-reply-card-header">
               <span className="inbox-reply-card-icon">
@@ -326,10 +313,9 @@ function DrawerDetail({
                 </svg>
               </span>
               <div>
-                <span className="inbox-reply-card-title">Owner reply</span>
-                <p className="inbox-reply-card-subtitle">
-                  AI-drafted reply based on this review — edit it and post in
-                  under a minute
+                <span className="inbox-reply-card-title">Owner Reply Suggestion</span>
+                <p className="inbox-reply-card-subtitle" style={{ margin: 0 }}>
+                  Generate and copy an AI reply to address this customer feedback.
                 </p>
               </div>
             </div>
@@ -342,7 +328,7 @@ function DrawerDetail({
               >
                 {replyLoading ? (
                   <>
-                    <span className="loading-spinner loading-spinner--sm" />{" "}
+                    <span className="loading-spinner loading-spinner--sm" style={{ marginRight: '6px' }} />
                     Generating...
                   </>
                 ) : (
@@ -381,61 +367,58 @@ function DrawerDetail({
                     onClick={handleCopyAndOpen}
                     disabled={!replyDraft.trim()}
                   >
-                    Copy and open Google Business Profile
+                    Copy and Open Google Reviews
                   </button>
                 </div>
 
                 <p className="inbox-reply-hint">
-                  Copy this and paste it under the review in your Google
-                  Business Profile dashboard.
+                  Paste this under the review on your Google Business Profile page.
                 </p>
 
                 {showMatchBox && (
                   <div className="inbox-reply-match-box">
                     <p className="inbox-reply-match-label">
-                      Looking for the review? Match this:
+                      Match with this review content:
                     </p>
                     <p className="inbox-reply-match-text">
-                      {referenceText || "(no review text captured)"}
-                    </p>
-                    <p className="inbox-reply-match-footer">
-                      Find this review on Google and paste your reply.
+                      {referenceText || "(no review text)"}
                     </p>
                   </div>
                 )}
               </>
             )}
           </div>
-        </div>
 
-        {/* Actions — always the final, sticky step: resolve after replying */}
-        {item.status !== "resolved" && (
-          <div className="inbox-drawer-actions">
-            <button
-              className="inbox-resolve-btn"
-              onClick={() => onResolve(item._id)}
-              disabled={resolving}
-            >
-              {resolving ? (
-                <span className="loading-spinner loading-spinner--sm" />
-              ) : (
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  width="16"
-                  height="16"
-                >
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
-              )}
-              Mark Resolved
-            </button>
-          </div>
-        )}
+          {/* Sticky Mark Resolved bottom bar */}
+          {item.status !== "resolved" && (
+            <div className="inbox-drawer-actions">
+              <button
+                className="inbox-resolve-btn"
+                onClick={() => onResolve(item._id)}
+                disabled={resolving}
+              >
+                {resolving ? (
+                  <span className="loading-spinner loading-spinner--sm" style={{ marginRight: '6px' }} />
+                ) : (
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    width="16"
+                    height="16"
+                    style={{ marginRight: '6px' }}
+                  >
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                )}
+                Mark Resolved
+              </button>
+            </div>
+          )}
+        </div>
       </aside>
 
       {toastMsg && <div className="inbox-toast">{toastMsg}</div>}
@@ -443,25 +426,17 @@ function DrawerDetail({
   );
 }
 
-function SkeletonCard() {
+function SkeletonRow() {
   return (
-    <div className="inbox-card inbox-card--skeleton">
-      <div className="inbox-card-check">
-        <div className="skeleton-box skeleton-check" />
-      </div>
-      <div className="inbox-card-body">
-        <div className="inbox-card-top">
-          <div className="skeleton-box skeleton-stars" />
-          <div className="skeleton-box skeleton-badge" />
-        </div>
-        <div className="inbox-card-tags">
-          <div className="skeleton-box skeleton-tag" />
-          <div className="skeleton-box skeleton-tag" />
-        </div>
-        <div className="skeleton-box skeleton-text" />
-        <div className="skeleton-box skeleton-date" />
-      </div>
-    </div>
+    <tr>
+      <td style={{ width: '48px' }}><div className="skeleton-box" style={{ width: '16px', height: '16px', borderRadius: '4px' }} /></td>
+      <td style={{ width: '120px' }}><div className="skeleton-box" style={{ width: '80px', height: '16px' }} /></td>
+      <td><div className="skeleton-box" style={{ width: '80%', height: '14px' }} /></td>
+      <td><div className="skeleton-box" style={{ width: '60px', height: '16px', borderRadius: '99px' }} /></td>
+      <td style={{ width: '140px' }}><div className="skeleton-box" style={{ width: '90px', height: '22px', borderRadius: '6px' }} /></td>
+      <td style={{ width: '150px' }}><div className="skeleton-box" style={{ width: '100px', height: '14px' }} /></td>
+      <td style={{ width: '60px' }}><div className="skeleton-box" style={{ width: '28px', height: '28px', borderRadius: '6px' }} /></td>
+    </tr>
   );
 }
 
@@ -474,6 +449,7 @@ export default function InboxPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [statsData, setStatsData] = useState<any>(null);
 
   // Filters
   const [search, setSearch] = useState("");
@@ -506,7 +482,19 @@ export default function InboxPage() {
     };
   }, [search]);
 
-  // Fetch data
+  // Fetch Stats Data
+  const fetchStats = useCallback(async () => {
+    try {
+      const res = await api.get('/dashboard/overview?period=year');
+      if (res.data.success) {
+        setStatsData(res.data.data);
+      }
+    } catch {
+      // non-blocking
+    }
+  }, []);
+
+  // Fetch Inbox Data
   const fetchInbox = useCallback(async () => {
     try {
       setLoading(true);
@@ -551,6 +539,10 @@ export default function InboxPage() {
     fetchInbox();
   }, [fetchInbox]);
 
+  useEffect(() => {
+    fetchStats();
+  }, [fetchStats]);
+
   // Reset page when filters change
   useEffect(() => {
     setPage(1);
@@ -589,8 +581,9 @@ export default function InboxPage() {
           prev ? { ...prev, status: "resolved" as const } : null,
         );
       }
+      fetchStats();
     } catch {
-      // silently fail — user sees the status didn't change
+      // ignore
     } finally {
       setDrawerResolving(false);
     }
@@ -608,8 +601,9 @@ export default function InboxPage() {
         ),
       );
       setSelected(new Set());
+      fetchStats();
     } catch {
-      // silently fail
+      // ignore
     } finally {
       setBulkResolving(false);
     }
@@ -668,6 +662,43 @@ export default function InboxPage() {
           </p>
         </div>
       </div>
+
+      {/* ---- Analytics Summary Cards ---- */}
+      {statsData && (
+        <div className="inbox-analytics-panel">
+          <RadialConversionRate scans={statsData.scans || 0} clicks={statsData.googleClicks || 0} />
+          
+          <div className="inbox-analytics-card">
+            <div className="inbox-dist-bars">
+              {[5, 4, 3, 2, 1].map((star) => {
+                const count = statsData.ratingDistribution?.[star] || 0;
+                const totalScans = Object.values(statsData.ratingDistribution || {}).reduce((a: any, b: any) => a + b, 0) as number;
+                const pct = totalScans > 0 ? Math.round((count / totalScans) * 100) : 0;
+                return (
+                  <div className="inbox-dist-row" key={star}>
+                    <span className="inbox-dist-label">{star}★</span>
+                    <div className="inbox-dist-track">
+                      <div className="inbox-dist-fill" style={{ width: `${pct}%`, background: starColor(star) }} />
+                    </div>
+                    <span className="inbox-dist-count">{count}</span>
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{ flexShrink: 0, textAlign: 'center', minWidth: '90px', borderLeft: '1px solid var(--color-border-subtle)', paddingLeft: '1.25rem' }}>
+              <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--color-text-primary)', lineHeight: 1.1 }}>
+                {statsData.avgRating ? Number(statsData.avgRating).toFixed(1) : '0.0'}
+              </div>
+              <div style={{ fontSize: '0.75rem', color: starColor(Math.round(statsData.avgRating || 5)), letterSpacing: '0.5px', margin: '0.25rem 0' }}>
+                {renderStars(Math.round(statsData.avgRating || 5))}
+              </div>
+              <div style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)', fontWeight: 500 }}>
+                Avg Rating
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ---- Search & Filters ---- */}
       <div className="inbox-toolbar">
@@ -811,7 +842,7 @@ export default function InboxPage() {
             disabled={bulkResolving}
           >
             {bulkResolving ? (
-              <span className="loading-spinner loading-spinner--sm" />
+              <span className="loading-spinner loading-spinner--sm" style={{ marginRight: '6px' }} />
             ) : (
               <svg
                 viewBox="0 0 24 24"
@@ -822,6 +853,7 @@ export default function InboxPage() {
                 strokeLinejoin="round"
                 width="16"
                 height="16"
+                style={{ marginRight: '6px' }}
               >
                 <polyline points="20 6 9 17 4 12" />
               </svg>
@@ -853,92 +885,166 @@ export default function InboxPage() {
         </div>
       )}
 
-      {/* ---- Loading skeleton ---- */}
-      {loading && (
-        <div className="inbox-list">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <SkeletonCard key={i} />
-          ))}
-        </div>
-      )}
-
-      {/* ---- Feedback list ---- */}
-      {!loading && items.length > 0 && (
-        <>
-          <div className="inbox-list">
-            {items.map((item) => (
-              <FeedbackCard
-                key={item._id}
-                item={item}
-                selected={selected.has(item._id)}
-                onToggle={() => toggleSelect(item._id)}
-                onClick={() => setDrawerItem(item)}
-              />
+      {/* ---- Advanced Feedback Table ---- */}
+      <div className="inbox-table-container">
+        <table className="inbox-table">
+          <thead>
+            <tr>
+              <th style={{ width: '48px' }}>
+                <input
+                  type="checkbox"
+                  checked={selected.size === items.length && items.length > 0}
+                  onChange={toggleSelectAll}
+                  className="inbox-checkbox"
+                  aria-label="Select all feedback items"
+                />
+              </th>
+              <th style={{ width: '130px' }}>Rating</th>
+              <th>Customer Note</th>
+              <th style={{ width: '180px' }}>Tags</th>
+              <th style={{ width: '140px' }}>Status</th>
+              <th style={{ width: '160px' }}>Submitted</th>
+              <th style={{ width: '60px' }}></th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading && Array.from({ length: 8 }).map((_, i) => (
+              <SkeletonRow key={i} />
             ))}
-          </div>
 
-          {/* ---- Pagination ---- */}
-          {totalPages > 1 && (
-            <div className="inbox-pagination">
-              <button
-                className="inbox-page-btn"
-                disabled={page <= 1}
-                onClick={() => setPage((p) => p - 1)}
-              >
-                ‹ Prev
-              </button>
-              {pageRange().map((p) => (
-                <button
-                  key={p}
-                  className={`inbox-page-btn${p === page ? " inbox-page-btn--active" : ""}`}
-                  onClick={() => setPage(p)}
+            {!loading && items.length > 0 && items.map((item) => {
+              const isSelected = selected.has(item._id);
+              return (
+                <tr
+                  key={item._id}
+                  className={isSelected ? 'selected' : ''}
+                  onClick={() => setDrawerItem(item)}
                 >
-                  {p}
-                </button>
-              ))}
-              <button
-                className="inbox-page-btn"
-                disabled={page >= totalPages}
-                onClick={() => setPage((p) => p + 1)}
-              >
-                Next ›
-              </button>
-            </div>
-          )}
-        </>
-      )}
+                  <td onClick={(e) => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => toggleSelect(item._id)}
+                      className="inbox-checkbox"
+                      aria-label={`Select feedback ${item._id}`}
+                    />
+                  </td>
+                  <td>
+                    <span
+                      className="inbox-table-rating"
+                      style={{
+                        background: `${starColor(item.rating)}12`,
+                        color: starColor(item.rating)
+                      }}
+                    >
+                      {item.rating}★ {renderStars(item.rating).substring(0, item.rating)}
+                    </span>
+                  </td>
+                  <td>
+                    <div className="inbox-table-note-col" title={item.note || item.finalText || item.aiDraftText}>
+                      {item.note || item.finalText || item.aiDraftText || (
+                        <span style={{ fontStyle: 'italic', color: 'var(--color-text-muted)' }}>No comment left</span>
+                      )}
+                    </div>
+                  </td>
+                  <td>
+                    <div className="inbox-table-tags-col">
+                      {item.tags.slice(0, 2).map((tag) => (
+                        <span key={tag} className="inbox-tag">
+                          {tag}
+                        </span>
+                      ))}
+                      {item.tags.length > 2 && (
+                        <span className="inbox-tag inbox-tag--more">
+                          +{item.tags.length - 2}
+                        </span>
+                      )}
+                    </div>
+                  </td>
+                  <td>
+                    <span className={`inbox-status-badge inbox-status--${item.status}`}>
+                      {statusLabel(item.status)}
+                    </span>
+                  </td>
+                  <td style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
+                    {formatDate(item.createdAt)}
+                  </td>
+                  <td>
+                    <button className="inbox-table-btn-view" aria-label="View details">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" width="13" height="13">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                        <circle cx="12" cy="12" r="3" />
+                      </svg>
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
 
-      {/* ---- Empty state ---- */}
-      {!loading && items.length === 0 && !error && (
-        <div className="inbox-empty">
-          <div className="inbox-empty-icon">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              width="48"
-              height="48"
-            >
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-            </svg>
+        {/* ---- Empty state ---- */}
+        {!loading && items.length === 0 && !error && (
+          <div className="inbox-empty">
+            <div className="inbox-empty-icon">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                width="32"
+                height="32"
+              >
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+              </svg>
+            </div>
+            <h3 className="inbox-empty-title">No feedback found</h3>
+            <p className="inbox-empty-text">
+              {hasActiveFilters
+                ? "Try adjusting your filters or search query."
+                : "Feedback from customers will appear here once they scan your QR code."}
+            </p>
+            {hasActiveFilters && (
+              <button
+                className="inbox-chip inbox-chip--clear"
+                onClick={clearFilters}
+                style={{ marginTop: '0.5rem' }}
+              >
+                Clear Filters
+              </button>
+            )}
           </div>
-          <h3 className="inbox-empty-title">No feedback found</h3>
-          <p className="inbox-empty-text">
-            {hasActiveFilters
-              ? "Try adjusting your filters or search query."
-              : "Feedback from customers will appear here once they scan your QR code."}
-          </p>
-          {hasActiveFilters && (
+        )}
+      </div>
+
+      {/* ---- Pagination ---- */}
+      {!loading && totalPages > 1 && (
+        <div className="inbox-pagination">
+          <button
+            className="inbox-page-btn"
+            disabled={page <= 1}
+            onClick={() => setPage((p) => p - 1)}
+          >
+            ‹ Prev
+          </button>
+          {pageRange().map((p) => (
             <button
-              className="inbox-chip inbox-chip--clear"
-              onClick={clearFilters}
+              key={p}
+              className={`inbox-page-btn${p === page ? " inbox-page-btn--active" : ""}`}
+              onClick={() => setPage(p)}
             >
-              Clear Filters
+              {p}
             </button>
-          )}
+          ))}
+          <button
+            className="inbox-page-btn"
+            disabled={page >= totalPages}
+            onClick={() => setPage((p) => p + 1)}
+          >
+            Next ›
+          </button>
         </div>
       )}
 
@@ -955,3 +1061,5 @@ export default function InboxPage() {
     </div>
   );
 }
+
+

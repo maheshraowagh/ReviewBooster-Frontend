@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Link } from "react-router-dom";
 import api, { type ApiResponse } from "../lib/api";
+import { useBilling } from "../lib/useBilling";
 
 // ─── Types ───────────────────────────────────────────────────────
 
@@ -88,6 +89,10 @@ export default function CampaignsPage() {
   // WhatsApp Status
   const [whatsappStatus, setWhatsappStatus] = useState<string | null>(null);
   const [whatsappChecking, setWhatsappChecking] = useState(true);
+
+  // ─── Plan gate ────────────────────────────────────────────────
+  const { subscription, isLoading: planLoading } = useBilling();
+  const isPlanBlocked = !planLoading && subscription?.plan === 'free';
 
   // ─── Fetchers ─────────────────────────────────────────────────
 
@@ -352,6 +357,59 @@ export default function CampaignsPage() {
     };
     return map[s] || "#737373";
   };
+
+  // ─── Plan-gated render ────────────────────────────────────────
+  if (!planLoading && isPlanBlocked) {
+    return (
+      <div className="db-page animate-fade-in">
+        <div className="db-topbar">
+          <div>
+            <h1 className="db-title">WhatsApp Campaigns</h1>
+            <p className="db-subtitle">Send bulk review requests to your customers</p>
+          </div>
+        </div>
+        <div className="db-card" style={{ textAlign: 'center', padding: '3rem 2rem' }}>
+          <div style={{
+            width: '64px', height: '64px', borderRadius: '16px',
+            background: '#F2F0EA', display: 'flex', alignItems: 'center',
+            justifyContent: 'center', margin: '0 auto 1.5rem',
+          }}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="28" height="28" style={{ color: '#3F7D45' }}>
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+            </svg>
+          </div>
+          <h2 style={{ fontSize: '1.375rem', fontWeight: 700, color: '#1A1A1A', marginBottom: '0.75rem' }}>
+            Campaigns require a paid plan
+          </h2>
+          <p style={{ fontSize: '0.9375rem', color: '#6B6B63', lineHeight: 1.7, maxWidth: '420px', margin: '0 auto 1.75rem' }}>
+            WhatsApp campaign management is available on the <strong>Starter</strong> plan and above.
+            Upgrade to start sending bulk review requests to your customers.
+          </p>
+          <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+            <Link
+              to="/billing"
+              style={{
+                padding: '0.75rem 1.75rem', borderRadius: '8px', fontSize: '0.9375rem',
+                fontWeight: 600, color: '#FFFFFF', background: '#3F7D45', textDecoration: 'none',
+              }}
+            >
+              View Plans &amp; Upgrade
+            </Link>
+          </div>
+          <div style={{ marginTop: '2rem', padding: '1.25rem', borderRadius: '8px', background: '#F2F0EA', border: '1px solid #E3E1D9', maxWidth: '480px', margin: '2rem auto 0' }}>
+            <p style={{ fontSize: '0.875rem', fontWeight: 600, color: '#1A1A1A', marginBottom: '0.75rem' }}>What you get with Starter (₹2,499/mo):</p>
+            <ul style={{ fontSize: '0.875rem', color: '#6B6B63', lineHeight: 2, paddingLeft: '1.25rem', margin: 0 }}>
+              <li>500 WhatsApp messages/month</li>
+              <li>Full campaign management</li>
+              <li>CSV &amp; manual number import</li>
+              <li>Live delivery tracking</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // ─── Render ───────────────────────────────────────────────────
 

@@ -3,8 +3,10 @@ import { AuthProvider } from "./providers/AuthProvider";
 import {
   ProtectedRoute,
   PublicOnlyRoute,
-  OnboardingGuard,
+  OwnerGuard,
+  NonAdminGuard,
   AdminGuard,
+  RoleRedirect,
 } from "./components/RouteGuards";
 import DashboardLayout from "./components/DashboardLayout";
 
@@ -22,19 +24,21 @@ import SettingsPage from "./pages/SettingsPage";
 import PublicReviewFlow from "./pages/public/PublicReviewFlow";
 import WhatsAppPage from "./pages/WhatsAppPage";
 import CampaignsPage from "./pages/CampaignsPage";
+import EmailCampaignsPage from "./pages/EmailCampaignsPage";
 
 // Admin Pages
 import AdminLayout from "./components/AdminLayout";
 import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
 import AdminBusinessesPage from "./pages/admin/AdminBusinessesPage";
 import AdminUsersPage from "./pages/admin/AdminUsersPage";
+import AdminActivityPage from "./pages/admin/AdminActivityPage";
 
 export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
         <Routes>
-          {/* ---- Public auth pages (redirect if already signed in) ---- */}
+          {/* ---- Public auth pages (redirect if already signed in based on role) ---- */}
           <Route element={<PublicOnlyRoute />}>
             <Route path="/sign-in/*" element={<SignInPage />} />
             <Route path="/sign-up/*" element={<SignUpPage />} />
@@ -43,13 +47,15 @@ export default function App() {
           {/* ---- Public customer flow (no auth required) ---- */}
           <Route path="/r/:businessCode" element={<PublicReviewFlow />} />
 
-          {/* ---- Protected owner routes ---- */}
+          {/* ---- Protected routes requiring login ---- */}
           <Route element={<ProtectedRoute />}>
-            {/* Onboarding (no guard — accessible to users without a business) */}
-            <Route path="/onboarding" element={<OnboardingPage />} />
+            {/* Onboarding — protected by NonAdminGuard so admins are redirected to /admin/dashboard */}
+            <Route element={<NonAdminGuard />}>
+              <Route path="/onboarding" element={<OnboardingPage />} />
+            </Route>
 
-            {/* Routes that require a business — wrapped with OnboardingGuard + DashboardLayout */}
-            <Route element={<OnboardingGuard />}>
+            {/* Owner/Staff dashboard routes — protected by OwnerGuard (blocks admin role + checks businessId) */}
+            <Route element={<OwnerGuard />}>
               <Route element={<DashboardLayout />}>
                 <Route path="/dashboard" element={<DashboardPage />} />
                 <Route path="/inbox" element={<InboxPage />} />
@@ -57,6 +63,7 @@ export default function App() {
                 <Route path="/qr-locations" element={<QrLocationsPage />} />
                 <Route path="/whatsapp" element={<WhatsAppPage />} />
                 <Route path="/campaigns" element={<CampaignsPage />} />
+                <Route path="/email-campaigns" element={<EmailCampaignsPage />} />
                 <Route path="/billing" element={<BillingPage />} />
                 <Route path="/help" element={<HelpPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
@@ -64,18 +71,20 @@ export default function App() {
             </Route>
           </Route>
 
-          {/* ---- Admin routes ---- */}
+          {/* ---- Admin routes (strictly role === 'admin') ---- */}
           <Route element={<AdminGuard />}>
             <Route element={<AdminLayout />}>
               <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
               <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
               <Route path="/admin/businesses" element={<AdminBusinessesPage />} />
               <Route path="/admin/users" element={<AdminUsersPage />} />
+              <Route path="/admin/activity" element={<AdminActivityPage />} />
             </Route>
           </Route>
 
-          {/* ---- Catch-all redirect ---- */}
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          {/* ---- Root & Catch-all redirect based on user role ---- */}
+          <Route path="/" element={<RoleRedirect />} />
+          <Route path="*" element={<RoleRedirect />} />
         </Routes>
       </AuthProvider>
     </BrowserRouter>

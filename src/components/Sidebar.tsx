@@ -95,7 +95,7 @@ const NAV_ITEMS = [
   },
   {
     to: "/campaigns",
-    label: "Campaigns",
+    label: "WA Campaigns",
     icon: (
       <svg
         viewBox="0 0 24 24"
@@ -107,6 +107,22 @@ const NAV_ITEMS = [
       >
         <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
         <polyline points="22,6 12,13 2,6" />
+      </svg>
+    ),
+  },
+  {
+    to: "/email-campaigns",
+    label: "Email Campaigns",
+    icon: (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M3 8l7.89 5.26a2 2 0 0 0 2.22 0L21 8M5 19h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2z" />
       </svg>
     ),
   },
