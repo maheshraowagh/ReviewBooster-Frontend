@@ -1,27 +1,11 @@
-import { useState, useEffect, useCallback, useRef } from "react";
-import api, { type ApiResponse } from "../lib/api";
+import { useState, useEffect, useRef } from "react";
+import { useDashboardOverview } from '../hooks/queries/useDashboardOverview';
+import { useInbox, useResolveInboxItem, useBulkResolveInboxItems, useInboxReplySuggestion } from '../hooks/queries/useInbox';
+import type { FeedbackItem, InboxQueryParams } from '../services/inboxService';
 
 // ---- Types ----------------------------------------------------------------
 
-interface FeedbackItem {
-  _id: string;
-  rating: number;
-  tags: string[];
-  note: string;
-  aiDraftText: string;
-  finalText: string;
-  status: "draft" | "copied_to_google" | "resolved";
-  createdAt: string;
-  sessionId: string;
-}
 
-interface InboxResponse {
-  items: FeedbackItem[];
-  total: number;
-  page: number;
-  totalPages: number;
-  atRiskCount: number;
-}
 
 type SortOption = "newest" | "oldest" | "rating_high" | "rating_low";
 
@@ -51,10 +35,6 @@ function formatDate(iso: string): string {
   });
 }
 
-function truncate(text: string, max: number): string {
-  if (!text) return "";
-  return text.length > max ? text.slice(0, max) + "…" : text;
-}
 
 function renderStars(rating: number): string {
   return "★".repeat(rating) + "☆".repeat(5 - rating);
@@ -151,29 +131,21 @@ function DrawerDetail({
 }) {
   const [replyDraft, setReplyDraft] = useState("");
   const [replyStarted, setReplyStarted] = useState(false);
-  const [replyLoading, setReplyLoading] = useState(false);
   const [replyError, setReplyError] = useState("");
   const [showMatchBox, setShowMatchBox] = useState(false);
   const [toastMsg, setToastMsg] = useState("");
 
+  const replyMutation = useInboxReplySuggestion();
+
   const fetchReply = async () => {
-    setReplyLoading(true);
     setReplyError("");
     setShowMatchBox(false);
     try {
-      const res = await api.post<ApiResponse<{ draft: string }>>(
-        `/inbox/${item._id}/reply-suggestion`,
-      );
-      if (res.data.success && res.data.data) {
-        setReplyDraft(res.data.data.draft.slice(0, 300));
-        setReplyStarted(true);
-      } else {
-        setReplyError(res.data.error?.message || "Failed to generate a reply");
-      }
-    } catch {
-      setReplyError("Could not generate a reply. Please try again.");
-    } finally {
-      setReplyLoading(false);
+      const draft = await replyMutation.mutateAsync(item._id);
+      setReplyDraft(draft.slice(0, 300));
+      setReplyStarted(true);
+    } catch (err: any) {
+      setReplyError(err.message || "Could not generate a reply. Please try again.");
     }
   };
 
@@ -324,9 +296,9 @@ function DrawerDetail({
               <button
                 className="inbox-reply-draft-btn"
                 onClick={fetchReply}
-                disabled={replyLoading}
+                disabled={replyMutation.isPending}
               >
-                {replyLoading ? (
+                {replyMutation.isPending ? (
                   <>
                     <span className="loading-spinner loading-spinner--sm" style={{ marginRight: '6px' }} />
                     Generating...
@@ -354,9 +326,9 @@ function DrawerDetail({
                   <button
                     className="inbox-reply-regenerate-btn"
                     onClick={fetchReply}
-                    disabled={replyLoading}
+                    disabled={replyMutation.isPending}
                   >
-                    {replyLoading ? (
+                    {replyMutation.isPending ? (
                       <span className="loading-spinner loading-spinner--sm" />
                     ) : (
                       "↻ Regenerate"
@@ -443,13 +415,8 @@ function SkeletonRow() {
 // ---- Main Page ------------------------------------------------------------
 
 export default function InboxPage() {
-  const [items, setItems] = useState<FeedbackItem[]>([]);
-  const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [statsData, setStatsData] = useState<any>(null);
+  const limit = 20;
 
   // Filters
   const [search, setSearch] = useState("");
@@ -461,11 +428,9 @@ export default function InboxPage() {
 
   // Selection
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [bulkResolving, setBulkResolving] = useState(false);
 
   // Drawer
   const [drawerItem, setDrawerItem] = useState<FeedbackItem | null>(null);
-  const [drawerResolving, setDrawerResolving] = useState(false);
 
   // Debounce search
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -482,66 +447,28 @@ export default function InboxPage() {
     };
   }, [search]);
 
-  // Fetch Stats Data
-  const fetchStats = useCallback(async () => {
-    try {
-      const res = await api.get('/dashboard/overview?period=year');
-      if (res.data.success) {
-        setStatsData(res.data.data);
-      }
-    } catch {
-      // non-blocking
-    }
-  }, []);
-
-  // Fetch Inbox Data
-  const fetchInbox = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const params = new URLSearchParams();
-      params.set("page", String(page));
-      params.set("limit", "20");
-      params.set("sort", sort);
-      if (debouncedSearch) params.set("search", debouncedSearch);
-      if (ratingFilter.length > 0) params.set("rating", ratingFilter.join(","));
-      if (statusFilter.length > 0) params.set("status", statusFilter.join(","));
-      if (dateFrom) params.set("dateFrom", dateFrom);
-      if (dateTo) params.set("dateTo", dateTo);
-
-      const res = await api.get<ApiResponse<InboxResponse>>(
-        `/inbox?${params.toString()}`,
-      );
-      if (res.data.success && res.data.data) {
-        setItems(res.data.data.items);
-        setTotal(res.data.data.total);
-        setTotalPages(res.data.data.totalPages);
-      } else {
-        setError(res.data.error?.message || "Failed to load inbox");
-      }
-    } catch {
-      setError("Could not connect to server. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  }, [
+  // Queries
+  const queryParams: InboxQueryParams = {
     page,
+    limit,
     sort,
-    debouncedSearch,
-    ratingFilter,
-    statusFilter,
-    dateFrom,
-    dateTo,
-  ]);
+    ...(debouncedSearch && { search: debouncedSearch }),
+    ...(ratingFilter.length > 0 && { rating: ratingFilter.join(",") }),
+    ...(statusFilter.length > 0 && { status: statusFilter.join(",") }),
+    ...(dateFrom && { dateFrom }),
+    ...(dateTo && { dateTo }),
+  };
 
-  useEffect(() => {
-    fetchInbox();
-  }, [fetchInbox]);
+  const { data: inboxData, isLoading: loading, error: queryError, refetch } = useInbox(queryParams);
+  const error = queryError ? queryError.message : null;
+  const { data: statsData } = useDashboardOverview('year');
 
-  useEffect(() => {
-    fetchStats();
-  }, [fetchStats]);
+  const resolveMutation = useResolveInboxItem();
+  const bulkResolveMutation = useBulkResolveInboxItems();
+
+  const items = inboxData?.items || [];
+  const total = inboxData?.total || 0;
+  const totalPages = inboxData?.totalPages || 1;
 
   // Reset page when filters change
   useEffect(() => {
@@ -568,44 +495,26 @@ export default function InboxPage() {
 
   // Resolve single
   const resolveOne = async (id: string) => {
-    setDrawerResolving(true);
     try {
-      await api.patch(`/inbox/${id}/resolve`);
-      setItems((prev) =>
-        prev.map((i) =>
-          i._id === id ? { ...i, status: "resolved" as const } : i,
-        ),
-      );
+      await resolveMutation.mutateAsync(id);
       if (drawerItem?._id === id) {
         setDrawerItem((prev) =>
           prev ? { ...prev, status: "resolved" as const } : null,
         );
       }
-      fetchStats();
     } catch {
       // ignore
-    } finally {
-      setDrawerResolving(false);
     }
   };
 
   // Bulk resolve
   const bulkResolve = async () => {
     if (selected.size === 0) return;
-    setBulkResolving(true);
     try {
-      await api.patch("/inbox/bulk-resolve", { ids: Array.from(selected) });
-      setItems((prev) =>
-        prev.map((i) =>
-          selected.has(i._id) ? { ...i, status: "resolved" as const } : i,
-        ),
-      );
+      await bulkResolveMutation.mutateAsync(Array.from(selected));
       setSelected(new Set());
-      fetchStats();
     } catch {
       // ignore
-    } finally {
-      setBulkResolving(false);
     }
   };
 
@@ -839,9 +748,9 @@ export default function InboxPage() {
           <button
             className="inbox-bulk-resolve"
             onClick={bulkResolve}
-            disabled={bulkResolving}
+            disabled={bulkResolveMutation.isPending}
           >
-            {bulkResolving ? (
+            {bulkResolveMutation.isPending ? (
               <span className="loading-spinner loading-spinner--sm" style={{ marginRight: '6px' }} />
             ) : (
               <svg
@@ -879,7 +788,7 @@ export default function InboxPage() {
             <line x1="12" y1="16" x2="12.01" y2="16" />
           </svg>
           {error}
-          <button className="db-error-retry" onClick={fetchInbox}>
+          <button className="db-error-retry" onClick={() => refetch()}>
             Retry
           </button>
         </div>
@@ -1055,7 +964,7 @@ export default function InboxPage() {
           item={drawerItem}
           onClose={() => setDrawerItem(null)}
           onResolve={resolveOne}
-          resolving={drawerResolving}
+          resolving={resolveMutation.isPending}
         />
       )}
     </div>

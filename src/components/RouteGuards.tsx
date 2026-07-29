@@ -1,6 +1,6 @@
 import { useAuth } from '@clerk/clerk-react';
 import { Navigate, Outlet } from 'react-router-dom';
-import { useAppAuth } from '../providers/AuthProvider';
+import { useAuthStore } from '../stores/authStore';
 
 /**
  * ProtectedRoute — requires Clerk authentication.
@@ -26,7 +26,8 @@ export function ProtectedRoute() {
  * Redirects admin users directly to /admin/dashboard.
  */
 export function NonAdminGuard() {
-  const { appUser, isLoading } = useAppAuth();
+  const appUser = useAuthStore((state) => state.appUser);
+  const isLoading = useAuthStore((state) => state.isLoading);
 
   if (isLoading) {
     return <LoadingScreen />;
@@ -49,7 +50,8 @@ export function NonAdminGuard() {
  * Users without a business are redirected to /onboarding.
  */
 export function OwnerGuard() {
-  const { appUser, isLoading } = useAppAuth();
+  const appUser = useAuthStore((state) => state.appUser);
+  const isLoading = useAuthStore((state) => state.isLoading);
 
   if (isLoading) {
     return <LoadingScreen />;
@@ -82,7 +84,8 @@ export const OnboardingGuard = OwnerGuard;
  * Non-admin users are redirected to /dashboard.
  */
 export function AdminGuard() {
-  const { appUser, isLoading } = useAppAuth();
+  const appUser = useAuthStore((state) => state.appUser);
+  const isLoading = useAuthStore((state) => state.isLoading);
 
   if (isLoading) {
     return <LoadingScreen />;
@@ -101,7 +104,7 @@ export function AdminGuard() {
  */
 export function PublicOnlyRoute() {
   const { isSignedIn, isLoaded } = useAuth();
-  const { appUser } = useAppAuth();
+  const appUser = useAuthStore((state) => state.appUser);
 
   if (!isLoaded) {
     return <LoadingScreen />;
@@ -123,7 +126,8 @@ export function PublicOnlyRoute() {
  * Used for root or catch-all routes (*).
  */
 export function RoleRedirect() {
-  const { appUser, isLoading } = useAppAuth();
+  const appUser = useAuthStore((state) => state.appUser);
+  const isLoading = useAuthStore((state) => state.isLoading);
 
   if (isLoading) {
     return <LoadingScreen />;

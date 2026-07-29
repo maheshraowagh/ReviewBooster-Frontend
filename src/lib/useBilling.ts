@@ -1,87 +1,45 @@
-import { useState, useEffect, useCallback } from 'react';
-import api from './api';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { billingService } from '../services/billingService';
+import type { PlanDefinition, SubscriptionState, Invoice, PlanEntitlements } from '../services/billingService';
 
-export interface PlanEntitlements {
-  campaigns: boolean;
-  whatsappMsgQuota: number;
-  maxLocations: number;
-  insights: boolean;
-  advancedAnalytics: boolean;
-}
-
-export interface PlanDefinition {
-  id: string;
-  name: string;
-  displayName: string;
-  priceInr: number | null;
-  billing: string;
-  entitlements: PlanEntitlements;
-}
-
-export interface Invoice {
-  _id: string;
-  plan: string;
-  status: string;
-  razorpayPaymentId: string | null;
-  amountPaidPaise: number;
-  currentPeriodEnd: string | null;
-  webhookEvent: string | null;
-  createdAt: string;
-  invoiceUrl: string | null;
-}
-
-export interface SubscriptionState {
-  plan: string;
-  planStatus: string;
-  razorpaySubscriptionId: string | null;
-  whatsappMsgQuota: number;
-  whatsappMsgUsed: number;
-  planCurrentPeriodEnd: string | null;
-  invoices: Invoice[];
-}
+export type { PlanDefinition, SubscriptionState, Invoice, PlanEntitlements };
 
 export function useBilling() {
-  const [subscription, setSubscription] = useState<SubscriptionState | null>(null);
-  const [plans, setPlans] = useState<PlanDefinition[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data: subscription, isLoading: subLoading, error: subError, refetch } = useQuery({
+    queryKey: ['billing', 'subscription'],
+    queryFn: () => billingService.getSubscription(),
+  });
 
-  const fetchSubscription = useCallback(async () => {
-    try {
-      const res = await api.get<{ success: boolean; data: SubscriptionState }>('/billing/subscription');
-      if (res.data.success && res.data.data) {
-        setSubscription(res.data.data);
-      }
-    } catch (err: unknown) {
-      setError('Failed to load subscription details');
-    }
-  }, []);
+  const { data: plans } = useQuery({
+    queryKey: ['billing', 'plans'],
+    queryFn: () => billingService.getPlans(),
+  });
 
-  const fetchPlans = useCallback(async () => {
-    try {
-      const res = await api.get<{ success: boolean; data: PlanDefinition[] }>('/billing/plans');
-      if (res.data.success && res.data.data) {
-        setPlans(res.data.data);
-      }
-    } catch {
-      // non-critical
-    }
-  }, []);
+  const isLoading = subLoading; // main loading state
 
-  useEffect(() => {
-    const load = async () => {
-      setIsLoading(true);
-      await Promise.all([fetchSubscription(), fetchPlans()]);
-      setIsLoading(false);
-    };
-    load();
-  }, [fetchSubscription, fetchPlans]);
+  return {
+    subscription,
+    plans: plans || [],
+    isLoading,
+    error: subError ? String(subError) : null,
+    refetch,
+  };
+}
 
-  const refetch = useCallback(async () => {
-    await fetchSubscription();
-  }, [fetchSubscription]);
+export function useCreateSubscription() {
+  return useMutation({
+    mutationFn: (planId: string) => billingService.createSubscription(planId),
+  });
+}
 
-  return { subscription, plans, isLoading, error, refetch };
+export function useCancelSubscription() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => billingService.cancelSubscription(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['billing', 'subscription'] });
+    },
+  });
 }
 
 /**

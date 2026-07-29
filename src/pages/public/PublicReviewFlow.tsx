@@ -49,6 +49,9 @@ const GROUP_SIZES = ['Solo', 'Couple', 'Family', 'Friends', 'Work'] as const;
 // Only show the group size question for hospitality / leisure businesses
 const SHOW_GROUP_SIZE_FOR = new Set(['restaurant', 'cafe', 'bakery', 'hotel', 'spa']);
 
+// Only show menu items for restaurants, cafes, and bakeries
+const SHOW_MENU_FOR = new Set(['restaurant', 'cafe', 'bakery']);
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -108,6 +111,7 @@ export default function PublicReviewFlow() {
   const [selectedDishes, setSelectedDishes] = useState<string[]>([]);
   const [dishFreeText, setDishFreeText] = useState("");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [tagSeverities, setTagSeverities] = useState<Record<string, "a_bit" | "moderate" | "extremely">>({});
   const [note, setNote] = useState("");
   const [showMenuModal, setShowMenuModal] = useState(false);
   const [menuSearch, setMenuSearch] = useState("");
@@ -171,7 +175,14 @@ export default function PublicReviewFlow() {
 
   const toggleTag = (tag: string) => {
     setSelectedTags((prev) => {
-      if (prev.includes(tag)) return prev.filter((t) => t !== tag);
+      if (prev.includes(tag)) {
+        setTagSeverities((s) => {
+          const next = { ...s };
+          delete next[tag];
+          return next;
+        });
+        return prev.filter((t) => t !== tag);
+      }
       if (prev.length >= MAX_TAGS) return prev; // cap at MAX_TAGS
       return [...prev, tag];
     });
@@ -211,16 +222,20 @@ export default function PublicReviewFlow() {
           ? [dishFreeText.trim()]
           : [];
 
+    const finalTags = rating <= 2
+      ? selectedTags.map((tag) => `${tag}:${tagSeverities[tag] || "moderate"}`)
+      : selectedTags;
+
     try {
       const result = await apiPost<{ _id: string }>("/public/feedback", {
         rating,
         businessId: business.businessId,
         sessionId: business.sessionId,
         clientId: clientId.current,
-        tags: selectedTags,
+        tags: finalTags,
         note: note.trim(),
         dishesOrdered,
-        groupSize: groupSize ? groupSize.toLowerCase() as string : undefined,
+        groupSize: groupSize ? (groupSize.toLowerCase() as string) : undefined,
       });
 
       setFeedbackId(result._id);
@@ -464,132 +479,302 @@ export default function PublicReviewFlow() {
           <>
             <h2 className="tags-header">Tell us a bit more</h2>
 
-            {/* Section A — What did you order/use/have done? (optional, label varies by business type) */}
-            <div className="detail-section">
-              <p className="detail-section-label">
-                {(SECTION_A_CONFIG[business.businessType?.toLowerCase()] || DEFAULT_SECTION_A).label}{" "}
-                <span className="detail-optional">(optional)</span>
-              </p>
-              {business.menuItems.length === 0 ? (
-                <input
-                  type="text"
-                  className="dish-text-input"
-                  placeholder={(SECTION_A_CONFIG[business.businessType?.toLowerCase()] || DEFAULT_SECTION_A).placeholder}
-                  value={dishFreeText}
-                  onChange={(e) =>
-                    setDishFreeText(e.target.value.slice(0, 200))
-                  }
-                />
-              ) : useMenuModal ? (
-                <>
-                  <button
-                    type="button"
-                    className="menu-select-btn"
-                    onClick={() => {
-                      setMenuSearch("");
-                      setShowMenuModal(true);
-                    }}
-                  >
-                    🔍 Select from menu ({business.menuItems.length} items)
-                  </button>
-                  {selectedDishes.length > 0 && (
-                    <div
-                      className="tags-list-horizontal"
-                      style={{ marginTop: "0.625rem" }}
-                    >
-                      {selectedDishes.map((dish) => (
-                        <span key={dish} className="tag-chip selected">
-                          {dish}
+            {rating <= 2 ? (
+              // ---- 1-2 Star Reviews Flow (Reordered) ----
+              <>
+                {/* 1. What went wrong? (Required) */}
+                <div className="detail-section">
+                  <p className="detail-section-label">
+                    What went wrong?{" "}
+                    <span className="detail-optional">(pick up to {MAX_TAGS})</span>
+                  </p>
+                  <div className="tags-list-horizontal tags-list-scroll">
+                    {orderedTags.map((tag) => {
+                      const isSelected = selectedTags.includes(tag);
+                      const isNegative = negativeTagSet.has(tag);
+                      return (
+                        <button
+                          key={tag}
+                          type="button"
+                          className={`tag-chip ${isSelected ? "selected" : ""} ${isNegative ? "tag-chip--negative" : ""}`}
+                          onClick={() => toggleTag(tag)}
+                        >
+                          {tag}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="detail-required-hint">
+                    Select at least one, or tell us in your own words below
+                  </p>
+                </div>
+
+                {/* 1.5. Severity selector for selected tags */}
+                {selectedTags.length > 0 && (
+                  <div className="selected-tags-severity-section">
+                    <p className="severity-title">How bad was it? <span className="detail-optional">(optional)</span></p>
+                    {selectedTags.map((tag) => (
+                      <div key={tag} className="selected-tag-severity-row">
+                        <span className="selected-tag-name">{tag}</span>
+                        <div className="severity-pills">
+                          {(["a_bit", "moderate", "extremely"] as const).map((sev) => {
+                            const labelMap = { a_bit: "a bit", moderate: "very", extremely: "extremely" };
+                            const isActive = (tagSeverities[tag] || "moderate") === sev;
+                            return (
+                              <button
+                                key={sev}
+                                type="button"
+                                className={`severity-pill ${isActive ? "active" : ""}`}
+                                onClick={() => setTagSeverities(prev => ({ ...prev, [tag]: sev }))}
+                              >
+                                {labelMap[sev]}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* 2. Anything else? (Optional, Dimmed) */}
+                <div className="detail-section detail-section--optional">
+                  <p className="detail-section-label">
+                    Anything else? <span className="detail-optional">(optional)</span>
+                  </p>
+                  <textarea
+                    className="note-textarea"
+                    placeholder="Tell us in your own words (optional)..."
+                    value={note}
+                    onChange={(e) => setNote(e.target.value.slice(0, 500))}
+                    rows={2}
+                  />
+                  <p className="note-count">{note.length}/500</p>
+                </div>
+
+                {/* 3. What did you get? (Optional, Dimmed, Food only) */}
+                {SHOW_MENU_FOR.has(business.businessType?.toLowerCase()) && (
+                  <div className="detail-section detail-section--optional">
+                    <p className="detail-section-label">
+                      {(SECTION_A_CONFIG[business.businessType?.toLowerCase()] || DEFAULT_SECTION_A).label}{" "}
+                      <span className="detail-optional">(optional)</span>
+                    </p>
+                    {business.menuItems.length === 0 ? (
+                      <input
+                        type="text"
+                        className="dish-text-input"
+                        placeholder={(SECTION_A_CONFIG[business.businessType?.toLowerCase()] || DEFAULT_SECTION_A).placeholder}
+                        value={dishFreeText}
+                        onChange={(e) => setDishFreeText(e.target.value.slice(0, 200))}
+                      />
+                    ) : useMenuModal ? (
+                      <>
+                        <button
+                          type="button"
+                          className="menu-select-btn"
+                          onClick={() => {
+                            setMenuSearch("");
+                            setShowMenuModal(true);
+                          }}
+                        >
+                          🔍 Select from menu ({business.menuItems.length} items)
+                        </button>
+                        {selectedDishes.length > 0 && (
+                          <div className="tags-list-horizontal" style={{ marginTop: "0.625rem" }}>
+                            {selectedDishes.map((dish) => (
+                              <span key={dish} className="tag-chip selected">
+                                {dish}
+                                <button
+                                  type="button"
+                                  className="dish-chip-remove"
+                                  onClick={() => toggleDish(dish)}
+                                  aria-label={`Remove ${dish}`}
+                                >
+                                  ×
+                                </button>
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div className="tags-list-horizontal tags-list-scroll">
+                        {business.menuItems.map((dish) => {
+                          const isSelected = selectedDishes.includes(dish);
+                          return (
+                            <button
+                              key={dish}
+                              type="button"
+                              className={`tag-chip ${isSelected ? "selected" : ""}`}
+                              onClick={() => toggleDish(dish)}
+                            >
+                              {dish}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* 4. Who did you visit with? (Optional, Dimmed, Hospitality only) */}
+                {business.businessType && SHOW_GROUP_SIZE_FOR.has(business.businessType.toLowerCase()) && (
+                  <div className="detail-section detail-section--optional">
+                    <p className="detail-section-label">
+                      Who did you visit with? <span className="detail-optional">(optional)</span>
+                    </p>
+                    <div className="tags-list-horizontal">
+                      {GROUP_SIZES.map((size) => {
+                        const isSelected = groupSize === size;
+                        return (
                           <button
+                            key={size}
                             type="button"
-                            className="dish-chip-remove"
-                            onClick={() => toggleDish(dish)}
-                            aria-label={`Remove ${dish}`}
+                            className={`tag-chip ${isSelected ? "selected" : ""}`}
+                            onClick={() => setGroupSize(isSelected ? null : size)}
                           >
-                            ×
+                            {size}
                           </button>
-                        </span>
-                      ))}
+                        );
+                      })}
                     </div>
-                  )}
-                </>
-              ) : (
-                <div className="tags-list-horizontal tags-list-scroll">
-                  {business.menuItems.map((dish) => {
-                    const isSelected = selectedDishes.includes(dish);
-                    return (
-                      <button
-                        key={dish}
-                        className={`tag-chip ${isSelected ? "selected" : ""}`}
-                        onClick={() => toggleDish(dish)}
-                      >
-                        {dish}
-                      </button>
-                    );
-                  })}
+                  </div>
+                )}
+              </>
+            ) : (
+              // ---- 3-5 Star Reviews Flow (Standard Order) ----
+              <>
+                {/* 1. What did you get? (Optional, Food only) */}
+                {SHOW_MENU_FOR.has(business.businessType?.toLowerCase()) && (
+                  <div className="detail-section detail-section--optional">
+                    <p className="detail-section-label">
+                      {(SECTION_A_CONFIG[business.businessType?.toLowerCase()] || DEFAULT_SECTION_A).label}{" "}
+                      <span className="detail-optional">(optional)</span>
+                    </p>
+                    {business.menuItems.length === 0 ? (
+                      <input
+                        type="text"
+                        className="dish-text-input"
+                        placeholder={(SECTION_A_CONFIG[business.businessType?.toLowerCase()] || DEFAULT_SECTION_A).placeholder}
+                        value={dishFreeText}
+                        onChange={(e) => setDishFreeText(e.target.value.slice(0, 200))}
+                      />
+                    ) : useMenuModal ? (
+                      <>
+                        <button
+                          type="button"
+                          className="menu-select-btn"
+                          onClick={() => {
+                            setMenuSearch("");
+                            setShowMenuModal(true);
+                          }}
+                        >
+                          🔍 Select from menu ({business.menuItems.length} items)
+                        </button>
+                        {selectedDishes.length > 0 && (
+                          <div className="tags-list-horizontal" style={{ marginTop: "0.625rem" }}>
+                            {selectedDishes.map((dish) => (
+                              <span key={dish} className="tag-chip selected">
+                                {dish}
+                                <button
+                                  type="button"
+                                  className="dish-chip-remove"
+                                  onClick={() => toggleDish(dish)}
+                                  aria-label={`Remove ${dish}`}
+                                >
+                                  ×
+                                </button>
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div className="tags-list-horizontal tags-list-scroll">
+                        {business.menuItems.map((dish) => {
+                          const isSelected = selectedDishes.includes(dish);
+                          return (
+                            <button
+                              key={dish}
+                              type="button"
+                              className={`tag-chip ${isSelected ? "selected" : ""}`}
+                              onClick={() => toggleDish(dish)}
+                            >
+                              {dish}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* 2. What went well? (Required) */}
+                <div className="detail-section">
+                  <p className="detail-section-label">
+                    {rating === 3 ? "What went well / wrong?" : "What went well?"}{" "}
+                    <span className="detail-optional">(pick up to {MAX_TAGS})</span>
+                  </p>
+                  <div className="tags-list-horizontal tags-list-scroll">
+                    {orderedTags.map((tag) => {
+                      const isSelected = selectedTags.includes(tag);
+                      const isNegative = negativeTagSet.has(tag);
+                      return (
+                        <button
+                          key={tag}
+                          type="button"
+                          className={`tag-chip ${isSelected ? "selected" : ""} ${isNegative ? "tag-chip--negative" : ""}`}
+                          onClick={() => toggleTag(tag)}
+                        >
+                          {tag}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="detail-required-hint">
+                    Select at least one, or tell us in your own words below
+                  </p>
                 </div>
-              )}
-            </div>
 
-            {/* Section B — What stood out? (must select at least one, or write a note) */}
-            <div className="detail-section">
-              <p className="detail-section-label">
-                {rating <= 2 ? "What went wrong?" : rating === 3 ? "What went well / wrong?" : "What went well?"}{" "}
-                <span className="detail-optional">(pick up to {MAX_TAGS})</span>
-              </p>
-              <div className="tags-list-horizontal tags-list-scroll">
-                {orderedTags.map((tag) => {
-                  const isSelected = selectedTags.includes(tag);
-                  const isNegative = negativeTagSet.has(tag);
-                  return (
-                    <button
-                      key={tag}
-                      className={`tag-chip ${isSelected ? "selected" : ""} ${isNegative ? "tag-chip--negative" : ""}`}
-                      onClick={() => toggleTag(tag)}
-                    >
-                      {tag}
-                    </button>
-                  );
-                })}
-              </div>
-              <p className="detail-required-hint">
-                Select at least one, or tell us in your own words below
-              </p>
-            </div>
-
-            <textarea
-              className="note-textarea"
-              placeholder="Anything else? (optional if you picked something above)"
-              value={note}
-              onChange={(e) => setNote(e.target.value.slice(0, 500))}
-              rows={2}
-            />
-            <p className="note-count">{note.length}/500</p>
-
-            {/* Section D — Who did you visit with? (optional, only for relevant business types) */}
-            {business.businessType && SHOW_GROUP_SIZE_FOR.has(business.businessType.toLowerCase()) && (
-              <div className="detail-section">
-                <p className="detail-section-label">
-                  Who did you visit with?{" "}
-                  <span className="detail-optional">(optional)</span>
-                </p>
-                <div className="tags-list-horizontal">
-                  {GROUP_SIZES.map((size) => {
-                    const isSelected = groupSize === size;
-                    return (
-                      <button
-                        key={size}
-                        className={`tag-chip ${isSelected ? "selected" : ""}`}
-                        onClick={() =>
-                          setGroupSize(isSelected ? null : size)
-                        }
-                      >
-                        {size}
-                      </button>
-                    );
-                  })}
+                {/* 3. Anything else? (Optional, Dimmed) */}
+                <div className="detail-section detail-section--optional">
+                  <p className="detail-section-label">
+                    Anything else? <span className="detail-optional">(optional)</span>
+                  </p>
+                  <textarea
+                    className="note-textarea"
+                    placeholder="Tell us in your own words (optional)..."
+                    value={note}
+                    onChange={(e) => setNote(e.target.value.slice(0, 500))}
+                    rows={2}
+                  />
+                  <p className="note-count">{note.length}/500</p>
                 </div>
-              </div>
+
+                {/* 4. Who did you visit with? (Optional, Dimmed, Hospitality only) */}
+                {business.businessType && SHOW_GROUP_SIZE_FOR.has(business.businessType.toLowerCase()) && (
+                  <div className="detail-section detail-section--optional">
+                    <p className="detail-section-label">
+                      Who did you visit with? <span className="detail-optional">(optional)</span>
+                    </p>
+                    <div className="tags-list-horizontal">
+                      {GROUP_SIZES.map((size) => {
+                        const isSelected = groupSize === size;
+                        return (
+                          <button
+                            key={size}
+                            type="button"
+                            className={`tag-chip ${isSelected ? "selected" : ""}`}
+                            onClick={() => setGroupSize(isSelected ? null : size)}
+                          >
+                            {size}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </>
             )}
 
             {error && <p className="public-error">{error}</p>}

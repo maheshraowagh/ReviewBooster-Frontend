@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { NavLink } from "react-router-dom";
 import { useAuth, UserButton } from "@clerk/clerk-react";
-import { useAppAuth } from "../providers/AuthProvider";
+import { useAuthStore } from "../stores/authStore";
 
 const NAV_ITEMS = [
   {
@@ -186,7 +186,7 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ businessName }: SidebarProps) {
-  const { appUser } = useAppAuth();
+  const appUser = useAuthStore((state) => state.appUser);
   const { getToken } = useAuth();
   const [atRiskCount, setAtRiskCount] = useState(0);
 

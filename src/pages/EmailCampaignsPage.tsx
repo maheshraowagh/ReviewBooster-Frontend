@@ -1,49 +1,16 @@
-import { useState, useEffect, useRef } from "react";
-import api from "../lib/api";
+import { useState, useRef } from "react";
 import "./email-campaigns.css";
-
-// ── Types ────────────────────────────────────────────────────────────────────
-
-interface Recipient { email: string; name: string; }
-
-interface ValidationResult {
-  valid: Recipient[];
-  skipped: { row?: number; email?: string; reason: string }[];
-  errors:  { row?: number; email?: string; reason: string }[];
-  totalRows: number;
-  source: string;
-}
-
-interface Campaign {
-  _id: string;
-  name: string;
-  emailSubject: string;
-  status: "draft" | "running" | "paused" | "completed" | "failed" | "cancelled";
-  totalRecipients: number;
-  successCount: number;
-  failedCount: number;
-  skippedCount: number;
-  pendingCount: number;
-  createdAt: string;
-  completedAt?: string;
-}
-
-interface DetailRecipient {
-  _id: string;
-  email: string;
-  status: string;
-  customerId?: { name?: string; email?: string };
-  sentAt?: string;
-  failedAt?: string;
-  lastError?: string;
-}
-
-interface CampaignDetail {
-  campaign: Campaign;
-  statusBreakdown: Record<string, number>;
-  recipients: DetailRecipient[];
-  pagination: { page: number; limit: number; total: number; totalPages: number };
-}
+import {
+  useEmailCampaigns,
+  useEmailCampaign,
+  useEmailCampaignImportCsv,
+  useCreateEmailCampaign,
+  useEmailCampaignAction,
+} from "../hooks/queries/useEmailCampaigns";
+import type { 
+  ValidationResult, 
+  EmailCampaign, 
+} from "../services/emailCampaignService";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -55,7 +22,7 @@ function statusLabel(status: string) {
   return map[status] || status;
 }
 
-function successRate(c: Campaign) {
+function successRate(c: EmailCampaign) {
   const sent = c.successCount || 0;
   const total = c.totalRecipients || 1;
   return Math.round((sent / total) * 100);
@@ -111,6 +78,9 @@ function EmailCampaignWizard({ onClose, onCreated }: WizardProps) {
   const [createdId, setCreatedId] = useState<string | null>(null);
   const [launching, setLaunching] = useState(false);
   const [launched, setLaunched] = useState(false);
+  const importCsvMut = useEmailCampaignImportCsv();
+  const createCampaignMut = useCreateEmailCampaign();
+  const actionMut = useEmailCampaignAction();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   async function handleFileUpload(file: File) {
@@ -118,15 +88,10 @@ function EmailCampaignWizard({ onClose, onCreated }: WizardProps) {
     setValidation(null);
     setLoading(true);
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      const { data } = await api.post("/email-campaigns/import-csv", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-      if (data.success) setValidation(data.data);
-      else setError(data.error?.message || "Import failed");
+      const data = await importCsvMut.mutateAsync({ file });
+      setValidation(data);
     } catch (err: any) {
-      setError(err.response?.data?.error?.message || "Upload failed");
+      setError(err.message || "Upload failed");
     }
     setLoading(false);
   }
@@ -137,11 +102,10 @@ function EmailCampaignWizard({ onClose, onCreated }: WizardProps) {
     setValidation(null);
     setLoading(true);
     try {
-      const { data } = await api.post("/email-campaigns/import-csv", { googleSheetUrl: sheetUrl.trim() });
-      if (data.success) setValidation(data.data);
-      else setError(data.error?.message || "Could not fetch sheet");
+      const data = await importCsvMut.mutateAsync({ googleSheetUrl: sheetUrl.trim() });
+      setValidation(data);
     } catch (err: any) {
-      setError(err.response?.data?.error?.message || "Could not fetch sheet");
+      setError(err.message || "Could not fetch sheet");
     }
     setLoading(false);
   }
@@ -152,11 +116,10 @@ function EmailCampaignWizard({ onClose, onCreated }: WizardProps) {
     setValidation(null);
     setLoading(true);
     try {
-      const { data } = await api.post("/email-campaigns/import-csv", { manualList });
-      if (data.success) setValidation(data.data);
-      else setError(data.error?.message || "Validation failed");
+      const data = await importCsvMut.mutateAsync({ manualList });
+      setValidation(data);
     } catch (err: any) {
-      setError(err.response?.data?.error?.message || "Validation failed");
+      setError(err.message || "Validation failed");
     }
     setLoading(false);
   }
@@ -166,19 +129,15 @@ function EmailCampaignWizard({ onClose, onCreated }: WizardProps) {
     setError("");
     setLoading(true);
     try {
-      const { data } = await api.post("/email-campaigns", {
+      const data = await createCampaignMut.mutateAsync({
         name: campaignName.trim(),
         emailSubject: emailSubject.trim(),
         recipients: validation.valid,
       });
-      if (data.success) {
-        setCreatedId(data.data.campaign._id);
-        setStep(3);
-      } else {
-        setError(data.error?.message || "Failed to create campaign");
-      }
+      setCreatedId(data.campaign._id);
+      setStep(3);
     } catch (err: any) {
-      setError(err.response?.data?.error?.message || "Failed to create campaign");
+      setError(err.message || "Failed to create campaign");
     }
     setLoading(false);
   }
@@ -188,15 +147,11 @@ function EmailCampaignWizard({ onClose, onCreated }: WizardProps) {
     setLaunching(true);
     setError("");
     try {
-      const { data } = await api.post(`/email-campaigns/${createdId}/start`);
-      if (data.success) {
-        setLaunched(true);
-        setTimeout(() => { onCreated(); onClose(); }, 1800);
-      } else {
-        setError(data.error?.message || "Failed to start campaign");
-      }
+      await actionMut.mutateAsync({ id: createdId, action: "start" });
+      setLaunched(true);
+      setTimeout(() => { onCreated(); onClose(); }, 1800);
     } catch (err: any) {
-      setError(err.response?.data?.error?.message || "Failed to start campaign");
+      setError(err.message || "Failed to start campaign");
     }
     setLaunching(false);
   }
@@ -462,35 +417,22 @@ function CampaignDetailPanel({
   onClose,
   onAction,
 }: { campaignId: string; onClose: () => void; onAction: () => void }) {
-  const [detail, setDetail] = useState<CampaignDetail | null>(null);
+  const { data: detail, isLoading } = useEmailCampaign(campaignId);
+  const actionMut = useEmailCampaignAction();
   const [actionLoading, setActionLoading] = useState(false);
-
-  async function load() {
-    try {
-      const { data } = await api.get(`/email-campaigns/${campaignId}`);
-      if (data.success) setDetail(data.data);
-    } catch {/* ignore */}
-  }
-
-  useEffect(() => {
-    load();
-    const iv = setInterval(load, 5000);
-    return () => clearInterval(iv);
-  }, [campaignId]);
 
   async function toggleRunning() {
     if (!detail) return;
     setActionLoading(true);
     const isRunning = detail.campaign.status === "running";
     try {
-      await api.post(`/email-campaigns/${campaignId}/${isRunning ? "pause" : "start"}`);
-      load();
+      await actionMut.mutateAsync({ id: campaignId, action: isRunning ? "pause" : "start" });
       onAction();
     } catch {/* ignore */}
     setActionLoading(false);
   }
 
-  if (!detail) {
+  if (isLoading || !detail) {
     return (
       <div className="ec-detail-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
         <div className="ec-detail-panel">
@@ -609,24 +551,11 @@ function CampaignDetailPanel({
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function EmailCampaignsPage() {
-  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
-  const [loading, setLoading] = useState(true);
   const [showWizard, setShowWizard] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  async function loadCampaigns() {
-    try {
-      const { data } = await api.get("/email-campaigns");
-      if (data.success) setCampaigns(data.data.campaigns);
-    } catch {/* ignore */}
-    setLoading(false);
-  }
-
-  useEffect(() => {
-    loadCampaigns();
-    const iv = setInterval(loadCampaigns, 6000);
-    return () => clearInterval(iv);
-  }, []);
+  const { data: campaignsData, isLoading: loading, refetch } = useEmailCampaigns();
+  const campaigns = campaignsData || [];
 
   return (
     <div className="email-campaigns-page">
@@ -693,7 +622,7 @@ export default function EmailCampaignsPage() {
       {showWizard && (
         <EmailCampaignWizard
           onClose={() => setShowWizard(false)}
-          onCreated={loadCampaigns}
+          onCreated={() => refetch()}
         />
       )}
 
@@ -702,7 +631,7 @@ export default function EmailCampaignsPage() {
         <CampaignDetailPanel
           campaignId={selectedId}
           onClose={() => setSelectedId(null)}
-          onAction={loadCampaigns}
+          onAction={() => refetch()}
         />
       )}
     </div>

@@ -1,6 +1,6 @@
 import { NavLink } from "react-router-dom";
-import { useAuth, UserButton } from "@clerk/clerk-react";
-import { useAppAuth } from "../../providers/AuthProvider";
+import { UserButton } from "@clerk/clerk-react";
+import { useAuthStore } from "../../stores/authStore";
 
 const ADMIN_NAV_ITEMS = [
   {
@@ -50,8 +50,8 @@ const ADMIN_NAV_ITEMS = [
 ];
 
 export default function AdminSidebar() {
-  const { appUser } = useAppAuth();
-  const { signOut } = useAuth();
+  const appUser = useAuthStore((state) => state.appUser);
+
 
   return (
     <aside className="sidebar admin-sidebar">

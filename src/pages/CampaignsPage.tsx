@@ -1,49 +1,23 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useRef } from "react";
 import { Link } from "react-router-dom";
-import api, { type ApiResponse } from "../lib/api";
 import { useBilling } from "../lib/useBilling";
+import {
+  useCampaigns,
+  useCampaign,
+  useRecipients,
+  useCreateCampaign,
+  useCampaignAction,
+  useDeleteCampaign,
+  useBulkDeleteCampaigns,
+  useImportCsv,
+  useValidateManual
+} from "../hooks/queries/useCampaigns";
+import { useWhatsappStatus } from "../hooks/queries/useWhatsapp";
+import type { CsvPreview } from "../services/campaignService";
 
 // ─── Types ───────────────────────────────────────────────────────
 
-interface CampaignSummary {
-  _id: string;
-  name: string;
-  templateKey: string;
-  status: string;
-  totalRecipients: number;
-  pendingCount: number;
-  successCount: number;
-  failedCount: number;
-  skippedCount: number;
-  createdAt: string;
-  startedAt: string | null;
-  completedAt: string | null;
-  pausedAt: string | null;
-  pauseReason: string | null;
-}
 
-interface Recipient {
-  _id: string;
-  phoneNormalized: string;
-  status: string;
-  sentAt: string | null;
-  deliveredAt: string | null;
-  readAt: string | null;
-  lastError: string | null;
-  skipReason: string | null;
-  retryCount: number;
-  customerId?: { name: string; phoneNormalized: string } | null;
-}
-
-interface CsvPreview {
-  totalRows: number;
-  valid: number;
-  skipped: number;
-  invalid: number;
-  duplicate: number;
-  validRecords: { phoneNormalized: string; name: string; customerId: string | null; isNew: boolean }[];
-  reasons: { row: number; phone: string; reason: string }[];
-}
 
 // ─── Component ───────────────────────────────────────────────────
 
@@ -60,15 +34,32 @@ export default function CampaignsPage() {
   } | null>(null);
 
 
-  // Campaign list
-  const [campaigns, setCampaigns] = useState<CampaignSummary[]>([]);
-  const [listLoading, setListLoading] = useState(true);
+  // Queries
+  const { data: campaignsData, isLoading: listLoading } = useCampaigns();
+  const campaigns = campaignsData || [];
 
-  // Campaign detail
-  const [detail, setDetail] = useState<CampaignSummary | null>(null);
-  const [recipients, setRecipients] = useState<Recipient[]>([]);
+  const { data: detail, refetch: refetchDetail } = useCampaign(
+    selectedCampaignId || "",
+    view === "detail" && !!selectedCampaignId
+  );
+
   const [recipientPage, setRecipientPage] = useState(1);
-  const [recipientTotal, setRecipientTotal] = useState(0);
+  const { data: recipientsData } = useRecipients(
+    selectedCampaignId || "",
+    recipientPage
+  );
+  const recipients = recipientsData?.recipients || [];
+  const recipientTotal = recipientsData?.total || 0;
+
+  const { data: whatsappStatus, isLoading: whatsappChecking } = useWhatsappStatus();
+
+  // Mutations
+  const createCampaignMut = useCreateCampaign();
+  const campaignActionMut = useCampaignAction();
+  const deleteCampaignMut = useDeleteCampaign();
+  const bulkDeleteMut = useBulkDeleteCampaigns();
+  const importCsvMut = useImportCsv();
+  const validateManualMut = useValidateManual();
 
   // Create wizard
   const [wizardStep, setWizardStep] = useState(1);
@@ -86,87 +77,13 @@ export default function CampaignsPage() {
   const [toast, setToast] = useState<{ type: "success" | "error"; msg: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // WhatsApp Status
-  const [whatsappStatus, setWhatsappStatus] = useState<string | null>(null);
-  const [whatsappChecking, setWhatsappChecking] = useState(true);
+
 
   // ─── Plan gate ────────────────────────────────────────────────
   const { subscription, isLoading: planLoading } = useBilling();
   const isPlanBlocked = !planLoading && subscription?.plan === 'free';
 
-  // ─── Fetchers ─────────────────────────────────────────────────
 
-  const fetchCampaigns = useCallback(async () => {
-    setListLoading(true);
-    try {
-      const res = await api.get<ApiResponse<{ campaigns: CampaignSummary[] }>>("/campaigns");
-      if (res.data.success && res.data.data) {
-        setCampaigns(res.data.data.campaigns);
-      }
-    } catch { /* silent */ }
-    setListLoading(false);
-  }, []);
-
-  const fetchDetail = useCallback(async (id: string) => {
-    try {
-      const [campaignRes, recipientRes] = await Promise.all([
-        api.get<ApiResponse<{ campaign: CampaignSummary }>>(`/campaigns/${id}`),
-        api.get<ApiResponse<{ recipients: Recipient[]; pagination: { total: number } }>>(`/campaigns/${id}/recipients?limit=20`),
-      ]);
-      if (campaignRes.data.success && campaignRes.data.data) {
-        setDetail(campaignRes.data.data.campaign);
-      }
-      if (recipientRes.data.success && recipientRes.data.data) {
-        setRecipients(recipientRes.data.data.recipients);
-        setRecipientTotal(recipientRes.data.data.pagination.total);
-      }
-    } catch { /* silent */ }
-  }, []);
-
-  const fetchRecipients = useCallback(async (id: string, page: number) => {
-    try {
-      const res = await api.get<ApiResponse<{ recipients: Recipient[]; pagination: { total: number } }>>(`/campaigns/${id}/recipients?page=${page}&limit=20`);
-      if (res.data.success && res.data.data) {
-        setRecipients(res.data.data.recipients);
-        setRecipientTotal(res.data.data.pagination.total);
-        setRecipientPage(page);
-      }
-    } catch { /* silent */ }
-  }, []);
-
-  const fetchWhatsappStatus = useCallback(async () => {
-    try {
-      // The API returns status and liveStatus. We prioritize liveStatus.
-      const res = await api.get<ApiResponse<{ status: string; liveStatus?: any }>>("/whatsapp/status");
-      if (res.data.success && res.data.data) {
-        const state = res.data.data.liveStatus?.instance?.state || res.data.data.liveStatus?.state || res.data.data.status || "disconnected";
-        setWhatsappStatus(state);
-      } else {
-        setWhatsappStatus("disconnected");
-      }
-    } catch { 
-      setWhatsappStatus("disconnected");
-    } finally {
-      setWhatsappChecking(false);
-    }
-  }, []);
-
-  useEffect(() => { 
-    fetchCampaigns(); 
-    fetchWhatsappStatus();
-  }, [fetchCampaigns, fetchWhatsappStatus]);
-
-  // Poll for campaign detail updates when running
-  useEffect(() => {
-    let interval: ReturnType<typeof setInterval>;
-    if (view === "detail" && detail?._id && detail?.status === "running") {
-      interval = setInterval(() => {
-        fetchDetail(detail._id);
-        fetchCampaigns(); // To update the list in the background too
-      }, 5000);
-    }
-    return () => clearInterval(interval);
-  }, [view, detail?._id, detail?.status, fetchDetail, fetchCampaigns]);
 
   // ─── Actions ──────────────────────────────────────────────────
 
@@ -179,19 +96,11 @@ export default function CampaignsPage() {
     if (!csvFile) return;
     setCsvUploading(true);
     try {
-      const formData = new FormData();
-      formData.append("file", csvFile);
-      const res = await api.post<ApiResponse<CsvPreview>>("/campaigns/import-csv", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-      if (res.data.success && res.data.data) {
-        setCsvPreview(res.data.data);
-        setWizardStep(3);
-      } else {
-        showToast("error", res.data.error?.message || "Upload failed");
-      }
-    } catch (err: unknown) {
-      showToast("error", err instanceof Error ? err.message : "Upload failed");
+      const data = await importCsvMut.mutateAsync(csvFile);
+      setCsvPreview(data);
+      setWizardStep(3);
+    } catch (err: any) {
+      showToast("error", err.message || "Upload failed");
     } finally {
       setCsvUploading(false);
     }
@@ -203,15 +112,11 @@ export default function CampaignsPage() {
     
     setCsvUploading(true);
     try {
-      const res = await api.post<ApiResponse<CsvPreview>>("/campaigns/validate-manual", { numbers: lines });
-      if (res.data.success && res.data.data) {
-        setCsvPreview(res.data.data);
-        setWizardStep(3);
-      } else {
-        showToast("error", res.data.error?.message || "Validation failed");
-      }
-    } catch (err: unknown) {
-      showToast("error", err instanceof Error ? err.message : "Validation failed");
+      const data = await validateManualMut.mutateAsync(lines);
+      setCsvPreview(data);
+      setWizardStep(3);
+    } catch (err: any) {
+      showToast("error", err.message || "Validation failed");
     } finally {
       setCsvUploading(false);
     }
@@ -221,23 +126,17 @@ export default function CampaignsPage() {
     if (!campaignName.trim() || !csvPreview) return;
     setCreating(true);
     try {
-      const res = await api.post<ApiResponse<{ campaign: CampaignSummary }>>("/campaigns", {
+      const campaign = await createCampaignMut.mutateAsync({
         name: campaignName.trim(),
         templateKey,
         recipients: csvPreview.validRecords,
       });
-      if (res.data.success && res.data.data) {
-        showToast("success", "Campaign created! 🎉");
-        resetWizard();
-        setView("detail");
-        setSelectedCampaignId(res.data.data.campaign._id);
-        fetchDetail(res.data.data.campaign._id);
-        fetchCampaigns();
-      } else {
-        showToast("error", res.data.error?.message || "Failed");
-      }
-    } catch (err: unknown) {
-      showToast("error", err instanceof Error ? err.message : "Failed");
+      showToast("success", "Campaign created! 🎉");
+      resetWizard();
+      setView("detail");
+      setSelectedCampaignId(campaign._id);
+    } catch (err: any) {
+      showToast("error", err.message || "Failed");
     } finally {
       setCreating(false);
     }
@@ -246,16 +145,10 @@ export default function CampaignsPage() {
   const handleAction = async (id: string, action: "start" | "pause" | "resume" | "cancel") => {
     setActionLoading(action);
     try {
-      const res = await api.post<ApiResponse<{ campaign: CampaignSummary }>>(`/campaigns/${id}/${action}`);
-      if (res.data.success) {
-        showToast("success", `Campaign ${action}ed ✅`);
-        fetchDetail(id);
-        fetchCampaigns();
-      } else {
-        showToast("error", res.data.error?.message || `Failed to ${action}`);
-      }
-    } catch (err: unknown) {
-      showToast("error", err instanceof Error ? err.message : `Failed to ${action}`);
+      await campaignActionMut.mutateAsync({ id, action });
+      showToast("success", `Campaign ${action}ed ✅`);
+    } catch (err: any) {
+      showToast("error", err.message || `Failed to ${action}`);
     } finally {
       setActionLoading("");
     }
@@ -270,19 +163,14 @@ export default function CampaignsPage() {
       onConfirm: async () => {
         setActionLoading(`delete-${id}`);
         try {
-          const res = await api.delete<ApiResponse<any>>(`/campaigns/${id}`);
-          if (res.data.success) {
-            showToast("success", `Campaign "${name}" deleted ✅`);
-            setSelectedIds((prev) => prev.filter((item) => item !== id));
-            if (selectedCampaignId === id && view === "detail") {
-              setView("list");
-            }
-            fetchCampaigns();
-          } else {
-            showToast("error", res.data.error?.message || "Failed to delete campaign");
+          await deleteCampaignMut.mutateAsync(id);
+          showToast("success", `Campaign "${name}" deleted ✅`);
+          setSelectedIds((prev) => prev.filter((item) => item !== id));
+          if (selectedCampaignId === id && view === "detail") {
+            setView("list");
           }
-        } catch (err: unknown) {
-          showToast("error", err instanceof Error ? err.message : "Failed to delete campaign");
+        } catch (err: any) {
+          showToast("error", err.message || "Failed to delete campaign");
         } finally {
           setActionLoading("");
         }
@@ -299,16 +187,11 @@ export default function CampaignsPage() {
       onConfirm: async () => {
         setActionLoading("bulk-delete");
         try {
-          const res = await api.post<ApiResponse<any>>("/campaigns/bulk-delete", { ids: selectedIds });
-          if (res.data.success) {
-            showToast("success", `Deleted ${selectedIds.length} campaign(s) ✅`);
-            setSelectedIds([]);
-            fetchCampaigns();
-          } else {
-            showToast("error", res.data.error?.message || "Failed to bulk delete campaigns");
-          }
-        } catch (err: unknown) {
-          showToast("error", err instanceof Error ? err.message : "Failed to bulk delete campaigns");
+          await bulkDeleteMut.mutateAsync(selectedIds);
+          showToast("success", `Deleted ${selectedIds.length} campaign(s) ✅`);
+          setSelectedIds([]);
+        } catch (err: any) {
+          showToast("error", err.message || "Failed to bulk delete campaigns");
         } finally {
           setActionLoading("");
         }
@@ -333,7 +216,6 @@ export default function CampaignsPage() {
   const openDetail = (id: string) => {
     setSelectedCampaignId(id);
     setView("detail");
-    fetchDetail(id);
   };
 
   const resetWizard = () => {
@@ -421,7 +303,7 @@ export default function CampaignsPage() {
             <button
               className="wa-btn wa-btn-secondary"
               style={{ alignSelf: "flex-start", marginBottom: "0.5rem" }}
-              onClick={() => { setView("list"); fetchCampaigns(); }}
+              onClick={() => { setView("list"); }}
             >
               ← Back to List
             </button>
@@ -804,7 +686,7 @@ export default function CampaignsPage() {
               >
                 {actionLoading === `delete-${detail._id}` ? "Deleting..." : "🗑️ Delete Campaign"}
               </button>
-              <button className="wa-btn wa-btn-secondary wa-btn-sm" onClick={() => fetchDetail(detail._id)}>
+              <button className="wa-btn wa-btn-secondary wa-btn-sm" onClick={() => refetchDetail()}>
                 ↻ Refresh
               </button>
             </div>
@@ -854,9 +736,9 @@ export default function CampaignsPage() {
                 </div>
                 {recipientTotal > 20 && (
                   <div className="wa-pagination">
-                    <button className="wa-btn wa-btn-secondary wa-btn-sm" disabled={recipientPage <= 1} onClick={() => fetchRecipients(detail._id, recipientPage - 1)}>← Prev</button>
+                    <button className="wa-btn wa-btn-secondary wa-btn-sm" disabled={recipientPage <= 1} onClick={() => setRecipientPage(recipientPage - 1)}>← Prev</button>
                     <span className="wa-page-info">Page {recipientPage} of {Math.ceil(recipientTotal / 20)}</span>
-                    <button className="wa-btn wa-btn-secondary wa-btn-sm" disabled={recipientPage >= Math.ceil(recipientTotal / 20)} onClick={() => fetchRecipients(detail._id, recipientPage + 1)}>Next →</button>
+                    <button className="wa-btn wa-btn-secondary wa-btn-sm" disabled={recipientPage >= Math.ceil(recipientTotal / 20)} onClick={() => setRecipientPage(recipientPage + 1)}>Next →</button>
                   </div>
                 )}
               </>

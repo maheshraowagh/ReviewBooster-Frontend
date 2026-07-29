@@ -1,0 +1,20 @@
+/* ---- Auth Pages ---- */
+.auth-page {
+    @apply flex items-center justify-center min-h-screen relative overflow-hidden;
+    background: var(--color-surface);
+}
+
+.auth-page::before {
+    content: "";
+    @apply absolute pointer-events-none;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: transparent;
+    opacity: 0.5;
+}
+
+.auth-container {
+    @apply relative z-10;
+}

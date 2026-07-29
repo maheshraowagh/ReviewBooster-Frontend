@@ -1,79 +1,46 @@
-import { useState, useEffect, useCallback, useRef } from "react";
-import api, { type ApiResponse } from "../lib/api";
+import { useState, useEffect } from "react";
 
-// ─── Types ───────────────────────────────────────────────────────
-
-interface WhatsappInstance {
-  _id: string;
-  businessId: string;
-  instanceName: string;
-  provider: string;
-  mode: string;
-  status: "pending" | "connecting" | "qr_generated" | "connected" | "disconnected" | "error";
-  connectedPhone: string;
-  connectedAt: string | null;
-  firstConnectedAt: string | null;
-  messagingPausedAt: string | null;
-  messagingPauseReason: string | null;
-}
-
-interface StatusResponse {
-  status: string;
-  instance: WhatsappInstance | null;
-  liveStatus?: unknown;
-}
-
-interface ConnectResponse {
-  qr?: { base64?: string; code?: string; pairingCode?: string };
-  instance: WhatsappInstance;
-  message?: string;
-}
-
-interface UsageData {
-  configured: boolean;
-  status?: string;
-  provider?: string;
-  messagingPaused?: boolean;
-  messagingPauseReason?: string;
-  warming?: { ageDays: number; warmupComplete: boolean; currentWarmupLimit: number | null };
-  daily?: { sentToday: number; failedToday: number; limit: number; remaining: number };
-  monthly?: { used: number; limit: number; remaining: number };
-  quietHours?: { isQuiet: boolean; currentHour: number; nextAllowedHour: number };
-}
-
-interface MessageLogEntry {
-  _id: string;
-  messageType: string;
-  message: string;
-  status: string;
-  createdAt: string;
-  sentAt: string | null;
-  deliveredAt: string | null;
-  readAt: string | null;
-  failedReason: string | null;
-  providerMessageId: string | null;
-  customerId?: { name: string; phoneNormalized: string } | null;
-}
+import {
+  useWhatsappStatusRaw,
+  useWhatsappUsage,
+  useWhatsappMessages,
+  useWhatsappQr,
+  useConnectWhatsapp,
+  useDisconnectWhatsapp,
+  usePauseMessaging,
+  useResumeMessaging,
+  useSendReviewRequest,
+  useSendTestMessage,
+} from "../hooks/queries/useWhatsapp";
+import { RecentMessagesCard } from "../components/whatsapp/RecentMessagesCard";
 
 // ─── Component ───────────────────────────────────────────────────
 
 export default function WhatsAppPage() {
-  // Connection state
-  const [instance, setInstance] = useState<WhatsappInstance | null>(null);
+  const { data: statusData, isLoading, refetch: fetchStatus } = useWhatsappStatusRaw();
+  const instance = statusData?.instance || null;
+  
   const [qrBase64, setQrBase64] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
+  const [showDisconnectModal, setShowDisconnectModal] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState("");
 
-  // Usage
-  const [usage, setUsage] = useState<UsageData | null>(null);
+  const { data: usage } = useWhatsappUsage();
 
-  // Messages
-  const [messages, setMessages] = useState<MessageLogEntry[]>([]);
   const [msgPage, setMsgPage] = useState(1);
-  const [msgTotal, setMsgTotal] = useState(0);
+  const { data: messagesData, refetch: fetchMessages } = useWhatsappMessages(msgPage);
+  const messages = messagesData?.messages || [];
+  const msgTotal = messagesData?.total || 0;
+
+  const connectMut = useConnectWhatsapp();
+  const disconnectMut = useDisconnectWhatsapp();
+  const pauseMut = usePauseMessaging();
+  const resumeMut = useResumeMessaging();
+  const sendReviewMut = useSendReviewRequest();
+  const sendTestMut = useSendTestMessage();
+  const { refetch: fetchQr } = useWhatsappQr();
 
   // Review request form
   const [rrPhone, setRrPhone] = useState("");
@@ -90,110 +57,31 @@ export default function WhatsAppPage() {
   // Pause
   const [pausing, setPausing] = useState(false);
 
-  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  // ─── Fetchers ─────────────────────────────────────────────────
-
-  const fetchStatus = useCallback(async () => {
-    try {
-      const res = await api.get<ApiResponse<StatusResponse>>("/whatsapp/status");
-      if (res.data.success && res.data.data) {
-        const inst = res.data.data.instance;
-        setInstance(inst);
-        if (inst?.status === "connected") {
-          setQrBase64(null);
-          stopPolling();
-        }
-      }
-    } catch { /* silent */ }
-  }, []);
-
-  const fetchUsage = useCallback(async () => {
-    try {
-      const res = await api.get<ApiResponse<UsageData>>("/whatsapp/usage");
-      if (res.data.success && res.data.data) {
-        setUsage(res.data.data);
-      }
-    } catch { /* silent */ }
-  }, []);
-
-  const fetchMessages = useCallback(async (page = 1) => {
-    try {
-      const res = await api.get<ApiResponse<{ messages: MessageLogEntry[]; pagination: { total: number } }>>(
-        `/whatsapp/messages?page=${page}&limit=10`
-      );
-      if (res.data.success && res.data.data) {
-        setMessages(res.data.data.messages);
-        setMsgTotal(res.data.data.pagination.total);
-        setMsgPage(page);
-      }
-    } catch { /* silent */ }
-  }, []);
-
-  // ─── Init ─────────────────────────────────────────────────────
-
+  // Sync QR base64 state from instance status changes if needed
   useEffect(() => {
-    const init = async () => {
-      setLoading(true);
-      await Promise.all([fetchStatus(), fetchUsage(), fetchMessages()]);
-      setLoading(false);
-    };
-    init();
-    return () => stopPolling();
-  }, [fetchStatus, fetchUsage, fetchMessages]);
+    if (instance?.status === "connected") {
+      setQrBase64(null);
+    }
+  }, [instance?.status]);
 
   // Auto-recover: if DB says qr_generated but we have no QR data, fetch a fresh QR
   useEffect(() => {
-    if (!loading && instance && !qrBase64) {
+    if (!isLoading && instance && !qrBase64) {
       if (instance.status === "qr_generated") {
-        // Stale QR state — auto-fetch a new QR and start polling
-        (async () => {
-          try {
-            const res = await api.get<ApiResponse<{ qr?: { base64?: string }; needsQr: boolean }>>("/whatsapp/qr");
-            if (res.data.success && res.data.data?.needsQr && res.data.data.qr) {
-              setQrBase64(res.data.data.qr.base64 || null);
-              startPolling();
-            } else {
-              // Instance may have reconnected — refresh status
-              fetchStatus();
-            }
-          } catch {
-            // QR fetch failed — reset to disconnected so Connect button shows
-            setInstance((prev) => prev ? { ...prev, status: "disconnected" } : prev);
+        fetchQr().then(({ data }) => {
+          if (data?.needsQr && data.qr?.base64) {
+            setQrBase64(data.qr.base64);
+          } else {
+            fetchStatus();
           }
-        })();
+        }).catch(() => {
+          // fetchStatus();
+        });
       }
     }
-  }, [loading, instance?.status]);  // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isLoading, instance, qrBase64, fetchQr, fetchStatus]);
 
-  // ─── Polling ──────────────────────────────────────────────────
 
-  const startPolling = useCallback(() => {
-    stopPolling();
-    pollIntervalRef.current = setInterval(async () => {
-      try {
-        const res = await api.get<ApiResponse<StatusResponse>>("/whatsapp/status");
-        if (res.data.success && res.data.data) {
-          const inst = res.data.data.instance;
-          setInstance(inst);
-          if (inst?.status === "connected") {
-            setQrBase64(null);
-            stopPolling();
-            setSuccessMsg("WhatsApp connected successfully! 🎉");
-            setTimeout(() => setSuccessMsg(""), 5000);
-            fetchUsage();
-          }
-        }
-      } catch { /* ignore */ }
-    }, 5000);
-  }, [fetchUsage]);
-
-  function stopPolling() {
-    if (pollIntervalRef.current) {
-      clearInterval(pollIntervalRef.current);
-      pollIntervalRef.current = null;
-    }
-  }
 
   // ─── Actions ──────────────────────────────────────────────────
 
@@ -202,57 +90,42 @@ export default function WhatsAppPage() {
     setError(null);
     setQrBase64(null);
     try {
-      const res = await api.post<ApiResponse<ConnectResponse>>("/whatsapp/connect");
-      if (res.data.success && res.data.data) {
-        const data = res.data.data;
-        setInstance(data.instance);
-        if (data.instance.status === "connected") {
-          setSuccessMsg("Already connected! ✅");
-          setTimeout(() => setSuccessMsg(""), 3000);
-          fetchUsage();
-        } else if (data.qr) {
-          setQrBase64(data.qr.base64 || data.qr.code || null);
-          startPolling();
-        }
-      } else {
-        setError(res.data.error?.message || "Failed to connect");
+      const data = await connectMut.mutateAsync();
+      if (data.instance.status === "connected") {
+        setSuccessMsg("Already connected! ✅");
+        setTimeout(() => setSuccessMsg(""), 3000);
+      } else if (data.qr) {
+        setQrBase64(data.qr.base64 || data.qr.code || null);
       }
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to connect");
+    } catch (err: any) {
+      setError(err.message || "Failed to connect");
     } finally {
       setConnecting(false);
     }
   };
 
-  const handleDisconnect = async () => {
-    if (!confirm("Disconnect WhatsApp?")) return;
+  const triggerDisconnect = () => setShowDisconnectModal(true);
+
+  const confirmDisconnect = async () => {
+    setShowDisconnectModal(false);
     setDisconnecting(true);
     setError(null);
     try {
-      const res = await api.post<ApiResponse<{ instance: WhatsappInstance }>>("/whatsapp/disconnect");
-      if (res.data.success && res.data.data) {
-        setInstance(res.data.data.instance);
-        setQrBase64(null);
-        stopPolling();
-        fetchUsage();
-      }
-    } catch {
-      setError("Failed to disconnect");
+      await disconnectMut.mutateAsync();
+      setQrBase64(null);
+    } catch (err: any) {
+      setError(err.message || "Failed to disconnect");
     } finally {
       setDisconnecting(false);
     }
   };
 
   const handleRefreshQr = async () => {
-    try {
-      const res = await api.get<ApiResponse<{ qr?: { base64?: string }; needsQr: boolean }>>("/whatsapp/qr");
-      if (res.data.success && res.data.data?.needsQr && res.data.data.qr) {
-        setQrBase64(res.data.data.qr.base64 || null);
-      } else {
-        fetchStatus();
-      }
-    } catch {
-      setError("Failed to refresh QR");
+    const { data } = await fetchQr();
+    if (data?.needsQr && data.qr?.base64) {
+      setQrBase64(data.qr.base64);
+    } else {
+      fetchStatus();
     }
   };
 
@@ -260,9 +133,11 @@ export default function WhatsAppPage() {
     setPausing(true);
     try {
       const isPaused = usage?.messagingPaused;
-      const endpoint = isPaused ? "/whatsapp/resume" : "/whatsapp/pause";
-      await api.post(endpoint, isPaused ? {} : { reason: "Manual pause" });
-      await fetchUsage();
+      if (isPaused) {
+        await resumeMut.mutateAsync();
+      } else {
+        await pauseMut.mutateAsync("Manual pause");
+      }
       setSuccessMsg(isPaused ? "Messaging resumed ✅" : "Messaging paused ⏸️");
       setTimeout(() => setSuccessMsg(""), 3000);
     } catch {
@@ -278,21 +153,15 @@ export default function WhatsAppPage() {
     setRrSending(true);
     setRrResult(null);
     try {
-      const res = await api.post<ApiResponse<{ messageLogId: string }>>("/whatsapp/send-review-request", {
+      await sendReviewMut.mutateAsync({
         phone: rrPhone.trim(),
         customerName: rrName.trim() || undefined,
       });
-      if (res.data.success) {
-        setRrResult({ type: "success", msg: "Review request sent! ✅" });
-        setRrPhone("");
-        setRrName("");
-        fetchUsage();
-        fetchMessages();
-      } else {
-        setRrResult({ type: "error", msg: res.data.error?.message || "Failed" });
-      }
-    } catch (err: unknown) {
-      setRrResult({ type: "error", msg: err instanceof Error ? err.message : "Failed" });
+      setRrResult({ type: "success", msg: "Review request sent! ✅" });
+      setRrPhone("");
+      setRrName("");
+    } catch (err: any) {
+      setRrResult({ type: "error", msg: err.message || "Failed" });
     } finally {
       setRrSending(false);
       setTimeout(() => setRrResult(null), 5000);
@@ -305,17 +174,13 @@ export default function WhatsAppPage() {
     setSending(true);
     setSendResult(null);
     try {
-      const res = await api.post<ApiResponse<{ message: string }>>("/whatsapp/send-test", {
+      await sendTestMut.mutateAsync({
         phone: testPhone.trim(),
         message: testMessage.trim(),
       });
-      if (res.data.success) {
-        setSendResult({ type: "success", msg: "Message sent! ✅" });
-      } else {
-        setSendResult({ type: "error", msg: res.data.error?.message || "Failed" });
-      }
-    } catch (err: unknown) {
-      setSendResult({ type: "error", msg: err instanceof Error ? err.message : "Failed" });
+      setSendResult({ type: "success", msg: "Message sent! ✅" });
+    } catch (err: any) {
+      setSendResult({ type: "error", msg: err.message || "Failed" });
     } finally {
       setSending(false);
       setTimeout(() => setSendResult(null), 5000);
@@ -329,7 +194,7 @@ export default function WhatsAppPage() {
 
   // ─── Render ───────────────────────────────────────────────────
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="db-page animate-fade-in">
         <div className="db-loading-overlay"><div className="loading-spinner" /></div>
@@ -352,6 +217,27 @@ export default function WhatsAppPage() {
             <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
           </svg>
           {error}
+        </div>
+      )}
+
+      {showDisconnectModal && (
+        <div style={{
+          position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
+        }} onClick={() => setShowDisconnectModal(false)}>
+          <div style={{
+            background: 'white', padding: '24px', borderRadius: '8px', maxWidth: '400px', width: '90%', boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+          }} onClick={e => e.stopPropagation()}>
+            <h2 style={{ fontSize: '18px', fontWeight: 'bold', margin: '0 0 12px 0', color: '#1A1A1A' }}>Disconnect WhatsApp?</h2>
+            <p style={{ fontSize: '14px', color: '#6B6B63', margin: '0 0 24px 0', lineHeight: 1.5 }}>
+              Are you sure you want to disconnect? You won't be able to send review requests or campaign messages until you reconnect.
+            </p>
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+              <button className="wa-btn wa-btn-secondary" onClick={() => setShowDisconnectModal(false)}>Cancel</button>
+              <button className="wa-btn wa-btn-danger" onClick={confirmDisconnect}>
+                {disconnecting ? "Disconnecting..." : "Yes, Disconnect"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -387,7 +273,7 @@ export default function WhatsAppPage() {
                 <span className="wa-info-label">Provider</span>
                 <span className="wa-info-value wa-provider-badge">Evolution (Baileys)</span>
               </div>
-              <button className="wa-btn wa-btn-danger" onClick={handleDisconnect} disabled={disconnecting}>
+              <button className="wa-btn wa-btn-danger" onClick={triggerDisconnect} disabled={disconnecting}>
                 {disconnecting ? "Disconnecting..." : "Disconnect"}
               </button>
             </div>
@@ -540,67 +426,14 @@ export default function WhatsAppPage() {
         </div>
       )}
 
-      {/* ──── Recent Messages ──── */}
       {isConnected && (
-        <div className="wa-card">
-          <div className="wa-card-header">
-            <div className="wa-card-icon wa-card-icon-purple">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="24" height="24">
-                <rect x="3" y="3" width="18" height="18" rx="2" /><line x1="3" y1="9" x2="21" y2="9" /><line x1="9" y1="21" x2="9" y2="9" />
-              </svg>
-            </div>
-            <div>
-              <h2 className="wa-card-title">Recent Messages</h2>
-              <p className="wa-card-desc">{msgTotal} total messages</p>
-            </div>
-            <button className="wa-btn wa-btn-secondary wa-btn-sm" onClick={() => fetchMessages(msgPage)}>↻ Refresh</button>
-          </div>
-
-          {messages.length === 0 ? (
-            <p className="wa-empty-text">No messages yet. Send your first review request above!</p>
-          ) : (
-            <>
-              <div className="wa-messages-table-wrap">
-                <table className="wa-messages-table">
-                  <thead>
-                    <tr>
-                      <th>Customer</th>
-                      <th>Type</th>
-                      <th>Status</th>
-                      <th>Sent</th>
-                      <th>Delivered</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {messages.map((m) => (
-                      <tr key={m._id}>
-                        <td>
-                          <span className="wa-msg-customer">{m.customerId?.name || "—"}</span>
-                          <span className="wa-msg-phone">{m.customerId?.phoneNormalized || "—"}</span>
-                        </td>
-                        <td><span className={`wa-msg-type wa-type-${m.messageType}`}>{m.messageType.replace(/_/g, " ")}</span></td>
-                        <td><span className={`wa-msg-status wa-mstatus-${m.status}`}>{m.status}</span></td>
-                        <td className="wa-msg-time">{m.sentAt ? new Date(m.sentAt).toLocaleTimeString() : "—"}</td>
-                        <td className="wa-msg-time">
-                          {m.readAt ? `Read ${new Date(m.readAt).toLocaleTimeString()}`
-                            : m.deliveredAt ? `✓✓ ${new Date(m.deliveredAt).toLocaleTimeString()}`
-                            : "—"}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              {msgTotal > 10 && (
-                <div className="wa-pagination">
-                  <button className="wa-btn wa-btn-secondary wa-btn-sm" disabled={msgPage <= 1} onClick={() => fetchMessages(msgPage - 1)}>← Prev</button>
-                  <span className="wa-page-info">Page {msgPage} of {Math.ceil(msgTotal / 10)}</span>
-                  <button className="wa-btn wa-btn-secondary wa-btn-sm" disabled={msgPage >= Math.ceil(msgTotal / 10)} onClick={() => fetchMessages(msgPage + 1)}>Next →</button>
-                </div>
-              )}
-            </>
-          )}
-        </div>
+        <RecentMessagesCard 
+          messages={messages} 
+          msgTotal={msgTotal} 
+          msgPage={msgPage} 
+          setMsgPage={setMsgPage} 
+          fetchMessages={fetchMessages} 
+        />
       )}
     </div>
   );

@@ -1,18 +1,10 @@
-import { useState, useEffect, useRef } from 'react';
+import { useRef } from 'react';
 import { QRCodeCanvas } from 'qrcode.react';
-import api, { type ApiResponse } from '../lib/api';
-
-interface Business {
-  _id: string;
-  name: string;
-  businessCode: string;
-  logoUrl?: string;
-}
+import { useCurrentBusiness } from '../hooks/queries/useBusiness';
 
 export default function QrLocationsPage() {
-  const [business, setBusiness] = useState<Business | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data: business, isLoading: loading, error: queryError } = useCurrentBusiness();
+  const error = queryError ? queryError.message : null;
   const qrRef = useRef<HTMLCanvasElement>(null);
 
   const downloadQR = () => {
@@ -27,27 +19,6 @@ export default function QrLocationsPage() {
   const handlePrint = () => {
     window.print();
   };
-
-  useEffect(() => {
-    const fetchBusiness = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const res = await api.get<ApiResponse<Business>>('/business/me');
-        if (res.data.success && res.data.data) {
-          setBusiness(res.data.data);
-        } else {
-          setError(res.data.error?.message || 'Failed to load business data');
-        }
-      } catch {
-        setError('Could not connect to server. Please try again.');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchBusiness();
-  }, []);
 
   return (
     <div className="db-page animate-fade-in">

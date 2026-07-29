@@ -1,7 +1,5 @@
 import { useState, useEffect } from "react";
-import api, { type ApiResponse } from "../lib/api";
-import type { Business } from "../types";
-
+import { useCurrentBusiness, useUpdateMenuItems } from "../hooks/queries/useBusiness";
 const MAX_ITEMS = 20;
 const MAX_LENGTH = 50;
 
@@ -23,59 +21,40 @@ const DEFAULT_LABELS = {
 };
 
 export default function SettingsPage() {
-  const [business, setBusiness] = useState<Business | null>(null);
+  const { data: businessData, isLoading: loading, error: queryError } = useCurrentBusiness();
+  const business = businessData || null;
+  const error = queryError ? (queryError instanceof Error ? queryError.message : "Could not connect to server. Please try again.") : null;
+
   const [menuItems, setMenuItems] = useState<string[]>([]);
   const [newItem, setNewItem] = useState("");
   const [bulkMode, setBulkMode] = useState(false);
   const [bulkText, setBulkText] = useState("");
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState("");
-
+  
   useEffect(() => {
-    const fetchBusiness = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const res = await api.get<ApiResponse<Business>>("/business/me");
-        if (res.data.success && res.data.data) {
-          setBusiness(res.data.data);
-          setMenuItems(res.data.data.menuItems || []);
-        } else {
-          setError(res.data.error?.message || "Failed to load business data");
-        }
-      } catch {
-        setError("Could not connect to server. Please try again.");
-      } finally {
-        setLoading(false);
-      }
-    };
+    if (business) {
+      setMenuItems(business.menuItems || []);
+    }
+  }, [business]);
 
-    fetchBusiness();
-  }, []);
+  const updateMenuItemsMut = useUpdateMenuItems();
 
   const saveMenuItems = async (
     updated: string[],
     successMessage = "Menu items updated",
   ) => {
     setSaving(true);
-    setError(null);
+    setSubmitError(null);
     setSuccessMsg("");
     try {
-      const res = await api.patch<ApiResponse<Business>>(
-        "/business/menu-items",
-        { menuItems: updated },
-      );
-      if (res.data.success && res.data.data) {
-        setMenuItems(res.data.data.menuItems || []);
-        setSuccessMsg(successMessage);
-        setTimeout(() => setSuccessMsg(""), 3000);
-      } else {
-        setError(res.data.error?.message || "Failed to save menu items");
-      }
-    } catch {
-      setError("Could not save changes. Please try again.");
+      await updateMenuItemsMut.mutateAsync(updated);
+      setMenuItems(updated);
+      setSuccessMsg(successMessage);
+      setTimeout(() => setSuccessMsg(""), 3000);
+    } catch (err: any) {
+      setSubmitError(err.message || "Could not save changes. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -88,11 +67,11 @@ export default function SettingsPage() {
     const trimmed = newItem.trim();
     if (!trimmed) return;
     if (trimmed.length > MAX_LENGTH) {
-      setError(`Menu item must be ${MAX_LENGTH} characters or fewer`);
+      setSubmitError(`Menu item must be ${MAX_LENGTH} characters or fewer`);
       return;
     }
     if (menuItems.length >= MAX_ITEMS) {
-      setError(`You can add up to ${MAX_ITEMS} menu items`);
+      setSubmitError(`You can add up to ${MAX_ITEMS} menu items`);
       return;
     }
     if (isDuplicate(trimmed, menuItems)) {
@@ -108,7 +87,7 @@ export default function SettingsPage() {
 
   // ---- Bulk add: paste a whole menu at once (comma or newline separated) ----
   const handleBulkAdd = () => {
-    setError(null);
+    setSubmitError(null);
     const rawItems = bulkText
       .split(/[\n,]/)
       .map((s) => s.trim())
@@ -137,7 +116,7 @@ export default function SettingsPage() {
     const toAdd = accepted.slice(0, availableSlots);
 
     if (toAdd.length === 0) {
-      setError(
+      setSubmitError(
         availableSlots === 0
           ? `You've reached the ${MAX_ITEMS} item limit — remove some items first.`
           : "No new items to add — they may already be on your list or too long (max 50 characters each).",
@@ -175,7 +154,7 @@ export default function SettingsPage() {
       </div>
 
       {/* ---- Error state ---- */}
-      {error && (
+      {(error || submitError) && (
         <div className="db-error" role="alert">
           <svg
             viewBox="0 0 24 24"
@@ -189,7 +168,7 @@ export default function SettingsPage() {
             <line x1="12" y1="8" x2="12" y2="12" />
             <line x1="12" y1="16" x2="12.01" y2="16" />
           </svg>
-          {error}
+          {error || submitError}
         </div>
       )}
 
@@ -203,9 +182,9 @@ export default function SettingsPage() {
       {/* ---- Content ---- */}
       {!loading && business && (
         <div className="db-card">
-          <h2 className="db-card-title">{(ITEMS_LABELS[business.businessType?.toLowerCase()] || DEFAULT_LABELS).heading}</h2>
+          <h2 className="db-card-title">{(ITEMS_LABELS[business.businessType?.toLowerCase() || ''] || DEFAULT_LABELS).heading}</h2>
           <p className="settings-menu-hint">
-            {(ITEMS_LABELS[business.businessType?.toLowerCase()] || DEFAULT_LABELS).hint}
+            {(ITEMS_LABELS[business.businessType?.toLowerCase() || ''] || DEFAULT_LABELS).hint}
           </p>
 
           {!bulkMode ? (
@@ -214,7 +193,7 @@ export default function SettingsPage() {
                 <input
                   type="text"
                   className="settings-menu-input"
-                  placeholder={(ITEMS_LABELS[business.businessType?.toLowerCase()] || DEFAULT_LABELS).placeholder}
+                  placeholder={(ITEMS_LABELS[business.businessType?.toLowerCase() || ''] || DEFAULT_LABELS).placeholder}
                   value={newItem}
                   maxLength={MAX_LENGTH}
                   onChange={(e) => setNewItem(e.target.value)}
@@ -275,7 +254,7 @@ export default function SettingsPage() {
                   onClick={() => {
                     setBulkMode(false);
                     setBulkText("");
-                    setError(null);
+                    setSubmitError(null);
                   }}
                 >
                   Cancel
@@ -312,7 +291,7 @@ export default function SettingsPage() {
           </div>
 
           <p className="settings-menu-footnote">
-            {(ITEMS_LABELS[business.businessType?.toLowerCase()] || DEFAULT_LABELS).footnote}
+            {(ITEMS_LABELS[business.businessType?.toLowerCase() || ''] || DEFAULT_LABELS).footnote}
           </p>
         </div>
       )}

@@ -1,34 +1,22 @@
-import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from 'react';
+import { useEffect, useCallback, type ReactNode } from 'react';
 import { useAuth, useUser } from '@clerk/clerk-react';
 import api, { type ApiResponse } from '../lib/api';
 import type { AppUser } from '../types';
-
-interface AuthContextType {
-  appUser: AppUser | null;
-  isLoading: boolean;
-  error: string | null;
-  refetchUser: () => Promise<void>;
-}
-
-const AuthContext = createContext<AuthContextType>({
-  appUser: null,
-  isLoading: true,
-  error: null,
-  refetchUser: async () => {},
-});
+import { useAuthStore } from '../stores/authStore';
 
 /**
  * AuthProvider — wraps the app to provide:
  * 1. Clerk auth token injection on every API request
  * 2. User sync (POST /api/auth/sync) after Clerk sign-in
- * 3. AppUser state accessible via useAppAuth()
+ * 3. AppUser state synchronised with useAuthStore
  */
 export function AuthProvider({ children }: { children: ReactNode }) {
   const { getToken, isSignedIn, isLoaded: isAuthLoaded } = useAuth();
   const { user: clerkUser, isLoaded: isUserLoaded } = useUser();
-  const [appUser, setAppUser] = useState<AppUser | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const setAppUser = useAuthStore((state) => state.setAppUser);
+  const setIsLoading = useAuthStore((state) => state.setIsLoading);
+  const setError = useAuthStore((state) => state.setError);
+  const clearAuth = useAuthStore((state) => state.clearAuth);
 
   // -------------------------------------------------------------------------
   // Attach Clerk token to every API request via axios interceptor
@@ -57,8 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // -------------------------------------------------------------------------
   const syncUser = useCallback(async () => {
     if (!isSignedIn || !clerkUser) {
-      setAppUser(null);
-      setIsLoading(false);
+      clearAuth();
       return;
     }
 
@@ -83,7 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  }, [isSignedIn, clerkUser]);
+  }, [isSignedIn, clerkUser, setAppUser, setIsLoading, setError, clearAuth]);
 
   useEffect(() => {
     if (isAuthLoaded && isUserLoaded) {
@@ -91,20 +78,5 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [isAuthLoaded, isUserLoaded, syncUser]);
 
-  return (
-    <AuthContext.Provider value={{ appUser, isLoading, error, refetchUser: syncUser }}>
-      {children}
-    </AuthContext.Provider>
-  );
-}
-
-/**
- * Hook to access the current app user and auth state.
- */
-export function useAppAuth() {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAppAuth must be used within an AuthProvider');
-  }
-  return context;
+  return <>{children}</>;
 }

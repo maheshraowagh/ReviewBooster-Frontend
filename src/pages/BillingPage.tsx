@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { useBilling, loadRazorpayScript, type PlanDefinition } from '../lib/useBilling';
-import api from '../lib/api';
+import { useBilling, loadRazorpayScript, type PlanDefinition, useCreateSubscription, useCancelSubscription } from '../lib/useBilling';
 
 // ─── Plan feature lists for display ────────────────────────────────────────
 const PLAN_FEATURES: Record<string, string[]> = {
@@ -71,7 +70,13 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 // ─── Upgrade modal / checkout ──────────────────────────────────────────────
-async function initiateCheckout(planId: string, onSuccess: () => void, setCheckoutLoading: (v: boolean) => void, setCheckoutError: (v: string | null) => void) {
+async function initiateCheckout(
+  planId: string, 
+  onSuccess: () => void, 
+  setCheckoutLoading: (v: boolean) => void, 
+  setCheckoutError: (v: string | null) => void,
+  createSubscription: (planId: string) => Promise<any>
+) {
   setCheckoutLoading(true);
   setCheckoutError(null);
   try {
@@ -81,13 +86,7 @@ async function initiateCheckout(planId: string, onSuccess: () => void, setChecko
       return;
     }
 
-    const res = await api.post<{ success: boolean; data: { subscriptionId: string; razorpayKeyId: string; planName: string; amountPaise: number } }>('/billing/create-subscription', { planId });
-    if (!res.data.success || !res.data.data) {
-      setCheckoutError('Failed to create subscription. Please try again.');
-      return;
-    }
-
-    const { subscriptionId, razorpayKeyId, planName } = res.data.data;
+    const { subscriptionId, razorpayKeyId, planName } = await createSubscription(planId);
 
     const options = {
       key: razorpayKeyId,
@@ -110,11 +109,8 @@ async function initiateCheckout(planId: string, onSuccess: () => void, setChecko
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const rzp = new (window as any).Razorpay(options);
     rzp.open();
-  } catch (err: unknown) {
-    const message = err && typeof err === 'object' && 'response' in err
-      ? (err as { response?: { data?: { error?: { message?: string } } } }).response?.data?.error?.message || 'Checkout failed. Please try again.'
-      : 'Checkout failed. Please try again.';
-    setCheckoutError(message);
+  } catch (err: any) {
+    setCheckoutError(err.message || 'Checkout failed. Please try again.');
   } finally {
     setCheckoutLoading(false);
   }
@@ -248,6 +244,9 @@ function PlanCard({
 // ─── Main Page ─────────────────────────────────────────────────────────────
 export default function BillingPage() {
   const { subscription, plans, isLoading, refetch } = useBilling();
+  const createSubMut = useCreateSubscription();
+  const cancelSubMut = useCancelSubscription();
+  
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [cancelLoading, setCancelLoading] = useState(false);
@@ -267,6 +266,7 @@ export default function BillingPage() {
       },
       (v) => { if (!v) setCheckoutLoading(null); },
       setCheckoutError,
+      (id) => createSubMut.mutateAsync(id)
     );
   };
 
@@ -274,17 +274,11 @@ export default function BillingPage() {
     setCancelLoading(true);
     setCancelError(null);
     try {
-      const res = await api.post('/billing/cancel');
-      if ((res.data as { success: boolean }).success) {
-        setShowCancelModal(false);
-        setSuccessMsg('Subscription cancelled. Access continues until the current period ends.');
-        await refetch();
-      }
-    } catch (err: unknown) {
-      const msg = err && typeof err === 'object' && 'response' in err
-        ? (err as { response?: { data?: { error?: { message?: string } } } }).response?.data?.error?.message || 'Failed to cancel'
-        : 'Failed to cancel';
-      setCancelError(msg);
+      await cancelSubMut.mutateAsync();
+      setShowCancelModal(false);
+      setSuccessMsg('Subscription cancelled. Access continues until the current period ends.');
+    } catch (err: any) {
+      setCancelError(err.message || 'Failed to cancel');
     } finally {
       setCancelLoading(false);
     }

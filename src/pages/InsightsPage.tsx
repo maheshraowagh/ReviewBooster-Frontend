@@ -1,67 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
-import api, { type ApiResponse } from '../lib/api';
+import { useState } from 'react';
+import { useInsightsData, useSentimentData, useAtRiskData } from '../hooks/queries/useInsights';
+import type { Period, TopicItem } from '../services/insightsService';
 
-type Period = 'week' | 'month' | 'year';
 
-interface TagData {
-  tag: string;
-  currentCount: number;
-  previousPeriodCount: number;
-  delta: number;
-  sentiment: 'positive' | 'negative';
-}
-
-interface AtRiskCustomer {
-  feedbackId: string;
-  rating: number;
-  tags: string[];
-  note: string;
-  createdAt: string;
-  daysSince: number;
-}
-
-interface InsightsData {
-  period: string;
-  tagList: TagData[];
-}
-
-interface AtRiskData {
-  atRiskList: AtRiskCustomer[];
-  count: number;
-}
-
-// ---- Sentiment types ----
-interface TrendPoint {
-  date: string;
-  label: string;
-  positiveCount: number;
-  negativeCount: number;
-  avgRating: number;
-  feedbackCount: number;
-}
-
-interface TopicItem {
-  tag: string;
-  sentiment: 'positive' | 'negative';
-  count: number;
-  prevCount: number;
-  pctPositive: number;
-}
-
-interface RatingBand {
-  min: number;
-  max: number;
-  count: number;
-  pct: number;
-}
-
-interface SentimentData {
-  period: string;
-  overallTrend: TrendPoint[];
-  topicBreakdown: TopicItem[];
-  byRatingBand: Record<string, RatingBand>;
-  totalFeedback: number;
-}
 
 const PERIODS: { key: Period; label: string }[] = [
   { key: 'week', label: 'Week' },
@@ -78,36 +19,36 @@ const BAND_CONFIG: { key: string; label: string; stars: string; color: string }[
 
 export default function InsightsPage() {
   const [period, setPeriod] = useState<Period>('week');
-  const [insightsData, setInsightsData] = useState<InsightsData | null>(null);
-  const [sentimentData, setSentimentData] = useState<SentimentData | null>(null);
-  const [atRiskData, setAtRiskData] = useState<AtRiskData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  const fetchData = useCallback(async (p: Period) => {
-    try {
-      setLoading(true);
-      setError(null);
+  const {
+    data: insightsData,
+    isLoading: insightsLoading,
+    error: insightsError,
+    refetch: refetchInsights,
+  } = useInsightsData(period);
 
-      const [insightsRes, sentimentRes, atRiskRes] = await Promise.all([
-        api.get<ApiResponse<InsightsData>>(`/dashboard/insights?period=${p}`),
-        api.get<ApiResponse<SentimentData>>(`/dashboard/sentiment?period=${p}`),
-        api.get<ApiResponse<AtRiskData>>('/dashboard/at-risk'),
-      ]);
+  const {
+    data: sentimentData,
+    isLoading: sentimentLoading,
+    error: sentimentError,
+    refetch: refetchSentiment,
+  } = useSentimentData(period);
 
-      if (insightsRes.data.success && insightsRes.data.data) setInsightsData(insightsRes.data.data);
-      if (sentimentRes.data.success && sentimentRes.data.data) setSentimentData(sentimentRes.data.data);
-      if (atRiskRes.data.success && atRiskRes.data.data) setAtRiskData(atRiskRes.data.data);
-    } catch {
-      setError('Could not connect to server. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const {
+    data: atRiskData,
+    isLoading: atRiskLoading,
+    error: atRiskError,
+    refetch: refetchAtRisk,
+  } = useAtRiskData();
 
-  useEffect(() => {
-    fetchData(period);
-  }, [period, fetchData]);
+  const loading = insightsLoading || sentimentLoading || atRiskLoading;
+  const error = insightsError?.message || sentimentError?.message || atRiskError?.message || null;
+
+  const handleRetry = () => {
+    refetchInsights();
+    refetchSentiment();
+    refetchAtRisk();
+  };
 
   // ---- Sentiment helpers ----
   const getPctBarColor = (pct: number) => {
@@ -185,7 +126,7 @@ export default function InsightsPage() {
             <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
           </svg>
           {error}
-          <button className="db-error-retry" onClick={() => fetchData(period)}>Retry</button>
+          <button className="db-error-retry" onClick={handleRetry}>Retry</button>
         </div>
       )}
 
@@ -215,15 +156,27 @@ export default function InsightsPage() {
                   const total = pt.positiveCount + pt.negativeCount;
                   const maxBar = Math.max(...sentimentData.overallTrend.map(t => t.positiveCount + t.negativeCount), 1);
                   const heightPct = total > 0 ? (total / maxBar) * 100 : 0;
-                  const posPct = total > 0 ? (pt.positiveCount / total) * 100 : 0;
+                  const posPct = total > 0 ? Math.round((pt.positiveCount / total) * 100) : 0;
+                  const negPct = total > 0 ? 100 - posPct : 0;
                   return (
                     <div key={i} className="sentiment-trend-col">
                       <div className="sentiment-trend-bar-wrapper">
                         <div className="sentiment-trend-bar" style={{ height: `${heightPct}%` }}>
-                          <div className="sentiment-trend-pos" style={{ height: `${posPct}%` }} title={`${pt.positiveCount} positive`} />
-                          <div className="sentiment-trend-neg" style={{ height: `${100 - posPct}%` }} title={`${pt.negativeCount} negative`} />
+                          <div className="sentiment-trend-pos" style={{ height: `${posPct}%` }} title={`${pt.positiveCount} positive (${posPct}%)`}>
+                            {total > 0 && posPct >= 15 && (
+                              <span className="sentiment-bar-pct">{posPct}%</span>
+                            )}
+                          </div>
+                          <div className="sentiment-trend-neg" style={{ height: `${negPct}%` }} title={`${pt.negativeCount} negative (${negPct}%)`}>
+                            {total > 0 && negPct >= 15 && (
+                              <span className="sentiment-bar-pct">{negPct}%</span>
+                            )}
+                          </div>
                         </div>
                       </div>
+                      {total > 0 && (posPct < 15 || negPct < 15) && (
+                        <span className="sentiment-trend-tooltip">{posPct}% / {negPct}%</span>
+                      )}
                       <span className="sentiment-trend-label">{pt.label}</span>
                     </div>
                   );
