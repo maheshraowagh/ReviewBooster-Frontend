@@ -2,19 +2,6 @@ import api, { type ApiResponse } from '../lib/api';
 
 export type Period = 'week' | 'month' | 'year';
 
-export interface TagData {
-  tag: string;
-  currentCount: number;
-  previousPeriodCount: number;
-  delta: number;
-  sentiment: 'positive' | 'negative';
-}
-
-export interface InsightsData {
-  period: string;
-  tagList: TagData[];
-}
-
 export interface AtRiskCustomer {
   feedbackId: string;
   rating: number;
@@ -22,11 +9,15 @@ export interface AtRiskCustomer {
   note: string;
   createdAt: string;
   daysSince: number;
+  recoveryStatus: 'unhandled' | 'handled';
+  recoveryNote: string;
+  recoveryHandledAt: string | null;
 }
 
 export interface AtRiskData {
   atRiskList: AtRiskCustomer[];
   count: number;
+  businessType: string;
 }
 
 export interface TrendPoint {
@@ -62,13 +53,6 @@ export interface SentimentData {
 }
 
 export const insightsService = {
-  getInsights: async (period: Period): Promise<InsightsData> => {
-    const res = await api.get<ApiResponse<InsightsData>>(`/dashboard/insights?period=${period}`);
-    if (!res.data.success || !res.data.data) {
-      throw new Error(res.data.error?.message || "Failed to load insights");
-    }
-    return res.data.data;
-  },
 
   getSentiment: async (period: Period): Promise<SentimentData> => {
     const res = await api.get<ApiResponse<SentimentData>>(`/dashboard/sentiment?period=${period}`);
@@ -82,6 +66,17 @@ export const insightsService = {
     const res = await api.get<ApiResponse<AtRiskData>>('/dashboard/at-risk');
     if (!res.data.success || !res.data.data) {
       throw new Error(res.data.error?.message || "Failed to load at-risk customers");
+    }
+    return res.data.data;
+  },
+
+  handleAtRiskCustomer: async (id: string, recoveryNote?: string, recoveryStatus: 'handled' | 'unhandled' = 'handled') => {
+    const res = await api.patch<ApiResponse<any>>(`/dashboard/at-risk/${id}/handle`, {
+      recoveryNote,
+      recoveryStatus,
+    });
+    if (!res.data.success) {
+      throw new Error(res.data.error?.message || "Failed to update status");
     }
     return res.data.data;
   },

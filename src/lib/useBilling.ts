@@ -1,8 +1,22 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { billingService } from '../services/billingService';
-import type { PlanDefinition, SubscriptionState, Invoice, PlanEntitlements } from '../services/billingService';
+import type {
+  CheckoutVerificationResult,
+  Invoice,
+  PlanDefinition,
+  PlanEntitlements,
+  RazorpaySubscriptionCheckoutResponse,
+  SubscriptionState,
+} from '../services/billingService';
 
-export type { PlanDefinition, SubscriptionState, Invoice, PlanEntitlements };
+export type {
+  CheckoutVerificationResult,
+  Invoice,
+  PlanDefinition,
+  PlanEntitlements,
+  RazorpaySubscriptionCheckoutResponse,
+  SubscriptionState,
+};
 
 export function useBilling() {
   const { data: subscription, isLoading: subLoading, error: subError, refetch } = useQuery({
@@ -29,6 +43,36 @@ export function useBilling() {
 export function useCreateSubscription() {
   return useMutation({
     mutationFn: (planId: string) => billingService.createSubscription(planId),
+  });
+}
+
+export function useVerifySubscription() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: billingService.verifySubscription,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['billing', 'subscription'] });
+    },
+  });
+}
+
+export function useReconcileSubscription() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: billingService.reconcileSubscription,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['billing', 'subscription'] });
+    },
+  });
+}
+
+export function useChangePlan() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: billingService.changePlan,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['billing', 'subscription'] });
+    },
   });
 }
 

@@ -7,8 +7,68 @@ export interface AdminStats {
   activeBusinesses: number;
   suspendedBusinesses: number;
   totalFeedback: number;
+  todayReviews: number;
   totalQRCodeScans: number;
   averagePlatformRating: number;
+  googleRedirects: number;
+  activeSubscriptions: number;
+  periodRevenuePaise: number;
+  lifetimeRevenuePaise: number;
+  todayRevenuePaise: number;
+  successfulPayments: number;
+  reviewTrend: Array<{
+    date: string;
+    reviews: number;
+    averageRating: number;
+  }>;
+  revenueTrend: Array<{
+    date: string;
+    revenuePaise: number;
+    payments: number;
+  }>;
+  recentPayments: Array<{
+    paymentId: string;
+    amountPaidPaise: number;
+    currency: string;
+    revenueDate: string;
+    plan: string;
+    businessId: string;
+    businessName: string;
+    businessCode: string;
+  }>;
+  appliedFilters: {
+    range: AdminStatsRange;
+    from: string | null;
+    to: string | null;
+    businessId: string | null;
+    plan: string | null;
+    timezone: string;
+  };
+  filterOptions: {
+    businesses: Array<{
+      id: string;
+      name: string;
+      businessCode: string;
+      plan: string;
+    }>;
+    plans: string[];
+  };
+}
+
+export type AdminStatsRange =
+  | "today"
+  | "7d"
+  | "30d"
+  | "this_month"
+  | "all"
+  | "custom";
+
+export interface AdminStatsFilters {
+  range: AdminStatsRange;
+  businessId?: string;
+  plan?: string;
+  from?: string;
+  to?: string;
 }
 
 export interface PaginatedResponse<T> {
@@ -84,8 +144,16 @@ export interface AuditLogEntry {
 }
 
 export const adminApi = {
-  getStats: () =>
-    api.get<{ success: boolean; data: AdminStats }>("/admin/stats"),
+  getStats: (filters: AdminStatsFilters = { range: "30d" }) => {
+    const params = new URLSearchParams({ range: filters.range });
+    if (filters.businessId) params.set("businessId", filters.businessId);
+    if (filters.plan) params.set("plan", filters.plan);
+    if (filters.from) params.set("from", filters.from);
+    if (filters.to) params.set("to", filters.to);
+    return api.get<{ success: boolean; data: AdminStats }>(
+      `/admin/stats?${params.toString()}`,
+    );
+  },
 
   getBusinesses: (page = 1, limit = 10, search = "") =>
     api.get<{ success: boolean; data: PaginatedResponse<AdminBusiness> }>(

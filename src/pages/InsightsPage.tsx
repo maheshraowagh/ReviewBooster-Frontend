@@ -1,403 +1,581 @@
-import { useState } from 'react';
-import { useInsightsData, useSentimentData, useAtRiskData } from '../hooks/queries/useInsights';
-import type { Period, TopicItem } from '../services/insightsService';
-
-
+import { useMemo, useState } from 'react';
+import AtRiskSection from '../components/AtRiskSection';
+import { useAtRiskData, useSentimentData } from '../hooks/queries/useInsights';
+import type {
+  Period,
+  RatingBand,
+  SentimentData,
+  TopicItem,
+} from '../services/insightsService';
 
 const PERIODS: { key: Period; label: string }[] = [
-  { key: 'week', label: 'Week' },
-  { key: 'month', label: 'Month' },
-  { key: 'year', label: 'Year' },
+  { key: 'week', label: '7 days' },
+  { key: 'month', label: '30 days' },
+  { key: 'year', label: '12 months' },
 ];
 
-const BAND_CONFIG: { key: string; label: string; stars: string; color: string }[] = [
-  { key: 'excellent', label: 'Excellent', stars: '5★', color: '#3F7D45' },
-  { key: 'good', label: 'Good', stars: '4★', color: '#22c55e' },
-  { key: 'average', label: 'Average', stars: '3★', color: '#eab308' },
-  { key: 'poor', label: 'Poor', stars: '1-2★', color: '#ef4444' },
+const TOPICS_PER_PAGE = 6;
+
+const BAND_CONFIG: {
+  key: string;
+  label: string;
+  stars: string;
+  color: string;
+}[] = [
+  { key: 'excellent', label: 'Excellent', stars: '5 star', color: '#3f7d45' },
+  { key: 'good', label: 'Good', stars: '4 star', color: '#68a05d' },
+  { key: 'average', label: 'Average', stars: '3 star', color: '#e5a93d' },
+  { key: 'poor', label: 'Poor', stars: '1–2 star', color: '#dc5a5a' },
 ];
+
+type MetricIcon = 'responses' | 'rating' | 'positive' | 'risk';
+
+function MetricIcon({ name }: { name: MetricIcon }) {
+  const common = {
+    width: 18,
+    height: 18,
+    viewBox: '0 0 24 24',
+    fill: 'none',
+    stroke: 'currentColor',
+    strokeWidth: 1.8,
+    strokeLinecap: 'round' as const,
+    strokeLinejoin: 'round' as const,
+    'aria-hidden': true,
+  };
+
+  if (name === 'rating') {
+    return (
+      <svg {...common}>
+        <path d="m12 3 2.75 5.57 6.15.9-4.45 4.33 1.05 6.12L12 17.03l-5.5 2.89 1.05-6.12L3.1 9.47l6.15-.9L12 3Z" />
+      </svg>
+    );
+  }
+
+  if (name === 'positive') {
+    return (
+      <svg {...common}>
+        <path d="M4 15.5 9 10l4 4 7-8" />
+        <path d="M15 6h5v5" />
+      </svg>
+    );
+  }
+
+  if (name === 'risk') {
+    return (
+      <svg {...common}>
+        <path d="M10.3 4.2 2.7 17a2 2 0 0 0 1.7 3h15.2a2 2 0 0 0 1.7-3L13.7 4.2a2 2 0 0 0-3.4 0Z" />
+        <path d="M12 9v4m0 3h.01" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg {...common}>
+      <path d="M6 3h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9l-5 4V5a2 2 0 0 1 2-2Z" />
+      <path d="M8 8h8M8 12h5" />
+    </svg>
+  );
+}
+
+function getAverageRating(data?: SentimentData) {
+  if (!data) return 0;
+  const totals = data.overallTrend.reduce(
+    (acc, point) => ({
+      weighted: acc.weighted + point.avgRating * point.feedbackCount,
+      count: acc.count + point.feedbackCount,
+    }),
+    { weighted: 0, count: 0 },
+  );
+
+  return totals.count > 0 ? totals.weighted / totals.count : 0;
+}
+
+function getBand(data: SentimentData | undefined, key: string): RatingBand {
+  return data?.byRatingBand[key] ?? { min: 0, max: 0, count: 0, pct: 0 };
+}
+
+function getTrendSummary(data: SentimentData | undefined) {
+  if (!data || data.overallTrend.length < 2) {
+    return { label: 'Collecting trend data', delta: 0, tone: 'neutral' };
+  }
+
+  const half = Math.max(1, Math.floor(data.overallTrend.length / 2));
+  const older = data.overallTrend.slice(0, half);
+  const recent = data.overallTrend.slice(half);
+  const rate = (points: typeof older) => {
+    const totals = points.reduce(
+      (acc, point) => ({
+        positive: acc.positive + point.positiveCount,
+        all: acc.all + point.positiveCount + point.negativeCount,
+      }),
+      { positive: 0, all: 0 },
+    );
+    return totals.all > 0 ? (totals.positive / totals.all) * 100 : 0;
+  };
+
+  const delta = Math.round(rate(recent) - rate(older));
+  if (delta > 0) {
+    return { label: `Positive sentiment up ${delta} pts`, delta, tone: 'good' };
+  }
+  if (delta < 0) {
+    return {
+      label: `Positive sentiment down ${Math.abs(delta)} pts`,
+      delta,
+      tone: 'bad',
+    };
+  }
+  return { label: 'Sentiment is holding steady', delta, tone: 'neutral' };
+}
+
+function topicDelta(item: TopicItem) {
+  const delta = item.count - item.prevCount;
+  const improving =
+    (item.sentiment === 'positive' && delta >= 0) ||
+    (item.sentiment === 'negative' && delta <= 0);
+
+  return {
+    delta,
+    improving,
+    label: delta === 0 ? 'No change' : `${delta > 0 ? '+' : ''}${delta}`,
+  };
+}
 
 export default function InsightsPage() {
   const [period, setPeriod] = useState<Period>('week');
+  const [topicPage, setTopicPage] = useState(0);
 
-  const {
-    data: insightsData,
-    isLoading: insightsLoading,
-    error: insightsError,
-    refetch: refetchInsights,
-  } = useInsightsData(period);
+  const sentiment = useSentimentData(period);
+  const atRisk = useAtRiskData();
 
-  const {
-    data: sentimentData,
-    isLoading: sentimentLoading,
-    error: sentimentError,
-    refetch: refetchSentiment,
-  } = useSentimentData(period);
+  const sentimentData = sentiment.data;
+  const atRiskData = atRisk.data;
+  const isInitialLoading =
+    (sentiment.isLoading && !sentimentData) || (atRisk.isLoading && !atRiskData);
+  const error = sentiment.error?.message || atRisk.error?.message || null;
 
-  const {
-    data: atRiskData,
-    isLoading: atRiskLoading,
-    error: atRiskError,
-    refetch: refetchAtRisk,
-  } = useAtRiskData();
+  const averageRating = getAverageRating(sentimentData);
+  const positiveCount =
+    getBand(sentimentData, 'excellent').count + getBand(sentimentData, 'good').count;
+  const positiveRate = sentimentData?.totalFeedback
+    ? Math.round((positiveCount / sentimentData.totalFeedback) * 100)
+    : 0;
+  const openAtRisk =
+    atRiskData?.atRiskList.filter((item) => item.recoveryStatus === 'unhandled') ??
+    [];
+  const criticalCount = openAtRisk.filter((item) => item.rating === 1).length;
+  const trendSummary = getTrendSummary(sentimentData);
 
-  const loading = insightsLoading || sentimentLoading || atRiskLoading;
-  const error = insightsError?.message || sentimentError?.message || atRiskError?.message || null;
+  const topicPages = Math.max(
+    1,
+    Math.ceil((sentimentData?.topicBreakdown.length ?? 0) / TOPICS_PER_PAGE),
+  );
+  const safeTopicPage = Math.min(topicPage, topicPages - 1);
+  const visibleTopics = useMemo(
+    () =>
+      sentimentData?.topicBreakdown.slice(
+        safeTopicPage * TOPICS_PER_PAGE,
+        (safeTopicPage + 1) * TOPICS_PER_PAGE,
+      ) ?? [],
+    [safeTopicPage, sentimentData],
+  );
 
-  const handleRetry = () => {
-    refetchInsights();
-    refetchSentiment();
-    refetchAtRisk();
+  const retry = () => {
+    void sentiment.refetch();
+    void atRisk.refetch();
   };
 
-  // ---- Sentiment helpers ----
-  const getPctBarColor = (pct: number) => {
-    if (pct <= 40) return '#ef4444';
-    if (pct <= 70) return '#eab308';
-    return '#3F7D45';
-  };
-
-  const renderTopicDelta = (item: TopicItem) => {
-    const delta = item.count - item.prevCount;
-    if (delta === 0) return null;
-    const isIncrease = delta > 0;
-    const isBad = (item.sentiment === 'negative' && isIncrease) || (item.sentiment === 'positive' && !isIncrease);
-    return (
-      <span style={{ fontSize: '0.75rem', fontWeight: 600, color: isBad ? '#ef4444' : '#3F7D45' }}>
-        {isIncrease ? '↑' : '↓'} {Math.abs(delta)}
-      </span>
-    );
-  };
-
-  // Existing delta arrow for tag trends section
-  const renderDeltaArrow = (delta: number, sentiment: 'positive' | 'negative') => {
-    if (delta === 0) return null;
-    const isIncrease = delta > 0;
-    const isBad = (sentiment === 'negative' && isIncrease) || (sentiment === 'positive' && !isIncrease);
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', fontWeight: 600, color: isBad ? '#ef4444' : '#3F7D45' }}>
-        {isIncrease ? '↑' : '↓'} {Math.abs(delta)}
-      </div>
-    );
-  };
-
-  // Compute positive trend comparison text
-  const getTrendSummary = () => {
-    if (!sentimentData || sentimentData.overallTrend.length < 2) return null;
-    const trend = sentimentData.overallTrend;
-    const half = Math.floor(trend.length / 2);
-    const recentPositive = trend.slice(half).reduce((s, t) => s + t.positiveCount, 0);
-    const olderPositive = trend.slice(0, half).reduce((s, t) => s + t.positiveCount, 0);
-    if (olderPositive === 0 && recentPositive === 0) return null;
-    if (olderPositive === 0) return 'Positive feedback is trending well.';
-    const pctChange = Math.round(((recentPositive - olderPositive) / olderPositive) * 100);
-    if (pctChange > 0) return `Your positive feedback is up ${pctChange}% compared to earlier this ${period}.`;
-    if (pctChange < 0) return `Positive feedback is down ${Math.abs(pctChange)}% compared to earlier this ${period}.`;
-    return 'Positive feedback is holding steady.';
+  const changePeriod = (nextPeriod: Period) => {
+    setPeriod(nextPeriod);
+    setTopicPage(0);
   };
 
   return (
-    <div className="db-page animate-fade-in">
-      {/* ---- Top bar ---- */}
-      <div className="db-topbar">
+    <div className="db-page insights-page animate-fade-in">
+      <header className="insights-header">
         <div>
+          <div className="insights-eyebrow">Customer intelligence</div>
           <h1 className="db-title">Insights</h1>
-          <p className="db-subtitle">Deep dive into customer feedback trends</p>
+          <p className="db-subtitle">
+            A focused view of sentiment, recurring issues, and customers needing
+            attention.
+          </p>
         </div>
-        <div className="db-period-tabs" role="tablist" aria-label="Time period selector">
-          {PERIODS.map(({ key, label }) => (
-            <button
-              key={key}
-              role="tab"
-              aria-selected={period === key}
-              className={`db-period-btn${period === key ? ' active' : ''}`}
-              onClick={() => setPeriod(key)}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
 
-      {/* ---- Error state ---- */}
-      {error && (
-        <div className="db-error" role="alert">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20">
-            <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
-          </svg>
-          {error}
-          <button className="db-error-retry" onClick={handleRetry}>Retry</button>
-        </div>
-      )}
-
-      {/* ---- Loading state ---- */}
-      {loading && (
-        <div className="db-loading-overlay">
-          <div className="loading-spinner" />
-        </div>
-      )}
-
-      {/* ---- Content ---- */}
-      {!loading && (
-        <>
-          {/* ================================================================
-              Section 1 — Sentiment Trend
-              ================================================================ */}
-          {sentimentData && sentimentData.totalFeedback >= 5 ? (
-            <div className="db-card" style={{ marginBottom: '1.5rem' }}>
-              <h2 className="db-card-title">How your sentiment is trending</h2>
-              {getTrendSummary() && (
-                <p style={{ fontSize: '0.875rem', color: '#3F7D45', marginBottom: '1rem', fontWeight: 500 }}>
-                  {getTrendSummary()}
-                </p>
-              )}
-              <div className="sentiment-trend-chart">
-                {sentimentData.overallTrend.map((pt, i) => {
-                  const total = pt.positiveCount + pt.negativeCount;
-                  const maxBar = Math.max(...sentimentData.overallTrend.map(t => t.positiveCount + t.negativeCount), 1);
-                  const heightPct = total > 0 ? (total / maxBar) * 100 : 0;
-                  const posPct = total > 0 ? Math.round((pt.positiveCount / total) * 100) : 0;
-                  const negPct = total > 0 ? 100 - posPct : 0;
-                  return (
-                    <div key={i} className="sentiment-trend-col">
-                      <div className="sentiment-trend-bar-wrapper">
-                        <div className="sentiment-trend-bar" style={{ height: `${heightPct}%` }}>
-                          <div className="sentiment-trend-pos" style={{ height: `${posPct}%` }} title={`${pt.positiveCount} positive (${posPct}%)`}>
-                            {total > 0 && posPct >= 15 && (
-                              <span className="sentiment-bar-pct">{posPct}%</span>
-                            )}
-                          </div>
-                          <div className="sentiment-trend-neg" style={{ height: `${negPct}%` }} title={`${pt.negativeCount} negative (${negPct}%)`}>
-                            {total > 0 && negPct >= 15 && (
-                              <span className="sentiment-bar-pct">{negPct}%</span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                      {total > 0 && (posPct < 15 || negPct < 15) && (
-                        <span className="sentiment-trend-tooltip">{posPct}% / {negPct}%</span>
-                      )}
-                      <span className="sentiment-trend-label">{pt.label}</span>
-                    </div>
-                  );
-                })}
-              </div>
-              <div style={{ display: 'flex', gap: '1.5rem', marginTop: '0.75rem', fontSize: '0.75rem', color: '#6B6B63' }}>
-                <span><span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, background: '#3F7D45', marginRight: 4, verticalAlign: 'middle' }} />Positive</span>
-                <span><span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, background: '#ef4444', marginRight: 4, verticalAlign: 'middle' }} />Negative</span>
-              </div>
-            </div>
-          ) : sentimentData && sentimentData.totalFeedback < 5 ? (
-            <div className="db-card" style={{ marginBottom: '1.5rem', textAlign: 'center', padding: '2rem' }}>
-              <p style={{ color: '#A3A39A', fontSize: '0.9375rem' }}>
-                Not enough data for sentiment analysis yet ({sentimentData.totalFeedback} of 5 required reviews).
-              </p>
-            </div>
-          ) : null}
-
-          {/* ================================================================
-              Section 2 — Per-Topic Sentiment Bars
-              ================================================================ */}
-          {sentimentData && sentimentData.topicBreakdown.length > 0 && (
-            <div className="db-card" style={{ marginBottom: '1.5rem' }}>
-              <h2 className="db-card-title">What customers are saying about specific things</h2>
-              <p style={{ fontSize: '0.875rem', color: '#6B6B63', marginBottom: '1.5rem' }}>
-                Percentage of mentions from 4-5★ reviews. Higher is better.
-              </p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                {sentimentData.topicBreakdown.map(item => (
-                  <div key={item.tag} style={{
-                    display: 'flex', alignItems: 'center', gap: '1rem', padding: '0.875rem 1.25rem',
-                    borderRadius: '8px', background: '#F2F0EA', border: '1px solid #E3E1D9',
-                  }}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-                        <span style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#1A1A1A' }}>{item.tag}</span>
-                        <span style={{
-                          padding: '0.125rem 0.5rem', borderRadius: '99px', fontSize: '0.6875rem', fontWeight: 600,
-                          background: item.sentiment === 'negative' ? 'rgba(239,68,68,0.1)' : '#E9F2E7',
-                          color: item.sentiment === 'negative' ? '#ef4444' : '#3F7D45',
-                        }}>{item.sentiment}</span>
-                        {renderTopicDelta(item)}
-                      </div>
-                      <span style={{ fontSize: '0.75rem', color: '#6B6B63' }}>
-                        {item.count} mention{item.count !== 1 ? 's' : ''} · {item.pctPositive}% positive
-                      </span>
-                    </div>
-                    <div style={{ width: '120px', height: '8px', background: '#FFFFFF', borderRadius: '99px', overflow: 'hidden', flexShrink: 0 }}>
-                      <div style={{
-                        height: '100%', width: `${item.pctPositive}%`,
-                        background: getPctBarColor(item.pctPositive),
-                        borderRadius: '99px', transition: 'width 600ms ease',
-                      }} />
-                    </div>
-                    <span style={{ fontSize: '1.125rem', fontWeight: 700, color: '#1A1A1A', minWidth: '32px', textAlign: 'right' }}>{item.count}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
+        <div className="insights-controls">
+          {(sentiment.isFetching || atRisk.isFetching) && !isInitialLoading && (
+            <span className="insights-sync-status" role="status">
+              <span className="insights-sync-dot" />
+              Updating
+            </span>
           )}
-
-          {/* ================================================================
-              Section 3 — Rating Band Breakdown
-              ================================================================ */}
-          {sentimentData && sentimentData.totalFeedback > 0 && (
-            <div className="db-card" style={{ marginBottom: '1.5rem' }}>
-              <h2 className="db-card-title">Rating distribution this {period}</h2>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem', marginTop: '1rem' }}>
-                {BAND_CONFIG.map(({ key, label, stars, color }) => {
-                  const band = sentimentData.byRatingBand[key];
-                  if (!band) return null;
-                  return (
-                    <div key={key} style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                      <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#1A1A1A', minWidth: '100px' }}>
-                        {label} ({stars})
-                      </span>
-                      <div style={{ flex: 1, height: '10px', background: '#E3E1D9', borderRadius: '99px', overflow: 'hidden' }}>
-                        <div style={{
-                          height: '100%', width: `${band.pct}%`, background: color,
-                          borderRadius: '99px', transition: 'width 600ms ease',
-                        }} />
-                      </div>
-                      <span style={{ fontSize: '0.875rem', color: '#6B6B63', minWidth: '70px', textAlign: 'right' }}>
-                        {band.count} ({band.pct}%)
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-              {sentimentData.byRatingBand.poor && sentimentData.totalFeedback > 0 &&
-                sentimentData.byRatingBand.poor.pct > 20 && (
-                <div style={{
-                  marginTop: '1rem', padding: '0.875rem 1.25rem', borderRadius: '8px',
-                  background: 'rgba(239,68,68,0.05)', border: '1px solid rgba(239,68,68,0.15)',
-                  fontSize: '0.875rem', color: '#ef4444', fontWeight: 500,
-                }}>
-                  More than 1 in 5 customers had a poor experience this period — check the topic breakdown above for specific issues.
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* ================================================================
-              Section 4 — Tag Trends (existing)
-              ================================================================ */}
-          {insightsData && (
-            <div className="db-card" style={{ marginBottom: '1.5rem' }}>
-              <h2 className="db-card-title">Tag Trends</h2>
-              <p style={{ fontSize: '0.875rem', color: '#6B6B63', marginBottom: '1.5rem' }}>
-                See which topics customers are mentioning most, and how they're trending compared to the previous {period}.
-              </p>
-
-              {insightsData.tagList.length === 0 ? (
-                <p style={{ textAlign: 'center', color: '#A3A39A', padding: '2rem' }}>
-                  No feedback data for this period yet.
-                </p>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                  {insightsData.tagList.map((tagData) => (
-                    <div
-                      key={tagData.tag}
-                      style={{
-                        display: 'flex', alignItems: 'center', gap: '1rem',
-                        padding: '1rem 1.25rem', borderRadius: '8px',
-                        background: '#F2F0EA', border: '1px solid #E3E1D9',
-                      }}
-                    >
-                      <div style={{ flex: 1 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.25rem' }}>
-                          <span style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#1A1A1A' }}>{tagData.tag}</span>
-                          <span style={{
-                            padding: '0.125rem 0.5rem', borderRadius: '99px', fontSize: '0.6875rem', fontWeight: 600,
-                            background: tagData.sentiment === 'negative' ? 'rgba(239,68,68,0.1)' : '#E9F2E7',
-                            color: tagData.sentiment === 'negative' ? '#ef4444' : '#3F7D45',
-                          }}>{tagData.sentiment}</span>
-                        </div>
-                        <span style={{ fontSize: '0.75rem', color: '#6B6B63' }}>
-                          {tagData.currentCount} mention{tagData.currentCount !== 1 ? 's' : ''} this {period}
-                        </span>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                        {renderDeltaArrow(tagData.delta, tagData.sentiment)}
-                        <div style={{ width: '120px', height: '8px', background: '#FFFFFF', borderRadius: '99px', overflow: 'hidden' }}>
-                          <div style={{
-                            height: '100%',
-                            width: `${Math.min((tagData.currentCount / (insightsData.tagList[0]?.currentCount || 1)) * 100, 100)}%`,
-                            background: tagData.sentiment === 'negative' ? '#ef4444' : '#3F7D45',
-                            borderRadius: '99px', transition: 'width 600ms ease',
-                          }} />
-                        </div>
-                        <span style={{ fontSize: '1.125rem', fontWeight: 700, color: '#1A1A1A', minWidth: '32px', textAlign: 'right' }}>
-                          {tagData.currentCount}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* ================================================================
-              Section 5 — At-Risk Customers (existing)
-              ================================================================ */}
-          <div className="db-card" style={{ marginTop: '1.5rem' }}>
-            <h2 className="db-card-title">Customers Slipping Away</h2>
-            <p style={{ fontSize: '0.875rem', color: '#6B6B63', marginBottom: '1.5rem' }}>
-              Customers who left low ratings and haven't returned. Reach out to win them back.
-            </p>
-
-            {!atRiskData || atRiskData.count === 0 ? (
-              <div style={{
-                textAlign: 'center', padding: '2rem', background: '#E9F2E7',
-                borderRadius: '8px', border: '1px solid rgba(63,125,69,0.2)',
-              }}>
-                <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>✨</div>
-                <p style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#3F7D45', margin: 0 }}>
-                  Great news! No at-risk customers right now.
-                </p>
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                {atRiskData.atRiskList.map((customer) => (
-                  <div
-                    key={customer.feedbackId}
-                    style={{
-                      display: 'flex', alignItems: 'flex-start', gap: '1rem',
-                      padding: '1rem 1.25rem', borderRadius: '8px',
-                      border: '1px solid #E3E1D9', background: '#FFFFFF',
-                    }}
-                  >
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
-                        <span style={{ fontSize: '0.9375rem', color: '#f59e0b' }}>
-                          {'★'.repeat(customer.rating)}{'☆'.repeat(5 - customer.rating)}
-                        </span>
-                        <span style={{ fontSize: '0.75rem', color: '#A3A39A' }}>
-                          {customer.daysSince} day{customer.daysSince !== 1 ? 's' : ''} ago
-                        </span>
-                      </div>
-                      {customer.tags.length > 0 && (
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem', marginBottom: '0.5rem' }}>
-                          {customer.tags.map((tag, i) => (
-                            <span key={i} style={{
-                              padding: '0.25rem 0.625rem', borderRadius: '99px', fontSize: '0.75rem',
-                              background: 'rgba(239,68,68,0.1)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.2)',
-                            }}>{tag}</span>
-                          ))}
-                        </div>
-                      )}
-                      {customer.note && (
-                        <p style={{ fontSize: '0.875rem', color: '#6B6B63', margin: 0, lineHeight: 1.5 }}>
-                          {customer.note}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+          <div
+            className="db-period-tabs insights-period-tabs"
+            role="tablist"
+            aria-label="Insights period"
+          >
+            {PERIODS.map(({ key, label }) => (
+              <button
+                key={key}
+                role="tab"
+                aria-selected={period === key}
+                className={`db-period-btn${period === key ? ' active' : ''}`}
+                onClick={() => changePeriod(key)}
+              >
+                {label}
+              </button>
+            ))}
           </div>
+        </div>
+      </header>
+
+      {error && (
+        <div className="db-error insights-error" role="alert">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            width="18"
+            height="18"
+          >
+            <circle cx="12" cy="12" r="10" />
+            <path d="M12 8v4m0 4h.01" />
+          </svg>
+          <span>{error}</span>
+          <button className="db-error-retry" onClick={retry}>
+            Retry
+          </button>
+        </div>
+      )}
+
+      {isInitialLoading ? (
+        <div className="insights-loading" aria-label="Loading insights">
+          <div className="insights-skeleton-row">
+            {[0, 1, 2, 3].map((item) => (
+              <div className="insights-skeleton insights-skeleton--metric" key={item} />
+            ))}
+          </div>
+          <div className="insights-skeleton insights-skeleton--chart" />
+        </div>
+      ) : (
+        <>
+          <section className="insights-metrics" aria-label="Key metrics">
+            <article className="insights-metric">
+              <span className="insights-metric-icon insights-metric-icon--green">
+                <MetricIcon name="responses" />
+              </span>
+              <div>
+                <span className="insights-metric-label">Responses</span>
+                <strong>{sentimentData?.totalFeedback.toLocaleString() ?? 0}</strong>
+                <small>In the selected period</small>
+              </div>
+            </article>
+
+            <article className="insights-metric">
+              <span className="insights-metric-icon insights-metric-icon--amber">
+                <MetricIcon name="rating" />
+              </span>
+              <div>
+                <span className="insights-metric-label">Average rating</span>
+                <strong>{averageRating > 0 ? averageRating.toFixed(1) : '—'}</strong>
+                <small>{averageRating > 0 ? 'Out of 5 stars' : 'No ratings yet'}</small>
+              </div>
+            </article>
+
+            <article className="insights-metric">
+              <span className="insights-metric-icon insights-metric-icon--blue">
+                <MetricIcon name="positive" />
+              </span>
+              <div>
+                <span className="insights-metric-label">Positive sentiment</span>
+                <strong>{positiveRate}%</strong>
+                <small className={`insights-metric-trend insights-metric-trend--${trendSummary.tone}`}>
+                  {trendSummary.label}
+                </small>
+              </div>
+            </article>
+
+            <article className="insights-metric">
+              <span className="insights-metric-icon insights-metric-icon--rose">
+                <MetricIcon name="risk" />
+              </span>
+              <div>
+                <span className="insights-metric-label">Needs attention</span>
+                <strong>{openAtRisk.length}</strong>
+                <small>
+                  {criticalCount > 0
+                    ? `${criticalCount} critical ${criticalCount === 1 ? 'case' : 'cases'}`
+                    : 'No critical cases'}
+                </small>
+              </div>
+            </article>
+          </section>
+
+          <section className="insights-overview-grid">
+            <article className="insights-card insights-card--trend">
+              <div className="insights-card-header">
+                <div>
+                  <h2>Sentiment trend</h2>
+                  <p>Positive and negative feedback volume over time</p>
+                </div>
+                <span className={`insights-trend-badge insights-trend-badge--${trendSummary.tone}`}>
+                  {trendSummary.delta > 0 ? '↗' : trendSummary.delta < 0 ? '↘' : '→'}
+                  {trendSummary.label}
+                </span>
+              </div>
+
+              {!sentimentData || sentimentData.totalFeedback < 5 ? (
+                <div className="insights-empty">
+                  <span className="insights-empty-icon">
+                    <MetricIcon name="positive" />
+                  </span>
+                  <strong>Trend needs a little more data</strong>
+                  <p>
+                    {sentimentData?.totalFeedback ?? 0} of 5 responses collected for
+                    this view.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <div
+                    className="insights-chart"
+                    role="img"
+                    aria-label="Stacked bar chart of positive and negative sentiment"
+                  >
+                    <div className="insights-chart-grid" aria-hidden="true">
+                      <span />
+                      <span />
+                      <span />
+                    </div>
+                    {sentimentData.overallTrend.map((point, index) => {
+                      const total = point.positiveCount + point.negativeCount;
+                      const maxTotal = Math.max(
+                        ...sentimentData.overallTrend.map(
+                          (item) => item.positiveCount + item.negativeCount,
+                        ),
+                        1,
+                      );
+                      const totalHeight = total > 0 ? (total / maxTotal) * 100 : 2;
+                      const positiveHeight =
+                        total > 0 ? (point.positiveCount / total) * 100 : 0;
+                      const labelStep =
+                        sentimentData.overallTrend.length > 14
+                          ? Math.ceil(sentimentData.overallTrend.length / 7)
+                          : 1;
+                      const showLabel =
+                        index % labelStep === 0 ||
+                        index === sentimentData.overallTrend.length - 1;
+
+                      return (
+                        <div
+                          className="insights-chart-column"
+                          key={`${point.date}-${index}`}
+                          title={`${point.label}: ${point.positiveCount} positive, ${point.negativeCount} negative`}
+                        >
+                          <span className="insights-chart-value">
+                            {total > 0 ? total : ''}
+                          </span>
+                          <div className="insights-chart-track">
+                            <div
+                              className="insights-chart-bar"
+                              style={{ height: `${totalHeight}%` }}
+                            >
+                              <span
+                                className="insights-chart-positive"
+                                style={{ height: `${positiveHeight}%` }}
+                              />
+                              <span
+                                className="insights-chart-negative"
+                                style={{ height: `${100 - positiveHeight}%` }}
+                              />
+                            </div>
+                          </div>
+                          <span className="insights-chart-label">
+                            {showLabel ? point.label : ''}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="insights-legend">
+                    <span>
+                      <i className="insights-legend-dot insights-legend-dot--positive" />
+                      Positive
+                    </span>
+                    <span>
+                      <i className="insights-legend-dot insights-legend-dot--negative" />
+                      Negative
+                    </span>
+                    <span className="insights-legend-note">
+                      Hover a bar for exact values
+                    </span>
+                  </div>
+                </>
+              )}
+            </article>
+
+            <article className="insights-card insights-card--distribution">
+              <div className="insights-card-header">
+                <div>
+                  <h2>Rating mix</h2>
+                  <p>How responses are distributed</p>
+                </div>
+              </div>
+
+              <div className="insights-rating-summary">
+                <div
+                  className="insights-rating-ring"
+                  style={{
+                    background: `conic-gradient(#3f7d45 ${positiveRate * 3.6}deg, #ebe9e2 0deg)`,
+                  }}
+                  aria-label={`${positiveRate}% positive ratings`}
+                >
+                  <div>
+                    <strong>{positiveRate}%</strong>
+                    <span>positive</span>
+                  </div>
+                </div>
+                <div className="insights-rating-copy">
+                  <strong>
+                    {positiveRate >= 75
+                      ? 'Strong customer experience'
+                      : positiveRate >= 50
+                        ? 'Mixed customer experience'
+                        : 'Experience needs attention'}
+                  </strong>
+                  <p>Based on 4 and 5-star responses.</p>
+                </div>
+              </div>
+
+              <div className="insights-rating-list">
+                {BAND_CONFIG.map((bandConfig) => {
+                  const band = getBand(sentimentData, bandConfig.key);
+                  return (
+                    <div className="insights-rating-row" key={bandConfig.key}>
+                      <div>
+                        <strong>{bandConfig.label}</strong>
+                        <span>{bandConfig.stars}</span>
+                      </div>
+                      <div className="insights-progress">
+                        <span
+                          style={{
+                            width: `${band.pct}%`,
+                            backgroundColor: bandConfig.color,
+                          }}
+                        />
+                      </div>
+                      <b>{band.pct}%</b>
+                      <small>{band.count}</small>
+                    </div>
+                  );
+                })}
+              </div>
+            </article>
+          </section>
+
+          <section className="insights-detail-grid">
+            <article className="insights-card insights-card--topics">
+              <div className="insights-card-header">
+                <div>
+                  <h2>What customers mention</h2>
+                  <p>Topic health and movement versus the previous period</p>
+                </div>
+                <span className="insights-card-count">
+                  {sentimentData?.topicBreakdown.length ?? 0} topics
+                </span>
+              </div>
+
+              {visibleTopics.length === 0 ? (
+                <div className="insights-empty insights-empty--compact">
+                  <strong>No topic data yet</strong>
+                  <p>Topics appear after customers submit feedback.</p>
+                </div>
+              ) : (
+                <div className="insights-topic-table">
+                  <div className="insights-topic-head" aria-hidden="true">
+                    <span>Topic</span>
+                    <span>Positive</span>
+                    <span>Mentions</span>
+                    <span>Change</span>
+                  </div>
+                  {visibleTopics.map((topic) => {
+                    const change = topicDelta(topic);
+                    return (
+                      <div className="insights-topic-row" key={topic.tag}>
+                        <div className="insights-topic-name">
+                          <i
+                            className={`insights-sentiment-dot insights-sentiment-dot--${topic.sentiment}`}
+                          />
+                          <div>
+                            <strong>{topic.tag}</strong>
+                            <span>{topic.sentiment} signal</span>
+                          </div>
+                        </div>
+                        <div className="insights-topic-health">
+                          <div className="insights-progress">
+                            <span
+                              style={{
+                                width: `${topic.pctPositive}%`,
+                                backgroundColor:
+                                  topic.pctPositive >= 70
+                                    ? '#3f7d45'
+                                    : topic.pctPositive >= 40
+                                      ? '#e5a93d'
+                                      : '#dc5a5a',
+                              }}
+                            />
+                          </div>
+                          <b>{topic.pctPositive}%</b>
+                        </div>
+                        <strong className="insights-topic-count">{topic.count}</strong>
+                        <span
+                          className={`insights-topic-delta insights-topic-delta--${
+                            change.delta === 0
+                              ? 'neutral'
+                              : change.improving
+                                ? 'good'
+                                : 'bad'
+                          }`}
+                        >
+                          {change.label}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {topicPages > 1 && (
+                <div className="insights-pagination">
+                  <span>
+                    {safeTopicPage + 1} of {topicPages}
+                  </span>
+                  <div>
+                    <button
+                      type="button"
+                      onClick={() => setTopicPage((page) => Math.max(0, page - 1))}
+                      disabled={safeTopicPage === 0}
+                      aria-label="Previous topics"
+                    >
+                      ←
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setTopicPage((page) => Math.min(topicPages - 1, page + 1))
+                      }
+                      disabled={safeTopicPage === topicPages - 1}
+                      aria-label="Next topics"
+                    >
+                      →
+                    </button>
+                  </div>
+                </div>
+              )}
+            </article>
+
+            <AtRiskSection atRiskData={atRiskData} />
+          </section>
         </>
       )}
     </div>

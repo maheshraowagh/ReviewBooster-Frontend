@@ -16,7 +16,14 @@ interface BusinessData {
   businessType: string;
   googleReviewUrl: string;
   menuItems: string[];
-  sessionId: string;
+  reviewToken: string;
+  reviewSessionExpiresAt: string;
+  aiGenerationsRemaining: number;
+  existingFeedback: {
+    _id: string;
+    rating: number;
+    reviewText: string;
+  } | null;
   positiveTags: string[];
   negativeTags: string[];
 }
@@ -62,6 +69,34 @@ function getClientId(): string {
     localStorage.setItem("rb_client_id", id);
   }
   return id;
+}
+
+function reviewTokenStorageKey(businessCode: string): string {
+  return `rb_review_session_${businessCode.toLowerCase()}`;
+}
+
+function getStoredReviewToken(businessCode: string): string {
+  try {
+    return sessionStorage.getItem(reviewTokenStorageKey(businessCode)) || "";
+  } catch {
+    return "";
+  }
+}
+
+function storeReviewToken(businessCode: string, token: string): void {
+  try {
+    sessionStorage.setItem(reviewTokenStorageKey(businessCode), token);
+  } catch {
+    // Private browsing/storage restrictions should not break the flow.
+  }
+}
+
+function clearStoredReviewToken(businessCode: string): void {
+  try {
+    sessionStorage.removeItem(reviewTokenStorageKey(businessCode));
+  } catch {
+    // Best-effort cleanup.
+  }
 }
 
 function getInitials(name: string): string {
@@ -120,6 +155,7 @@ export default function PublicReviewFlow() {
   // Step 3 state
   const [feedbackId, setFeedbackId] = useState("");
   const [reviewText, setReviewText] = useState("");
+  const [aiGenerationsRemaining, setAiGenerationsRemaining] = useState(3);
   const [clipboardFailed, setClipboardFailed] = useState(false);
 
   // Loading / error
@@ -143,11 +179,25 @@ export default function PublicReviewFlow() {
     setPageError(null);
 
     try {
+      const storedReviewToken = getStoredReviewToken(businessCode);
       const data = await apiGet<BusinessData>(
         `/public/business/${businessCode}`,
-        { "x-client-id": clientId.current },
+        {
+          "x-client-id": clientId.current,
+          ...(storedReviewToken
+            ? { "x-review-session-token": storedReviewToken }
+            : {}),
+        },
       );
+      storeReviewToken(businessCode, data.reviewToken);
       setBusiness(data);
+      setAiGenerationsRemaining(data.aiGenerationsRemaining);
+      if (data.existingFeedback) {
+        setFeedbackId(data.existingFeedback._id);
+        setRating(data.existingFeedback.rating);
+        setReviewText(data.existingFeedback.reviewText);
+        setStep("review");
+      }
     } catch (err) {
       if (axios.isAxiosError(err) && !err.response) {
         setNetworkError(true);
@@ -222,15 +272,14 @@ export default function PublicReviewFlow() {
           ? [dishFreeText.trim()]
           : [];
 
-    const finalTags = rating <= 2
+    const finalTags = rating === 1
       ? selectedTags.map((tag) => `${tag}:${tagSeverities[tag] || "moderate"}`)
       : selectedTags;
 
     try {
       const result = await apiPost<{ _id: string }>("/public/feedback", {
         rating,
-        businessId: business.businessId,
-        sessionId: business.sessionId,
+        reviewToken: business.reviewToken,
         clientId: clientId.current,
         tags: finalTags,
         note: note.trim(),
@@ -247,10 +296,15 @@ export default function PublicReviewFlow() {
         const aiResult = await apiPost<{
           draft: string | null;
           error: string | null;
-        }>("/public/ai/review-suggestion", { feedbackEventId: result._id });
+          remainingGenerations: number;
+        }>("/public/ai/review-suggestion", {
+          feedbackEventId: result._id,
+          reviewToken: business.reviewToken,
+        });
         if (aiResult.draft) {
           setReviewText(aiResult.draft);
         }
+        setAiGenerationsRemaining(aiResult.remainingGenerations);
       } catch {
         // AI failed — user writes their own
       }
@@ -269,16 +323,21 @@ export default function PublicReviewFlow() {
 
   // ---- Regenerate AI draft ----
   const regenerate = async () => {
-    if (!feedbackId) return;
+    if (!feedbackId || !business || aiGenerationsRemaining <= 0) return;
     setIsAiLoading(true);
     try {
       const aiResult = await apiPost<{
         draft: string | null;
         error: string | null;
-      }>("/public/ai/review-suggestion", { feedbackEventId: feedbackId });
+        remainingGenerations: number;
+      }>("/public/ai/review-suggestion", {
+        feedbackEventId: feedbackId,
+        reviewToken: business.reviewToken,
+      });
       if (aiResult.draft) {
         setReviewText(aiResult.draft);
       }
+      setAiGenerationsRemaining(aiResult.remainingGenerations);
     } catch {
       // keep existing text
     }
@@ -306,8 +365,10 @@ export default function PublicReviewFlow() {
     // Record copy event
     try {
       await apiPost(`/public/feedback/${feedbackId}/copy-event`, {
+        reviewToken: business.reviewToken,
         finalText: text,
       });
+      if (businessCode) clearStoredReviewToken(businessCode);
     } catch {
       // Non-critical — don't block the redirect
     }
@@ -510,7 +571,7 @@ export default function PublicReviewFlow() {
                 </div>
 
                 {/* 1.5. Severity selector for selected tags */}
-                {selectedTags.length > 0 && (
+                {rating === 1 && selectedTags.length > 0 && (
                   <div className="selected-tags-severity-section">
                     <p className="severity-title">How bad was it? <span className="detail-optional">(optional)</span></p>
                     {selectedTags.map((tag) => (
@@ -809,18 +870,25 @@ export default function PublicReviewFlow() {
                 <textarea
                   className="review-textarea"
                   value={reviewText}
-                  onChange={(e) => setReviewText(e.target.value)}
+                  onChange={(e) => setReviewText(e.target.value.slice(0, 5000))}
                   placeholder="Type your Google review here..."
+                  maxLength={5000}
                   rows={6}
                 />
 
                 <button
                   className="regenerate-btn"
                   onClick={regenerate}
-                  disabled={isAiLoading}
+                  disabled={isAiLoading || aiGenerationsRemaining <= 0}
                 >
                   ↻ Regenerate
                 </button>
+
+                <p className="copied-hint">
+                  {aiGenerationsRemaining > 0
+                    ? `${aiGenerationsRemaining} AI generation${aiGenerationsRemaining === 1 ? "" : "s"} remaining`
+                    : "You can continue editing this draft manually"}
+                </p>
 
                 <p className="copied-hint">
                   Feel free to rewrite it in your own words

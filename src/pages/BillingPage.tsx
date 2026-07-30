@@ -1,5 +1,15 @@
 import { useState } from 'react';
-import { useBilling, loadRazorpayScript, type PlanDefinition, useCreateSubscription, useCancelSubscription } from '../lib/useBilling';
+import {
+  useBilling,
+  loadRazorpayScript,
+  type PlanDefinition,
+  type RazorpaySubscriptionCheckoutResponse,
+  useCreateSubscription,
+  useCancelSubscription,
+  useChangePlan,
+  useReconcileSubscription,
+  useVerifySubscription,
+} from '../lib/useBilling';
 
 // ─── Plan feature lists for display ────────────────────────────────────────
 const PLAN_FEATURES: Record<string, string[]> = {
@@ -57,7 +67,10 @@ function StatusBadge({ status }: { status: string }) {
   const map: Record<string, { bg: string; color: string; label: string }> = {
     active: { bg: '#E9F2E7', color: '#3F7D45', label: 'Active' },
     trialing: { bg: '#EEF2FF', color: '#4F46E5', label: 'Trial' },
+    pending: { bg: '#FEF3C7', color: '#D97706', label: 'Pending Payment' },
+    authenticated: { bg: '#EEF2FF', color: '#4F46E5', label: 'Authorised' },
     past_due: { bg: '#FEF3C7', color: '#D97706', label: 'Past Due' },
+    cancel_at_period_end: { bg: '#FEF3C7', color: '#B45309', label: 'Cancels at Period End' },
     cancelled: { bg: '#FEE2E2', color: '#DC2626', label: 'Cancelled' },
     expired: { bg: '#F3F4F6', color: '#6B7280', label: 'Expired' },
   };
@@ -72,7 +85,7 @@ function StatusBadge({ status }: { status: string }) {
 // ─── Upgrade modal / checkout ──────────────────────────────────────────────
 async function initiateCheckout(
   planId: string, 
-  onSuccess: () => void, 
+  onSuccess: (response: RazorpaySubscriptionCheckoutResponse) => Promise<void>,
   setCheckoutLoading: (v: boolean) => void, 
   setCheckoutError: (v: string | null) => void,
   createSubscription: (planId: string) => Promise<any>
@@ -83,6 +96,7 @@ async function initiateCheckout(
     const loaded = await loadRazorpayScript();
     if (!loaded) {
       setCheckoutError('Failed to load Razorpay. Check your internet connection.');
+      setCheckoutLoading(false);
       return;
     }
 
@@ -94,8 +108,18 @@ async function initiateCheckout(
       name: 'ReviewBooster',
       description: `${planName} Plan — Monthly`,
       image: '/favicon.ico',
-      handler: (_response: unknown) => {
-        onSuccess();
+      handler: async (response: RazorpaySubscriptionCheckoutResponse) => {
+        try {
+          await onSuccess(response);
+        } catch (error) {
+          setCheckoutError(
+            error instanceof Error
+              ? error.message
+              : 'Payment verification failed.',
+          );
+        } finally {
+          setCheckoutLoading(false);
+        }
       },
       prefill: {},
       theme: { color: '#3F7D45' },
@@ -111,7 +135,6 @@ async function initiateCheckout(
     rzp.open();
   } catch (err: any) {
     setCheckoutError(err.message || 'Checkout failed. Please try again.');
-  } finally {
     setCheckoutLoading(false);
   }
 }
@@ -226,15 +249,19 @@ function PlanCard({
       ) : (
         <button
           onClick={() => onUpgrade(plan.id)}
-          disabled={checkoutLoading === plan.id}
+          disabled={checkoutLoading === plan.id || !plan.checkoutAvailable}
           style={{
             padding: '0.625rem 1rem', borderRadius: '8px', fontSize: '0.875rem', fontWeight: 600,
             background: isPopular ? '#3F7D45' : '#1A1A1A', color: '#FFFFFF', border: 'none',
-            cursor: checkoutLoading === plan.id ? 'not-allowed' : 'pointer',
-            opacity: checkoutLoading === plan.id ? 0.7 : 1, transition: 'opacity 0.2s',
+            cursor: checkoutLoading === plan.id || !plan.checkoutAvailable ? 'not-allowed' : 'pointer',
+            opacity: checkoutLoading === plan.id || !plan.checkoutAvailable ? 0.7 : 1, transition: 'opacity 0.2s',
           }}
         >
-          {checkoutLoading === plan.id ? 'Opening checkout…' : `Upgrade to ${plan.name}`}
+          {!plan.checkoutAvailable
+            ? 'Payment setup pending'
+            : checkoutLoading === plan.id
+              ? 'Opening checkout…'
+              : `Choose ${plan.name}`}
         </button>
       )}
     </div>
@@ -245,6 +272,9 @@ function PlanCard({
 export default function BillingPage() {
   const { subscription, plans, isLoading, refetch } = useBilling();
   const createSubMut = useCreateSubscription();
+  const verifySubMut = useVerifySubscription();
+  const reconcileSubMut = useReconcileSubscription();
+  const changePlanMut = useChangePlan();
   const cancelSubMut = useCancelSubscription();
   
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
@@ -257,12 +287,45 @@ export default function BillingPage() {
   const handleUpgrade = async (planId: string) => {
     setCheckoutLoading(planId);
     setCheckoutError(null);
+
+    if (
+      subscription?.plan !== 'free' &&
+      subscription?.razorpaySubscriptionId
+    ) {
+      try {
+        const result = await changePlanMut.mutateAsync(planId);
+        setSuccessMsg(result.message);
+        await refetch();
+      } catch (error) {
+        setCheckoutError(
+          error instanceof Error ? error.message : 'Failed to change plan.',
+        );
+      } finally {
+        setCheckoutLoading(null);
+      }
+      return;
+    }
+
     await initiateCheckout(
       planId,
-      async () => {
-        setSuccessMsg('🎉 Subscription activated! Your plan will update shortly.');
-        setTimeout(refetch, 2000);
-        setCheckoutLoading(null);
+      async (response) => {
+        const verification = await verifySubMut.mutateAsync(response);
+        setSuccessMsg(
+          verification.status === 'pending'
+            ? 'Payment received. Razorpay is still activating the subscription.'
+            : 'Subscription payment verified and plan activated.',
+        );
+        await refetch();
+        if (verification.status === 'pending') {
+          setTimeout(async () => {
+            try {
+              await reconcileSubMut.mutateAsync();
+              await refetch();
+            } catch {
+              // The scheduled server reconciliation will repair delayed state.
+            }
+          }, 2500);
+        }
       },
       (v) => { if (!v) setCheckoutLoading(null); },
       setCheckoutError,
@@ -353,10 +416,21 @@ export default function BillingPage() {
 
             {subscription?.planCurrentPeriodEnd && (
               <p style={{ fontSize: '0.875rem', color: '#6B6B63', margin: '0 0 1rem' }}>
-                {planStatus === 'cancelled' ? 'Access until' : 'Renews on'}{' '}
+                {subscription.cancelAtPeriodEnd ? 'Access until' : 'Renews on'}{' '}
                 <strong style={{ color: '#1A1A1A' }}>{formatDate(subscription.planCurrentPeriodEnd)}</strong>
               </p>
             )}
+
+            {subscription?.pendingPlan &&
+              subscription.pendingPlan !== currentPlan && (
+                <p style={{ fontSize: '0.82rem', color: '#B45309', margin: '0 0 1rem' }}>
+                  Scheduled change to{' '}
+                  <strong style={{ textTransform: 'capitalize' }}>
+                    {subscription.pendingPlan}
+                  </strong>{' '}
+                  at the next billing cycle.
+                </p>
+              )}
 
             {currentPlan === 'free' && (
               <p style={{ fontSize: '0.9rem', color: '#6B6B63', margin: '0 0 1rem', lineHeight: 1.6 }}>
@@ -393,19 +467,34 @@ export default function BillingPage() {
           </div>
         </div>
 
-        {/* Cancel button */}
-        {currentPlan !== 'free' && planStatus === 'active' && (
+        {/* Subscription actions */}
+        {subscription?.razorpaySubscriptionId && (
           <div style={{ marginTop: '1.25rem', paddingTop: '1.25rem', borderTop: '1px solid rgba(63,125,69,0.1)' }}>
-            <button
-              onClick={() => setShowCancelModal(true)}
-              style={{
-                background: 'none', border: '1px solid #DC2626', color: '#DC2626',
-                padding: '0.5rem 1rem', borderRadius: '6px', fontSize: '0.8125rem',
-                fontWeight: 600, cursor: 'pointer',
-              }}
-            >
-              Cancel Subscription
-            </button>
+            <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+              <button
+                onClick={() => reconcileSubMut.mutate()}
+                disabled={reconcileSubMut.isPending}
+                style={{
+                  background: 'none', border: '1px solid #6B6B63', color: '#4B4B45',
+                  padding: '0.5rem 1rem', borderRadius: '6px', fontSize: '0.8125rem',
+                  fontWeight: 600, cursor: reconcileSubMut.isPending ? 'wait' : 'pointer',
+                }}
+              >
+                {reconcileSubMut.isPending ? 'Refreshing…' : 'Refresh payment status'}
+              </button>
+              {currentPlan !== 'free' && planStatus === 'active' && (
+                <button
+                  onClick={() => setShowCancelModal(true)}
+                  style={{
+                    background: 'none', border: '1px solid #DC2626', color: '#DC2626',
+                    padding: '0.5rem 1rem', borderRadius: '6px', fontSize: '0.8125rem',
+                    fontWeight: 600, cursor: 'pointer',
+                  }}
+                >
+                  Cancel Subscription
+                </button>
+              )}
+            </div>
           </div>
         )}
       </div>
@@ -446,7 +535,7 @@ export default function BillingPage() {
               <tbody>
                 {invoices.map(inv => (
                   <tr key={inv._id} style={{ borderBottom: '1px solid #F2F0EA' }}>
-                    <td style={{ padding: '0.75rem', color: '#1A1A1A', whiteSpace: 'nowrap' }}>{formatDate(inv.createdAt)}</td>
+                    <td style={{ padding: '0.75rem', color: '#1A1A1A', whiteSpace: 'nowrap' }}>{formatDate(inv.paidAt || inv.createdAt)}</td>
                     <td style={{ padding: '0.75rem', color: '#1A1A1A', textTransform: 'capitalize' }}>{inv.plan}</td>
                     <td style={{ padding: '0.75rem', color: '#1A1A1A', fontWeight: 600 }}>{formatAmount(inv.amountPaidPaise)}</td>
                     <td style={{ padding: '0.75rem', color: '#6B6B63', whiteSpace: 'nowrap' }}>{formatDate(inv.currentPeriodEnd)}</td>

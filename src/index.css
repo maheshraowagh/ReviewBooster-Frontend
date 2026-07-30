@@ -8,5 +8,6 @@
 @import "./styles/base.css";
 @import "./styles/auth.css";
 @import "./styles/dashboard.css";
+@import "./styles/insights.css";
 @import "./styles/inbox.css";
 @import "./styles/admin.css";

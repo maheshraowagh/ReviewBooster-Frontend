@@ -52,8 +52,10 @@ export default function HelpPage() {
       answer: (
         <div style={{ margin: '0.5rem 0 0', lineHeight: 1.7 }}>
           <p style={{ margin: 0 }}>
-            When a customer gives a low rating (1-3 stars), they're taken through the same feedback process, but they're <strong>not</strong> redirected to Google. 
-            Instead, their feedback comes directly to your Inbox where you can address it privately. This protects your online reputation while giving you a chance to resolve issues.
+            Every rating receives an editable review draft and can continue to Google.
+            Two- and three-star drafts use a balanced, moderate complaint tone,
+            while one-star drafts reflect stronger dissatisfaction. The feedback
+            also appears in your Inbox so your team can follow up.
           </p>
         </div>
       ),

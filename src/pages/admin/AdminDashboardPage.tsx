@@ -1,171 +1,447 @@
-import { useState, useEffect } from "react";
-import { adminApi, AdminStats } from "../../lib/adminApi";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  adminApi,
+  type AdminStats,
+  type AdminStatsFilters,
+  type AdminStatsRange,
+} from "../../lib/adminApi";
 
-const STAT_CARDS = [
+type MetricKey =
+  | "lifetimeRevenuePaise"
+  | "periodRevenuePaise"
+  | "todayRevenuePaise"
+  | "todayReviews"
+  | "totalFeedback"
+  | "activeSubscriptions"
+  | "successfulPayments"
+  | "googleRedirects"
+  | "totalBusinesses"
+  | "averagePlatformRating";
+
+const METRICS: Array<{
+  key: MetricKey;
+  label: string;
+  color: string;
+  kind?: "currency" | "rating";
+  icon: string;
+}> = [
   {
-    key: "totalUsers",
-    label: "Total Users",
+    key: "lifetimeRevenuePaise",
+    label: "Lifetime Revenue",
     color: "brand",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-        <circle cx="9" cy="7" r="4" />
-        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-      </svg>
-    ),
+    kind: "currency",
+    icon: "₹",
   },
   {
-    key: "totalBusinesses",
-    label: "Total Businesses",
+    key: "periodRevenuePaise",
+    label: "Filtered Revenue",
     color: "cyan",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-        <polyline points="9 22 9 12 15 12 15 22" />
-      </svg>
-    ),
+    kind: "currency",
+    icon: "↗",
   },
   {
-    key: "activeBusinesses",
-    label: "Active Businesses",
+    key: "todayRevenuePaise",
+    label: "Today's Revenue",
     color: "brand",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-        <polyline points="20 6 9 17 4 12" />
-      </svg>
-    ),
+    kind: "currency",
+    icon: "₹",
   },
   {
-    key: "suspendedBusinesses",
-    label: "Suspended",
-    color: "rose",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="10" />
-        <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
-      </svg>
-    ),
+    key: "todayReviews",
+    label: "Today's Reviews",
+    color: "amber",
+    icon: "★",
   },
   {
     key: "totalFeedback",
-    label: "Total Feedback",
+    label: "Reviews in Period",
     color: "amber",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-      </svg>
-    ),
+    icon: "✦",
   },
   {
-    key: "totalQRCodeScans",
-    label: "Total QR Scans",
+    key: "activeSubscriptions",
+    label: "Paid Subscriptions",
+    color: "brand",
+    icon: "✓",
+  },
+  {
+    key: "successfulPayments",
+    label: "Successful Payments",
     color: "cyan",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="3" y="3" width="7" height="7" rx="1" />
-        <rect x="14" y="3" width="7" height="7" rx="1" />
-        <rect x="3" y="14" width="7" height="7" rx="1" />
-        <rect x="14" y="14" width="7" height="7" rx="1" />
-      </svg>
-    ),
+    icon: "₹",
+  },
+  {
+    key: "googleRedirects",
+    label: "Google Redirects",
+    color: "rose",
+    icon: "G",
+  },
+  {
+    key: "totalBusinesses",
+    label: "Businesses",
+    color: "cyan",
+    icon: "B",
   },
   {
     key: "averagePlatformRating",
-    label: "Avg Platform Rating",
+    label: "Average Rating",
     color: "amber",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-        <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" />
-      </svg>
-    ),
-    suffix: " ★",
+    kind: "rating",
+    icon: "★",
   },
 ];
 
+const RANGE_OPTIONS: Array<{ value: AdminStatsRange; label: string }> = [
+  { value: "today", label: "Today" },
+  { value: "7d", label: "Last 7 days" },
+  { value: "30d", label: "Last 30 days" },
+  { value: "this_month", label: "This month" },
+  { value: "all", label: "All time" },
+  { value: "custom", label: "Custom dates" },
+];
+
+function formatCurrency(paise: number) {
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 0,
+  }).format((paise || 0) / 100);
+}
+
+function formatMetric(
+  stats: AdminStats | null,
+  key: MetricKey,
+  kind?: "currency" | "rating",
+) {
+  const value = Number(stats?.[key] || 0);
+  if (kind === "currency") return formatCurrency(value);
+  if (kind === "rating") return `${value.toFixed(2)} ★`;
+  return value.toLocaleString("en-IN");
+}
+
+function formatDate(value: string) {
+  return new Date(value).toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
+
 export default function AdminDashboardPage() {
   const [stats, setStats] = useState<AdminStats | null>(null);
+  const [filters, setFilters] = useState<AdminStatsFilters>({ range: "30d" });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  const fetchStats = useCallback(async () => {
+    if (
+      filters.range === "custom" &&
+      (!filters.from || !filters.to)
+    ) {
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+    try {
+      const response = await adminApi.getStats(filters);
+      if (!response.data.success) throw new Error("Failed to load statistics");
+      setStats(response.data.data);
+    } catch (requestError) {
+      setError(
+        requestError instanceof Error
+          ? requestError.message
+          : "Failed to load statistics",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, [filters]);
+
   useEffect(() => {
-    adminApi
-      .getStats()
-      .then((res) => {
-        if (res.data.success) {
-          setStats(res.data.data);
-        } else {
-          setError("Failed to load stats");
-        }
-      })
-      .catch((err) => {
-        setError(err.message || "Failed to load stats");
-      })
-      .finally(() => {
-        setLoading(false);
-      });
-  }, []);
+    fetchStats();
+  }, [fetchStats]);
+
+  const maxReviewCount = useMemo(
+    () => Math.max(1, ...(stats?.reviewTrend.map((item) => item.reviews) || [])),
+    [stats],
+  );
+  const maxRevenue = useMemo(
+    () =>
+      Math.max(
+        1,
+        ...(stats?.revenueTrend.map((item) => item.revenuePaise) || []),
+      ),
+    [stats],
+  );
 
   return (
-    <div className="admin-page">
+    <div className="admin-page admin-page--wide">
       <div className="admin-page-header">
         <div>
-          <h1 className="admin-page-title">Platform Overview</h1>
+          <h1 className="admin-page-title">Revenue &amp; Platform Overview</h1>
           <p className="admin-page-subtitle">
-            Monitor your entire ReviewBoost platform at a glance
+            Verified Razorpay revenue and customer review activity
           </p>
         </div>
+        {stats?.appliedFilters.timezone && (
+          <span className="admin-report-timezone">
+            Reporting timezone: {stats.appliedFilters.timezone}
+          </span>
+        )}
+      </div>
+
+      <div className="admin-analytics-filters">
+        <label>
+          <span>Date range</span>
+          <select
+            value={filters.range}
+            onChange={(event) =>
+              setFilters((current) => ({
+                ...current,
+                range: event.target.value as AdminStatsRange,
+              }))
+            }
+          >
+            {RANGE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label>
+          <span>Business</span>
+          <select
+            value={filters.businessId || ""}
+            onChange={(event) =>
+              setFilters((current) => ({
+                ...current,
+                businessId: event.target.value || undefined,
+              }))
+            }
+          >
+            <option value="">All businesses</option>
+            {stats?.filterOptions.businesses.map((business) => (
+              <option key={business.id} value={business.id}>
+                {business.name} ({business.businessCode})
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label>
+          <span>Current plan</span>
+          <select
+            value={filters.plan || ""}
+            onChange={(event) =>
+              setFilters((current) => ({
+                ...current,
+                plan: event.target.value || undefined,
+              }))
+            }
+          >
+            <option value="">All plans</option>
+            {stats?.filterOptions.plans.map((plan) => (
+              <option key={plan} value={plan}>
+                {plan.charAt(0).toUpperCase() + plan.slice(1)}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        {filters.range === "custom" && (
+          <>
+            <label>
+              <span>From</span>
+              <input
+                type="date"
+                value={filters.from || ""}
+                onChange={(event) =>
+                  setFilters((current) => ({
+                    ...current,
+                    from: event.target.value || undefined,
+                  }))
+                }
+              />
+            </label>
+            <label>
+              <span>To</span>
+              <input
+                type="date"
+                value={filters.to || ""}
+                min={filters.from}
+                onChange={(event) =>
+                  setFilters((current) => ({
+                    ...current,
+                    to: event.target.value || undefined,
+                  }))
+                }
+              />
+            </label>
+          </>
+        )}
+
+        <button
+          type="button"
+          className="admin-filter-btn"
+          onClick={() => setFilters({ range: "30d" })}
+        >
+          Reset
+        </button>
       </div>
 
       {error && (
         <div className="db-error">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="12" cy="12" r="10" />
-            <line x1="12" y1="8" x2="12" y2="12" />
-            <line x1="12" y1="16" x2="12.01" y2="16" />
-          </svg>
           <span>{error}</span>
-          <button className="db-error-retry" onClick={() => window.location.reload()}>
+          <button className="db-error-retry" onClick={fetchStats}>
             Retry
           </button>
         </div>
       )}
 
-      {/* Stats Grid */}
-      <div className="admin-stats-grid">
+      <div className="admin-stats-grid admin-stats-grid--analytics">
         {loading
-          ? Array.from({ length: 7 }).map((_, i) => (
-              <div key={i} className="admin-skeleton admin-skeleton-card" />
+          ? Array.from({ length: METRICS.length }).map((_, index) => (
+              <div key={index} className="admin-skeleton admin-skeleton-card" />
             ))
-          : STAT_CARDS.map((card) => (
-              <div key={card.key} className={`stat-card stat-card--${card.color}`}>
-                <div className="stat-card-icon">{card.icon}</div>
+          : METRICS.map((metric) => (
+              <div
+                key={metric.key}
+                className={`stat-card stat-card--${metric.color}`}
+              >
+                <div className="stat-card-icon admin-metric-symbol">
+                  {metric.icon}
+                </div>
                 <div className="stat-card-body">
-                  <span className="stat-card-label">{card.label}</span>
+                  <span className="stat-card-label">{metric.label}</span>
                   <span className="stat-card-value">
-                    {stats?.[card.key as keyof AdminStats] ?? 0}
-                    {card.suffix || ""}
+                    {formatMetric(stats, metric.key, metric.kind)}
                   </span>
                 </div>
               </div>
             ))}
       </div>
 
-      {/* Quick Actions */}
-      {!loading && !error && (
-        <div className="admin-table-card" style={{ padding: "1.5rem" }}>
-          <h3 style={{ fontSize: "0.875rem", fontWeight: 600, marginBottom: "1rem", color: "var(--color-text-primary)" }}>
-            Quick Actions
-          </h3>
-          <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
-            <a href="/admin/businesses" className="admin-filter-btn" style={{ textDecoration: "none" }}>
-              View All Businesses →
-            </a>
-            <a href="/admin/users" className="admin-filter-btn" style={{ textDecoration: "none" }}>
-              View All Users →
-            </a>
+      {!loading && stats && (
+        <>
+          <div className="admin-analytics-grid">
+            <section className="admin-table-card admin-trend-card">
+              <div className="admin-card-heading">
+                <div>
+                  <h2>Review activity</h2>
+                  <p>Submitted reviews and average customer rating</p>
+                </div>
+              </div>
+              {stats.reviewTrend.length === 0 ? (
+                <div className="admin-mini-empty">No reviews in this period.</div>
+              ) : (
+                <div className="admin-trend-list">
+                  {stats.reviewTrend.slice(-14).map((item) => (
+                    <div className="admin-trend-row" key={item.date}>
+                      <span>{item.date.slice(5)}</span>
+                      <div className="admin-trend-track">
+                        <div
+                          className="admin-trend-fill admin-trend-fill--reviews"
+                          style={{
+                            width: `${Math.max(
+                              4,
+                              (item.reviews / maxReviewCount) * 100,
+                            )}%`,
+                          }}
+                        />
+                      </div>
+                      <strong>{item.reviews}</strong>
+                      <small>{item.averageRating.toFixed(1)} ★</small>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+
+            <section className="admin-table-card admin-trend-card">
+              <div className="admin-card-heading">
+                <div>
+                  <h2>Revenue activity</h2>
+                  <p>Captured Razorpay payments only</p>
+                </div>
+              </div>
+              {stats.revenueTrend.length === 0 ? (
+                <div className="admin-mini-empty">No captured payments in this period.</div>
+              ) : (
+                <div className="admin-trend-list">
+                  {stats.revenueTrend.slice(-14).map((item) => (
+                    <div className="admin-trend-row" key={item.date}>
+                      <span>{item.date.slice(5)}</span>
+                      <div className="admin-trend-track">
+                        <div
+                          className="admin-trend-fill admin-trend-fill--revenue"
+                          style={{
+                            width: `${Math.max(
+                              4,
+                              (item.revenuePaise / maxRevenue) * 100,
+                            )}%`,
+                          }}
+                        />
+                      </div>
+                      <strong>{formatCurrency(item.revenuePaise)}</strong>
+                      <small>{item.payments} paid</small>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
           </div>
-        </div>
+
+          <section className="admin-table-card">
+            <div className="admin-card-heading">
+              <div>
+                <h2>Recent verified payments</h2>
+                <p>Deduplicated by Razorpay payment ID</p>
+              </div>
+            </div>
+            {stats.recentPayments.length === 0 ? (
+              <div className="admin-mini-empty">No payments match these filters.</div>
+            ) : (
+              <div className="admin-table-scroll">
+                <table className="admin-table">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Business</th>
+                      <th>Plan</th>
+                      <th>Payment ID</th>
+                      <th style={{ textAlign: "right" }}>Revenue</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {stats.recentPayments.map((payment) => (
+                      <tr key={payment.paymentId}>
+                        <td>{formatDate(payment.revenueDate)}</td>
+                        <td>
+                          <strong>{payment.businessName || "Unknown"}</strong>
+                          <div className="admin-table-cell-secondary">
+                            {payment.businessCode}
+                          </div>
+                        </td>
+                        <td style={{ textTransform: "capitalize" }}>
+                          {payment.plan}
+                        </td>
+                        <td>
+                          <code>{payment.paymentId}</code>
+                        </td>
+                        <td style={{ textAlign: "right", fontWeight: 700 }}>
+                          {formatCurrency(payment.amountPaidPaise)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+        </>
       )}
     </div>
   );

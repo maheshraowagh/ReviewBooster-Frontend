@@ -513,6 +513,201 @@
     color: var(--color-text-muted);
 }
 
+/* ---- Revenue & review analytics ---- */
+.admin-page--wide {
+    max-width: 1440px;
+}
+
+.admin-report-timezone {
+    padding: 0.45rem 0.75rem;
+    border-radius: 999px;
+    background: var(--color-surface-card);
+    border: 1px solid var(--color-border-subtle);
+    color: var(--color-text-muted);
+    font-size: 0.72rem;
+    font-weight: 600;
+}
+
+.admin-analytics-filters {
+    display: flex;
+    align-items: flex-end;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    padding: 1rem;
+    margin-bottom: 1.25rem;
+    background: var(--color-surface-card);
+    border: 1px solid var(--color-border-subtle);
+    border-radius: 14px;
+}
+
+.admin-analytics-filters label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    min-width: 145px;
+}
+
+.admin-analytics-filters label span {
+    color: var(--color-text-muted);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.admin-analytics-filters select,
+.admin-analytics-filters input {
+    min-height: 38px;
+    padding: 0.45rem 0.65rem;
+    border: 1px solid var(--color-border-subtle);
+    border-radius: 9px;
+    outline: none;
+    background: var(--color-surface);
+    color: var(--color-text-primary);
+    font: inherit;
+    font-size: 0.8rem;
+}
+
+.admin-analytics-filters select:focus,
+.admin-analytics-filters input:focus {
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 3px rgba(63, 125, 69, 0.1);
+}
+
+.admin-stats-grid--analytics {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.admin-metric-symbol {
+    font-size: 1rem;
+    font-weight: 800;
+}
+
+.admin-analytics-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.admin-card-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1.1rem 1.25rem;
+    border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.admin-card-heading h2 {
+    margin: 0;
+    color: var(--color-text-primary);
+    font-size: 0.92rem;
+    font-weight: 700;
+}
+
+.admin-card-heading p {
+    margin: 0.2rem 0 0;
+    color: var(--color-text-muted);
+    font-size: 0.72rem;
+}
+
+.admin-trend-card {
+    min-height: 300px;
+}
+
+.admin-trend-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+    padding: 1rem 1.25rem 1.25rem;
+}
+
+.admin-trend-row {
+    display: grid;
+    grid-template-columns: 42px minmax(70px, 1fr) minmax(58px, auto) 52px;
+    align-items: center;
+    gap: 0.65rem;
+    color: var(--color-text-secondary);
+    font-size: 0.72rem;
+}
+
+.admin-trend-row strong {
+    color: var(--color-text-primary);
+    font-size: 0.74rem;
+    text-align: right;
+}
+
+.admin-trend-row small {
+    color: var(--color-text-muted);
+    font-size: 0.66rem;
+    text-align: right;
+}
+
+.admin-trend-track {
+    height: 7px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: var(--color-surface);
+}
+
+.admin-trend-fill {
+    height: 100%;
+    border-radius: inherit;
+}
+
+.admin-trend-fill--reviews {
+    background: linear-gradient(90deg, #d97706, #fbbf24);
+}
+
+.admin-trend-fill--revenue {
+    background: linear-gradient(90deg, #15803d, #4ade80);
+}
+
+.admin-mini-empty {
+    display: grid;
+    min-height: 210px;
+    place-items: center;
+    padding: 2rem;
+    color: var(--color-text-muted);
+    font-size: 0.8rem;
+}
+
+.admin-table-scroll {
+    overflow-x: auto;
+}
+
+.admin-table code {
+    color: var(--color-text-secondary);
+    font-size: 0.7rem;
+}
+
+@media (max-width: 1200px) {
+    .admin-stats-grid--analytics {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 820px) {
+    .admin-analytics-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .admin-stats-grid--analytics {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 520px) {
+    .admin-stats-grid--analytics {
+        grid-template-columns: 1fr;
+    }
+
+    .admin-analytics-filters label {
+        width: 100%;
+    }
+}
+
 /* ---- View action button ---- */
 .admin-action-btn--view {
     background: var(--color-surface);
