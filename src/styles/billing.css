@@ -1,0 +1,846 @@
+/* =========================================================================
+   ReviewBoost — Modern Plan & Billing Styles
+   Clean, premium, stripe-like billing layout scoping
+   ========================================================================= */
+
+.rb-billing-page {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem 2.5rem;
+}
+
+/* Header */
+.rb-billing-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.rb-billing-header__title {
+    font-size: 1.625rem; /* 26px */
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin: 0 0 0.25rem;
+}
+
+.rb-billing-header__subtitle {
+    font-size: 0.875rem;
+    color: var(--color-text-secondary);
+    margin: 0;
+}
+
+/* Current Subscription Card */
+.rb-sub-card {
+    background: var(--color-surface-card);
+    border: 1px solid var(--color-border-subtle);
+    border-radius: 14px;
+    padding: 0;
+    margin-bottom: 2rem;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Top section: plan info + action button */
+.rb-sub-card__top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1.5rem;
+    padding: 1.75rem 2rem 1.25rem;
+    flex-wrap: wrap;
+}
+
+.rb-sub-card__main {
+    flex: 1;
+    min-width: 250px;
+}
+
+.rb-sub-card__eyebrow {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--color-accent);
+    margin-bottom: 0.625rem;
+}
+
+.rb-sub-card__title-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.375rem;
+    flex-wrap: wrap;
+}
+
+.rb-sub-card__title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--color-text-primary);
+    margin: 0;
+    letter-spacing: -0.01em;
+}
+
+.rb-sub-card__price {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--color-text-primary);
+    margin-bottom: 0.125rem;
+}
+
+.rb-sub-card__price span {
+    font-size: 0.875rem;
+    font-weight: 400;
+    color: var(--color-text-muted);
+}
+
+.rb-sub-card__date {
+    font-size: 0.8125rem;
+    color: var(--color-text-secondary);
+    margin: 0.25rem 0 0;
+}
+
+.rb-sub-card__date strong {
+    color: var(--color-text-primary);
+    font-weight: 600;
+}
+
+/* Subscription status badges */
+.rb-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.25rem 0.625rem;
+    border-radius: 99px;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
+    letter-spacing: 0.02em;
+}
+
+.rb-badge::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+}
+
+.rb-badge--active {
+    background: #DCFCE7;
+    color: #15803D;
+}
+.rb-badge--active::before { background: #16A34A; }
+
+.rb-badge--trialing {
+    background: #EEF2FF;
+    color: #4F46E5;
+}
+.rb-badge--trialing::before { background: #4F46E5; }
+
+.rb-badge--pending {
+    background: #FEF3C7;
+    color: #D97706;
+}
+.rb-badge--pending::before { background: #D97706; }
+
+.rb-badge--past_due {
+    background: #FEE2E2;
+    color: #DC2626;
+}
+.rb-badge--past_due::before { background: #DC2626; }
+
+.rb-badge--cancel_at_period_end {
+    background: #FEF3C7;
+    color: #B45309;
+}
+.rb-badge--cancel_at_period_end::before { background: #B45309; }
+
+.rb-badge--cancelled, .rb-badge--expired {
+    background: #F3F4F6;
+    color: #6B7280;
+}
+.rb-badge--cancelled::before, .rb-badge--expired::before { background: #6B7280; }
+
+/* Bottom section: stats tiles + usage */
+.rb-sub-card__bottom {
+    padding: 0 2rem 1.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+/* Stats Tiles Row */
+.rb-stat-tiles {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.75rem;
+}
+
+.rb-stat-tile {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border-subtle);
+    border-radius: 10px;
+    padding: 0.875rem 1rem;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.rb-stat-tile:hover {
+    border-color: var(--color-border-hover);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.rb-stat-tile__icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.rb-stat-tile__icon--locations {
+    background: #EEF2FF;
+    color: #4F46E5;
+}
+.rb-stat-tile__icon--campaigns {
+    background: #F0FDF4;
+    color: #16A34A;
+}
+.rb-stat-tile__icon--quota {
+    background: #FFF7ED;
+    color: #EA580C;
+}
+.rb-stat-tile__icon--billing {
+    background: #FDF4FF;
+    color: #9333EA;
+}
+
+.rb-stat-tile__text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+    min-width: 0;
+}
+
+.rb-stat-tile__label {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--color-text-muted);
+    line-height: 1.2;
+}
+
+.rb-stat-tile__value {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--color-text-primary);
+    line-height: 1.2;
+}
+
+/* Usage Meter — redesigned */
+.rb-usage-meter {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border-subtle);
+    border-radius: 10px;
+    padding: 1rem 1.25rem;
+}
+
+.rb-usage-meter__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.625rem;
+}
+
+.rb-usage-meter__label {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--color-text-primary);
+}
+
+.rb-usage-meter__values {
+    font-size: 0.8125rem;
+    font-weight: 700;
+    color: var(--color-text-primary);
+    background: var(--color-surface-card);
+    border: 1px solid var(--color-border-subtle);
+    padding: 0.2rem 0.625rem;
+    border-radius: 6px;
+}
+
+.rb-usage-meter__track {
+    height: 8px;
+    background: var(--color-border-subtle);
+    border-radius: 99px;
+    overflow: hidden;
+    margin-bottom: 0.5rem;
+}
+
+.rb-usage-meter__fill {
+    height: 100%;
+    border-radius: 99px;
+    transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.3s;
+}
+
+.rb-usage-meter__footer {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* Quota meter states */
+.rb-usage--normal { background: linear-gradient(90deg, #22C55E, #16A34A); }
+.rb-usage--approaching { background: linear-gradient(90deg, #F59E0B, #D97706); }
+.rb-usage--warning { background: linear-gradient(90deg, #F97316, #EA580C); }
+.rb-usage--danger { background: linear-gradient(90deg, #EF4444, #DC2626); }
+
+/* Actions Menu — inline in top-right */
+.rb-sub-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-shrink: 0;
+}
+
+/* Dropdown Menu */
+.rb-dropdown-container {
+    position: relative;
+    display: inline-block;
+}
+
+.rb-dropdown-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    background: var(--color-surface-card);
+    border: 1px solid var(--color-border-subtle);
+    border-radius: 10px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+    padding: 0.375rem;
+    z-index: 50;
+    min-width: 210px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    animation: fade-in 0.12s ease-out;
+}
+
+.rb-dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--color-text-primary);
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    width: 100%;
+    text-align: left;
+    cursor: pointer;
+    transition: background 120ms;
+}
+
+.rb-dropdown-item:hover {
+    background: var(--color-surface);
+}
+
+.rb-dropdown-item--danger {
+    color: #DC2626;
+}
+
+.rb-dropdown-item--danger:hover {
+    background: #FEF2F2;
+}
+
+.rb-dropdown-divider {
+    height: 1px;
+    background: var(--color-border-subtle);
+    margin: 0.25rem 0;
+}
+
+/* Plans Grid */
+.rb-plans-section {
+    margin-bottom: 2.5rem;
+}
+
+.rb-plans-section__header {
+    margin-bottom: 1.75rem;
+}
+
+.rb-plans-section__title {
+    font-size: 1.125rem; /* 18px */
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin: 0 0 0.25rem;
+}
+
+.rb-plans-section__subtitle {
+    font-size: 0.875rem;
+    color: var(--color-text-secondary);
+    margin: 0;
+}
+
+.rb-plans-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 1.5rem;
+    align-items: stretch;
+}
+
+/* Plan Card */
+.rb-plan-card {
+    background: var(--color-surface-card);
+    border: 1px solid var(--color-border-subtle);
+    border-radius: 14px;
+    padding: 1.75rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+}
+
+.rb-plan-card:hover {
+    border-color: var(--color-border-hover);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+    transform: translateY(-2px);
+}
+
+.rb-plan-card--recommended {
+    border-color: var(--color-brand);
+    box-shadow: 0 4px 16px rgba(26, 26, 26, 0.08);
+}
+
+.rb-plan-card--current {
+    background: var(--color-surface);
+    border-color: var(--color-border-subtle);
+}
+
+.rb-plan-card__badge {
+    position: absolute;
+    top: -10px;
+    left: 1.25rem;
+    padding: 0.2rem 0.625rem;
+    border-radius: 99px;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    line-height: 1;
+}
+
+.rb-plan-card__badge--recommended {
+    background: var(--color-brand);
+    color: var(--color-surface-card);
+}
+
+.rb-plan-card__badge--current {
+    background: var(--color-surface-card);
+    color: var(--color-text-secondary);
+    border: 1px solid var(--color-border-subtle);
+}
+
+.rb-plan-card__name {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin: 0 0 0.5rem;
+}
+
+.rb-plan-card__desc {
+    font-size: 0.8125rem;
+    color: var(--color-text-secondary);
+    margin: 0 0 1.25rem;
+    line-height: 1.4;
+    min-height: 2.8rem;
+}
+
+.rb-plan-card__price-box {
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: baseline;
+    gap: 0.125rem;
+}
+
+.rb-plan-card__price {
+    font-size: 1.875rem; /* 30px */
+    font-weight: 700;
+    color: var(--color-text-primary);
+}
+
+.rb-plan-card__interval {
+    font-size: 0.8125rem;
+    color: var(--color-text-secondary);
+}
+
+.rb-plan-card__features {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 1.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
+    flex: 1;
+}
+
+.rb-plan-card__feature {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    font-size: 0.8125rem;
+    color: var(--color-text-primary);
+    line-height: 1.35;
+}
+
+.rb-plan-card__feature-check {
+    color: var(--color-accent);
+    font-weight: 700;
+    font-size: 0.875rem;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+/* Compare Toggle */
+.rb-compare-toggle-box {
+    display: flex;
+    justify-content: center;
+    margin: 1.5rem 0;
+}
+
+.rb-compare-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    background: transparent;
+    cursor: pointer;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    transition: color 0.15s, background 0.15s;
+}
+
+.rb-compare-btn:hover {
+    color: var(--color-text-primary);
+    background: var(--color-surface);
+}
+
+/* Feature Comparison Table */
+.rb-comparison-section {
+    background: var(--color-surface-card);
+    border: 1px solid var(--color-border-subtle);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 2.5rem;
+    animation: fade-in 0.2s ease-out;
+}
+
+.rb-comparison-table-wrap {
+    overflow-x: auto;
+}
+
+.rb-comparison-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+}
+
+.rb-comparison-table th {
+    text-align: left;
+    padding: 0.75rem 1rem;
+    border-bottom: 2px solid var(--color-border-subtle);
+    color: var(--color-text-secondary);
+    font-weight: 600;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.rb-comparison-table td {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--color-surface);
+    color: var(--color-text-primary);
+}
+
+.rb-comparison-table tr:last-child td {
+    border-bottom: none;
+}
+
+.rb-comparison-table__feature-name {
+    font-weight: 500;
+}
+
+/* Billing Info & Invoices */
+.rb-billing-management {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 2rem;
+    margin-bottom: 2.5rem;
+}
+
+.rb-invoices-section {
+    background: var(--color-surface-card);
+    border: 1px solid var(--color-border-subtle);
+    border-radius: 12px;
+    padding: 1.5rem;
+}
+
+.rb-invoices-table-wrap {
+    overflow-x: auto;
+}
+
+.rb-invoices-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8125rem;
+}
+
+.rb-invoices-table th {
+    text-align: left;
+    padding: 0.625rem 0.75rem;
+    border-bottom: 2px solid var(--color-border-subtle);
+    color: var(--color-text-secondary);
+    font-weight: 600;
+    font-size: 0.6875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.rb-invoices-table td {
+    padding: 0.75rem;
+    border-bottom: 1px solid var(--color-surface);
+    color: var(--color-text-primary);
+    vertical-align: middle;
+}
+
+.rb-invoices-table tr:last-child td {
+    border-bottom: none;
+}
+
+/* Compact Support Card */
+.rb-support-card {
+    background: var(--color-surface-card);
+    border: 1px solid var(--color-border-subtle);
+    border-radius: 12px;
+    padding: 1.25rem 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.5rem;
+}
+
+.rb-support-card__content {
+    flex: 1;
+}
+
+.rb-support-card__title {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin: 0 0 0.125rem;
+}
+
+.rb-support-card__desc {
+    font-size: 0.8125rem;
+    color: var(--color-text-secondary);
+    margin: 0;
+}
+
+/* Button override utilities for custom brand theme consistency */
+.rb-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 150ms ease, opacity 150ms ease, border-color 150ms ease;
+    white-space: nowrap;
+    border: none;
+    outline: none;
+    font-family: var(--font-family-sans);
+}
+
+.rb-btn:focus-visible {
+    outline: 2px solid var(--color-brand);
+    outline-offset: 2px;
+}
+
+.rb-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.rb-btn--primary {
+    background: var(--color-brand);
+    color: var(--color-surface-card);
+}
+.rb-btn--primary:hover:not(:disabled) {
+    background: var(--color-brand-hover);
+}
+
+.rb-btn--secondary {
+    background: var(--color-surface-card);
+    color: var(--color-text-primary);
+    border: 1px solid var(--color-border-subtle);
+}
+.rb-btn--secondary:hover:not(:disabled) {
+    border-color: var(--color-border-hover);
+    background: var(--color-surface);
+}
+
+.rb-btn--ghost {
+    background: transparent;
+    color: var(--color-text-secondary);
+}
+.rb-btn--ghost:hover:not(:disabled) {
+    background: var(--color-surface);
+    color: var(--color-text-primary);
+}
+
+.rb-btn--danger {
+    background: #DC2626;
+    color: #FFFFFF;
+}
+.rb-btn--danger:hover:not(:disabled) {
+    background: #B91C1C;
+}
+
+.rb-btn--icon-only {
+    width: 36px;
+    height: 36px;
+    padding: 0;
+}
+
+/* Dialog Overlay & Modal */
+.rb-dialog-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(26, 26, 26, 0.45);
+    backdrop-filter: blur(3px);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+}
+
+.rb-dialog {
+    background: var(--color-surface-card);
+    border: 1px solid var(--color-border-subtle);
+    border-radius: 12px;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    width: 100%;
+    max-width: 440px;
+    padding: 1.5rem;
+    animation: fade-in 0.15s ease-out;
+}
+
+.rb-dialog__title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin: 0 0 0.5rem;
+}
+
+.rb-dialog__desc {
+    font-size: 0.875rem;
+    color: var(--color-text-secondary);
+    line-height: 1.5;
+    margin: 0 0 1.5rem;
+}
+
+.rb-dialog__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+}
+
+/* Skeleton Loading CSS */
+.rb-skeleton {
+    background: linear-gradient(90deg, #F3F2EE 25%, #E3E1D9 50%, #F3F2EE 75%);
+    background-size: 200% 100%;
+    animation: rb-loading 1.5s infinite;
+}
+
+@keyframes rb-loading {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+/* Responsive Overrides */
+@media (max-width: 1024px) {
+    .rb-billing-management {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+    }
+    
+    .rb-stat-tiles {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .rb-billing-page {
+        padding: 1.5rem 1.25rem;
+    }
+    
+    .rb-sub-card__top {
+        flex-direction: column;
+        align-items: stretch;
+        padding: 1.25rem 1.25rem 1rem;
+    }
+    
+    .rb-sub-card__bottom {
+        padding: 0 1.25rem 1.25rem;
+    }
+    
+    .rb-stat-tiles {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .rb-plans-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .rb-support-card {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1rem;
+        text-align: center;
+    }
+    
+    .rb-support-card__content {
+        text-align: center;
+    }
+}
+
+@media (max-width: 480px) {
+    .rb-stat-tiles {
+        grid-template-columns: 1fr;
+    }
+    
+    .rb-sub-card__title {
+        font-size: 1.25rem;
+    }
+    
+    .rb-sub-card__price {
+        font-size: 1.25rem;
+    }
+}

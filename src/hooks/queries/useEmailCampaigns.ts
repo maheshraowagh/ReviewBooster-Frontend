@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { emailCampaignService, type Recipient } from '../../services/emailCampaignService';
 import { useSocket } from '../../providers/SocketProvider';
 
-export function useEmailCampaigns() {
+export function useEmailCampaigns(params: { page?: number; limit?: number; status?: string } = {}) {
   const { socket } = useSocket();
   const queryClient = useQueryClient();
 
@@ -22,8 +22,8 @@ export function useEmailCampaigns() {
   }, [socket, queryClient]);
 
   return useQuery({
-    queryKey: ['email-campaigns'],
-    queryFn: () => emailCampaignService.getCampaigns(),
+    queryKey: ['email-campaigns', params],
+    queryFn: () => emailCampaignService.getCampaigns(params),
     refetchInterval: 30000,
   });
 }

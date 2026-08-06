@@ -42,12 +42,25 @@ export interface EmailCampaignDetail {
 }
 
 export const emailCampaignService = {
-  getCampaigns: async (): Promise<EmailCampaign[]> => {
-    const res = await api.get<ApiResponse<{ campaigns: EmailCampaign[] }>>('/email-campaigns');
+  getCampaigns: async ({
+    page = 1,
+    limit = 10,
+    status,
+  }: { page?: number; limit?: number; status?: string } = {}): Promise<{ campaigns: EmailCampaign[]; pagination: { page: number; limit: number; total: number; totalPages: number } }> => {
+    const params = new URLSearchParams({
+      page: String(page),
+      limit: String(limit),
+    });
+    if (status && status !== 'all') params.set('status', status);
+
+    const res = await api.get<ApiResponse<{ campaigns: EmailCampaign[]; pagination: { page: number; limit: number; total: number; totalPages: number } }>>(`/email-campaigns?${params.toString()}`);
     if (!res.data.success || !res.data.data) {
       throw new Error(res.data.error?.message || 'Failed to load email campaigns');
     }
-    return res.data.data.campaigns;
+    return {
+      campaigns: res.data.data.campaigns,
+      pagination: res.data.data.pagination,
+    };
   },
 
   getCampaign: async (id: string): Promise<EmailCampaignDetail> => {

@@ -8,6 +8,7 @@ export function useWhatsappStatusRaw() {
     queryFn: () => whatsappService.getStatusRaw(),
     retry: false, // Don't retry status checks on failure
     refetchInterval: 30000,
+    refetchOnWindowFocus: false,
   });
 }
 
@@ -38,6 +39,7 @@ export function useWhatsappQr() {
     queryKey: ['whatsapp', 'qr'],
     queryFn: () => whatsappService.getQr(),
     retry: false,
+    refetchOnWindowFocus: false,
   });
 }
 

@@ -45,6 +45,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         queryClient.invalidateQueries({ queryKey: ['campaigns'] });
         queryClient.invalidateQueries({ queryKey: ['campaign'] });
         queryClient.invalidateQueries({ queryKey: ['whatsapp'] });
+        queryClient.invalidateQueries({ queryKey: ['gbp-audit'] });
       });
 
       newSocket.on('disconnect', () => {

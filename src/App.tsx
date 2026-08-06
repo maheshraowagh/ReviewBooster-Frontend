@@ -27,6 +27,7 @@ const PublicReviewFlow = lazy(() => import("./pages/public/PublicReviewFlow"));
 const WhatsAppPage = lazy(() => import("./pages/WhatsAppPage"));
 const CampaignsPage = lazy(() => import("./pages/CampaignsPage"));
 const EmailCampaignsPage = lazy(() => import("./pages/EmailCampaignsPage"));
+const LocalSeoPage = lazy(() => import("./pages/LocalSeoPage"));
 
 // Lazy-loaded admin pages
 const AdminLayout = lazy(() => import("./components/AdminLayout"));
@@ -81,6 +82,7 @@ export default function App() {
                   <Route path="/dashboard" element={<DashboardPage />} />
                   <Route path="/inbox" element={<InboxPage />} />
                   <Route path="/insights" element={<InsightsPage />} />
+                  <Route path="/local-seo" element={<LocalSeoPage />} />
                   <Route path="/qr-locations" element={<QrLocationsPage />} />
                   <Route path="/whatsapp" element={<WhatsAppPage />} />
                   <Route path="/campaigns" element={<CampaignsPage />} />

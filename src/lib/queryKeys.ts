@@ -33,8 +33,8 @@ export const queryKeys = {
   // ---- Campaigns ----
   campaigns: {
     all: ['campaigns'] as const,
-    list: (page: number, limit: number) =>
-      ['campaigns', 'list', { page, limit }] as const,
+    list: (page: number, limit: number, status?: string) =>
+      ['campaigns', 'list', { page, limit, status }] as const,
   },
 
   // ---- WhatsApp ----
@@ -59,5 +59,12 @@ export const queryKeys = {
       ['admin', 'users', { page, limit }] as const,
     activity: (page: number, limit: number) =>
       ['admin', 'activity', { page, limit }] as const,
+  },
+
+  // ---- GBP Health Audit ----
+  gbpAudit: {
+    all: ['gbp-audit'] as const,
+    current: () => ['gbp-audit', 'current'] as const,
+    history: () => ['gbp-audit', 'history'] as const,
   },
 } as const;

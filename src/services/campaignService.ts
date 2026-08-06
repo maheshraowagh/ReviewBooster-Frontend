@@ -17,6 +17,13 @@ export interface CampaignSummary {
   pauseReason: string | null;
 }
 
+export interface CampaignPagination {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
 export interface Recipient {
   _id: string;
   phoneNormalized: string;
@@ -41,12 +48,25 @@ export interface CsvPreview {
 }
 
 export const campaignService = {
-  getCampaigns: async (): Promise<CampaignSummary[]> => {
-    const res = await api.get<ApiResponse<{ campaigns: CampaignSummary[] }>>('/campaigns');
+  getCampaigns: async ({
+    page = 1,
+    limit = 10,
+    status,
+  }: { page?: number; limit?: number; status?: string } = {}): Promise<{ campaigns: CampaignSummary[]; pagination: CampaignPagination }> => {
+    const params = new URLSearchParams({
+      page: String(page),
+      limit: String(limit),
+    });
+    if (status && status !== 'all') params.set('status', status);
+
+    const res = await api.get<ApiResponse<{ campaigns: CampaignSummary[]; pagination: CampaignPagination }>>(`/campaigns?${params.toString()}`);
     if (!res.data.success || !res.data.data) {
       throw new Error(res.data.error?.message || 'Failed to load campaigns');
     }
-    return res.data.data.campaigns;
+    return {
+      campaigns: res.data.data.campaigns,
+      pagination: res.data.data.pagination,
+    };
   },
 
   getCampaign: async (id: string): Promise<CampaignSummary> => {

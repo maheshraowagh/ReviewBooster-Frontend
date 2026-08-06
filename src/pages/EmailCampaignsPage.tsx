@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import "./email-campaigns.css";
 import {
   useEmailCampaigns,
@@ -554,8 +554,39 @@ export default function EmailCampaignsPage() {
   const [showWizard, setShowWizard] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  const { data: campaignsData, isLoading: loading, refetch } = useEmailCampaigns();
-  const campaigns = campaignsData || [];
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [page, setPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+
+  const { data: campaignsData, isLoading: loading, refetch } = useEmailCampaigns({
+    page,
+    limit: rowsPerPage,
+    status: statusFilter,
+  });
+
+  const campaigns = campaignsData?.campaigns || [];
+  const pagination = campaignsData?.pagination || {
+    page,
+    limit: rowsPerPage,
+    total: campaigns.length,
+    totalPages: Math.max(1, Math.ceil(campaigns.length / rowsPerPage)),
+  };
+
+  const visibleCampaigns = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    if (!term) return campaigns;
+    return campaigns.filter((c) => c.name.toLowerCase().includes(term));
+  }, [campaigns, search]);
+
+  const stats = useMemo(() => {
+    return {
+      total: pagination.total,
+      running: campaigns.filter((c) => c.status === "running").length,
+      sent: campaigns.reduce((sum, c) => sum + (c.successCount || 0), 0),
+      failed: campaigns.reduce((sum, c) => sum + (c.failedCount || 0), 0),
+    };
+  }, [campaigns, pagination.total]);
 
   return (
     <div className="email-campaigns-page">
@@ -576,47 +607,216 @@ export default function EmailCampaignsPage() {
         </button>
       </div>
 
-      {/* Campaign list */}
-      {loading ? (
-        <p style={{ color: "#6B6B63", fontSize: "14px" }}>Loading campaigns…</p>
-      ) : campaigns.length === 0 ? (
-        <div className="ec-empty">
-          <div className="ec-empty-icon">
-            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="3" width="18" height="18" rx="2"/><polyline points="3,9 12,15 21,9"/>
+      {/* Stats Cards */}
+      <section className="ec-page-stat-grid" aria-label="Campaign summary">
+        <div className="ec-page-stat-card">
+          <div className="ec-page-stat-card__icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
             </svg>
           </div>
-          <h2 className="ec-empty-title">No email campaigns yet</h2>
-          <p className="ec-empty-desc">
-            Upload a list of customer emails and send personalised review requests in minutes.
-          </p>
-          <button id="ec-empty-new-btn" className="ec-btn ec-btn-primary"
-            onClick={() => setShowWizard(true)}>
-            Create your first campaign
-          </button>
+          <div>
+            <p className="ec-page-stat-card__label">Total Campaigns</p>
+            <strong>{stats.total}</strong>
+            <span>All time</span>
+          </div>
         </div>
-      ) : (
-        <div className="email-campaign-list">
-          {campaigns.map((c) => (
-            <div key={c._id} id={`ec-campaign-${c._id}`}
-              className="email-campaign-card" onClick={() => setSelectedId(c._id)}>
-              <div className="email-campaign-card-main">
-                <p className="email-campaign-card-name">{c.name}</p>
-                <p className="email-campaign-card-subject">{c.emailSubject}</p>
-                <div className="email-campaign-card-meta">
-                  <span className="email-campaign-card-stat"><strong>{c.totalRecipients}</strong> recipients</span>
-                  <span className="email-campaign-card-stat"><strong style={{ color: "#3F7D45" }}>{c.successCount}</strong> sent</span>
-                  {c.failedCount > 0 && (
-                    <span className="email-campaign-card-stat"><strong style={{ color: "#C0392B" }}>{c.failedCount}</strong> failed</span>
-                  )}
-                  <span className="email-campaign-card-stat">{successRate(c)}% success</span>
-                </div>
-              </div>
-              <StatusBadge status={c.status} />
+        <div className="ec-page-stat-card">
+          <div className="ec-page-stat-card__icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+            </svg>
+          </div>
+          <div>
+            <p className="ec-page-stat-card__label">Active / Running</p>
+            <strong>{stats.running}</strong>
+            <span>Current page</span>
+          </div>
+        </div>
+        <div className="ec-page-stat-card">
+          <div className="ec-page-stat-card__icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="m22 2-7 20-4-9-9-4 20-7Z" />
+              <path d="M22 2 11 13" />
+            </svg>
+          </div>
+          <div>
+            <p className="ec-page-stat-card__label">Emails Sent</p>
+            <strong>{stats.sent}</strong>
+            <span>Current page</span>
+          </div>
+        </div>
+        <div className="ec-page-stat-card ec-page-stat-card--danger">
+          <div className="ec-page-stat-card__icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M10.3 4.3 2.5 18a2 2 0 0 0 1.7 3h15.6a2 2 0 0 0 1.7-3L13.7 4.3a2 2 0 0 0-3.4 0Z" />
+            </svg>
+          </div>
+          <div>
+            <p className="ec-page-stat-card__label">Failed Deliveries</p>
+            <strong>{stats.failed}</strong>
+            <span>Current page</span>
+          </div>
+        </div>
+      </section>
+
+      {/* Main Campaign Panel */}
+      <section className="ec-panel" aria-labelledby="email-campaign-list-title">
+        <div className="ec-panel__header">
+          <div className="ec-panel__title-row">
+            <div>
+              <h2 id="email-campaign-list-title">All Campaigns</h2>
+              <p>{pagination.total.toLocaleString()} campaigns</p>
             </div>
-          ))}
+          </div>
+
+          <div className="ec-toolbar">
+            <label className="ec-search">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="11" cy="11" r="8"/>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              </svg>
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search campaigns..."
+              />
+              {search && (
+                <button type="button" onClick={() => setSearch("")} aria-label="Clear search">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <line x1="18" y1="6" x2="6" y2="18"/>
+                    <line x1="6" y1="6" x2="18" y2="18"/>
+                  </svg>
+                </button>
+              )}
+            </label>
+
+            <label className="ec-select-wrap">
+              <select
+                value={statusFilter}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value);
+                  setPage(1);
+                }}
+              >
+                <option value="all">All Statuses</option>
+                <option value="draft">Draft</option>
+                <option value="running">Sending</option>
+                <option value="paused">Paused</option>
+                <option value="completed">Completed</option>
+                <option value="failed">Failed</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+            </label>
+          </div>
         </div>
-      )}
+
+        {loading ? (
+          <p style={{ padding: "32px", color: "#6B6B63", fontSize: "14px", textAlign: "center" }}>Loading campaigns…</p>
+        ) : campaigns.length === 0 ? (
+          <div className="ec-empty" style={{ border: "none" }}>
+            <div className="ec-empty-icon">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2"/>
+                <polyline points="3,9 12,15 21,9"/>
+              </svg>
+            </div>
+            <h2 className="ec-empty-title">No campaigns found</h2>
+            <p className="ec-empty-desc">
+              Create a new email campaign to request reviews.
+            </p>
+          </div>
+        ) : (
+          <>
+            <div className="ec-table-wrap">
+              <table className="ec-table">
+                <thead>
+                  <tr>
+                    <th>Campaign</th>
+                    <th>Status</th>
+                    <th>Progress</th>
+                    <th>Created At</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {visibleCampaigns.map((c) => {
+                    const processed = (c.successCount || 0) + (c.failedCount || 0) + (c.skippedCount || 0);
+                    const progressPct = c.totalRecipients > 0 ? Math.round((processed / c.totalRecipients) * 100) : 0;
+                    return (
+                      <tr key={c._id} onClick={() => setSelectedId(c._id)}>
+                        <td>
+                          <span className="ec-table__name">{c.name}</span>
+                          <span className="ec-table__subject">{c.emailSubject}</span>
+                        </td>
+                        <td>
+                          <StatusBadge status={c.status} />
+                        </td>
+                        <td>
+                          <div className="ec-delivery">
+                            <div className="ec-delivery__meta">
+                              <span>{progressPct}% ({processed}/{c.totalRecipients})</span>
+                            </div>
+                            <div className="ec-delivery__track">
+                              <span className="ec-delivery__success" style={{ width: `${progressPct}%` }} />
+                            </div>
+                            {c.failedCount > 0 && (
+                              <span className="ec-delivery__failed">{c.failedCount} failed</span>
+                            )}
+                          </div>
+                        </td>
+                        <td>
+                          <span className="ec-table__date">
+                            {new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(new Date(c.createdAt))}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="ec-pagination">
+              <span className="ec-pagination__page">
+                Page {pagination.page} of {pagination.totalPages}
+              </span>
+              <div className="ec-pagination__controls">
+                <label>
+                  Rows per page:
+                  <select
+                    value={rowsPerPage}
+                    onChange={(e) => {
+                      setRowsPerPage(Number(e.target.value));
+                      setPage(1);
+                    }}
+                  >
+                    <option value={5}>5</option>
+                    <option value={10}>10</option>
+                    <option value={20}>20</option>
+                    <option value={50}>50</option>
+                  </select>
+                </label>
+                <button
+                  className="ec-btn ec-btn-ghost"
+                  style={{ padding: "5px 10px" }}
+                  disabled={pagination.page <= 1}
+                  onClick={(e) => { e.stopPropagation(); setPage(p => p - 1); }}
+                >
+                  Prev
+                </button>
+                <button
+                  className="ec-btn ec-btn-ghost"
+                  style={{ padding: "5px 10px" }}
+                  disabled={pagination.page >= pagination.totalPages}
+                  onClick={(e) => { e.stopPropagation(); setPage(p => p + 1); }}
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+      </section>
 
       {/* Wizard modal */}
       {showWizard && (

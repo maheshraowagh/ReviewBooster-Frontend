@@ -1,0 +1,453 @@
+/* ============================================================
+   Local SEO / GBP Health Audit Page — scoped styles
+   Follows the same design language as campaigns.css
+   ============================================================ */
+
+/* ---- Page layout ---- */
+.gbp-audit-page {
+  padding: 2rem 2.5rem;
+  max-width: 1100px;
+}
+
+.gbp-audit-page h1 {
+  font-size: 22px;
+  font-weight: 700;
+  color: #1A1A1A;
+  margin: 0 0 4px;
+}
+
+.gbp-audit-page .page-subtitle {
+  font-size: 14px;
+  color: #6B6B63;
+  margin: 0 0 28px;
+}
+
+/* ---- Empty state (no audit) ---- */
+.gbp-empty-state {
+  text-align: center;
+  padding: 80px 24px;
+  background: #fff;
+  border-radius: 14px;
+  border: 1px solid #E8E6E0;
+}
+
+.gbp-empty-state__icon {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 20px;
+  background: #F2F0EA;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gbp-empty-state__icon svg {
+  width: 28px;
+  height: 28px;
+  stroke: #3F7D45;
+  fill: none;
+  stroke-width: 1.75;
+}
+
+.gbp-empty-state h2 {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 8px;
+  color: #1A1A1A;
+}
+
+.gbp-empty-state p {
+  font-size: 14px;
+  color: #6B6B63;
+  margin: 0 0 24px;
+  max-width: 420px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* ---- Score hero card ---- */
+.gbp-score-hero {
+  background: #fff;
+  border-radius: 14px;
+  border: 1px solid #E8E6E0;
+  padding: 32px;
+  margin-bottom: 20px;
+  display: flex;
+  gap: 40px;
+  align-items: center;
+}
+
+.gbp-score-gauge {
+  position: relative;
+  width: 140px;
+  height: 140px;
+  flex-shrink: 0;
+}
+
+.gbp-score-gauge svg {
+  width: 140px;
+  height: 140px;
+  transform: rotate(-90deg);
+}
+
+.gbp-score-gauge__bg {
+  fill: none;
+  stroke: #F2F0EA;
+  stroke-width: 10;
+}
+
+.gbp-score-gauge__fill {
+  fill: none;
+  stroke-width: 10;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 1s ease, stroke 0.3s;
+}
+
+.gbp-score-gauge__label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.gbp-score-gauge__number {
+  font-size: 36px;
+  font-weight: 700;
+  line-height: 1;
+  color: #1A1A1A;
+}
+
+.gbp-score-gauge__of {
+  font-size: 13px;
+  color: #999;
+  margin-top: 2px;
+}
+
+.gbp-score-info {
+  flex: 1;
+}
+
+.gbp-score-info h2 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1A1A1A;
+  margin: 0 0 6px;
+}
+
+.gbp-score-info__projected {
+  font-size: 14px;
+  color: #3F7D45;
+  font-weight: 500;
+  margin: 0 0 12px;
+}
+
+.gbp-score-info__meta {
+  font-size: 12px;
+  color: #999;
+  margin: 0;
+}
+
+.gbp-score-info__meta span {
+  margin-right: 16px;
+}
+
+/* ---- Score sparkline ---- */
+.gbp-sparkline {
+  margin-top: 16px;
+}
+
+.gbp-sparkline__label {
+  font-size: 12px;
+  color: #999;
+  margin-bottom: 6px;
+}
+
+.gbp-sparkline svg {
+  display: block;
+}
+
+/* ---- Stale / failed banners ---- */
+.gbp-stale-banner,
+.gbp-failed-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  font-size: 13px;
+  margin-bottom: 20px;
+}
+
+.gbp-stale-banner {
+  background: #FFF8E1;
+  border: 1px solid #FFE082;
+  color: #8D6E00;
+}
+
+.gbp-failed-banner {
+  background: #FFF0F0;
+  border: 1px solid #FFCDD2;
+  color: #B71C1C;
+}
+
+.gbp-stale-banner svg,
+.gbp-failed-banner svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+}
+
+/* ---- Health grid ---- */
+.gbp-health-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.gbp-health-section {
+  background: #fff;
+  border-radius: 14px;
+  border: 1px solid #E8E6E0;
+  padding: 24px;
+}
+
+.gbp-health-section h3 {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1A1A1A;
+  margin: 0 0 16px;
+}
+
+.gbp-health-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  font-size: 14px;
+  color: #333;
+  border-bottom: 1px solid #F5F3EE;
+}
+
+.gbp-health-item:last-child {
+  border-bottom: none;
+}
+
+.gbp-health-item__icon {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 11px;
+}
+
+.gbp-health-item__icon--pass {
+  background: #E8F5E9;
+  color: #2E7D32;
+}
+
+.gbp-health-item__icon--fail {
+  background: #FFEBEE;
+  color: #C62828;
+}
+
+.gbp-health-item__icon--warn {
+  background: #FFF8E1;
+  color: #F57F17;
+}
+
+.gbp-health-item__deduction {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 500;
+  color: #DC5A5A;
+}
+
+/* ---- Actions section ---- */
+.gbp-actions-card {
+  background: #fff;
+  border-radius: 14px;
+  border: 1px solid #E8E6E0;
+  padding: 24px;
+  margin-bottom: 20px;
+}
+
+.gbp-actions-card h3 {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1A1A1A;
+  margin: 0 0 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.gbp-action-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 0;
+  border-bottom: 1px solid #F5F3EE;
+}
+
+.gbp-action-item:last-child {
+  border-bottom: none;
+}
+
+.gbp-action-item__severity {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: 6px;
+}
+
+.gbp-action-item__severity--critical { background: #DC5A5A; }
+.gbp-action-item__severity--warning { background: #E5A93D; }
+.gbp-action-item__severity--info { background: #90CAF9; }
+
+.gbp-action-item__content {
+  flex: 1;
+}
+
+.gbp-action-item__title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1A1A1A;
+  margin: 0 0 4px;
+}
+
+.gbp-action-item__desc {
+  font-size: 13px;
+  color: #6B6B63;
+  margin: 0;
+}
+
+.gbp-action-item__uplift {
+  font-size: 13px;
+  font-weight: 600;
+  color: #3F7D45;
+  white-space: nowrap;
+  margin-top: 4px;
+}
+
+/* ---- Buttons ---- */
+.gbp-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  font-family: inherit;
+  transition: opacity 0.15s, transform 0.1s;
+}
+
+.gbp-btn:active { transform: scale(0.98); }
+.gbp-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.gbp-btn--primary {
+  background: #1A1A1A;
+  color: #fff;
+}
+
+.gbp-btn--primary:hover:not(:disabled) {
+  background: #333;
+}
+
+.gbp-btn--secondary {
+  background: #F2F0EA;
+  color: #1A1A1A;
+  border: 1px solid #E8E6E0;
+}
+
+.gbp-btn--secondary:hover:not(:disabled) {
+  background: #E8E6E0;
+}
+
+.gbp-btn svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* ---- Refresh footer ---- */
+.gbp-refresh-footer {
+  text-align: center;
+  padding: 20px 0;
+}
+
+.gbp-refresh-footer p {
+  font-size: 12px;
+  color: #999;
+  margin: 8px 0 0;
+}
+
+/* ---- Processing shimmer ---- */
+.gbp-processing {
+  text-align: center;
+  padding: 80px 24px;
+  background: #fff;
+  border-radius: 14px;
+  border: 1px solid #E8E6E0;
+}
+
+.gbp-processing__spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #E3E1D9;
+  border-top-color: #3F7D45;
+  border-radius: 50%;
+  margin: 0 auto 20px;
+  animation: gbp-spin 0.8s linear infinite;
+}
+
+@keyframes gbp-spin {
+  to { transform: rotate(360deg); }
+}
+
+.gbp-processing h2 {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 8px;
+  color: #1A1A1A;
+}
+
+.gbp-processing p {
+  font-size: 14px;
+  color: #6B6B63;
+  margin: 0;
+}
+
+/* ---- Responsive ---- */
+@media (max-width: 768px) {
+  .gbp-audit-page {
+    padding: 1.5rem 1rem;
+  }
+
+  .gbp-score-hero {
+    flex-direction: column;
+    text-align: center;
+    gap: 20px;
+  }
+
+  .gbp-health-grid {
+    grid-template-columns: 1fr;
+  }
+}

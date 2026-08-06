@@ -4,7 +4,11 @@ import { campaignService } from '../../services/campaignService';
 import { queryKeys } from '../../lib/queryKeys';
 import { useSocket } from '../../providers/SocketProvider';
 
-export function useCampaigns() {
+export function useCampaigns({
+  page = 1,
+  limit = 10,
+  status = 'all',
+}: { page?: number; limit?: number; status?: string } = {}) {
   const { socket } = useSocket();
   const queryClient = useQueryClient();
 
@@ -23,8 +27,8 @@ export function useCampaigns() {
   }, [socket, queryClient]);
 
   return useQuery({
-    queryKey: queryKeys.campaigns.list(1, 1000), // simplified for now, as API returns all
-    queryFn: () => campaignService.getCampaigns(),
+    queryKey: queryKeys.campaigns.list(page, limit, status),
+    queryFn: () => campaignService.getCampaigns({ page, limit, status }),
     refetchInterval: 30000,
   });
 }
@@ -50,7 +54,7 @@ export function useCampaign(id: string, isRunning: boolean) {
   return useQuery({
     queryKey: ['campaign', id],
     queryFn: () => campaignService.getCampaign(id),
-    enabled: !!id,
+    enabled: !!id && isRunning,
     refetchInterval: 30000,
   });
 }
