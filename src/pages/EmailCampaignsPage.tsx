@@ -7,10 +7,13 @@ import {
   useCreateEmailCampaign,
   useEmailCampaignAction,
 } from "../hooks/queries/useEmailCampaigns";
-import type { 
-  ValidationResult, 
-  EmailCampaign, 
+import { useCurrentBusiness } from "../hooks/queries/useBusiness";
+import { EmailTemplateSelector, EmailTemplateConfig } from "../components/EmailTemplateSelector";
+import type {
+  ValidationResult,
+  EmailCampaign,
 } from "../services/emailCampaignService";
+import { getGoogleAuthUrl } from "../services/googleAuthService";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -31,7 +34,7 @@ function successRate(c: EmailCampaign) {
 // ── Sub-components ────────────────────────────────────────────────────────────
 
 function StepBar({ current }: { current: number }) {
-  const steps = ["Email Template", "Import Contacts", "Review & Send"];
+  const steps = ["Campaign Details", "Import Contacts", "Email Design", "Review & Send"];
   return (
     <div className="ec-step-bar">
       {steps.map((label, i) => {
@@ -71,7 +74,13 @@ function EmailCampaignWizard({ onClose, onCreated }: WizardProps) {
   const [emailSubject, setEmailSubject] = useState("");
   const [importTab, setImportTab] = useState<"csv" | "sheet" | "manual">("csv");
   const [sheetUrl, setSheetUrl] = useState("");
-  const [manualList, setManualList] = useState("");
+  const [manualRows, setManualRows] = useState<{ id: string; name: string; email: string }[]>([
+    { id: '1', name: '', email: '' },
+    { id: '2', name: '', email: '' },
+    { id: '3', name: '', email: '' },
+  ]);
+  const [showBulkPaste, setShowBulkPaste] = useState(false);
+  const [bulkPasteText, setBulkPasteText] = useState("");
   const [validation, setValidation] = useState<ValidationResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -82,6 +91,37 @@ function EmailCampaignWizard({ onClose, onCreated }: WizardProps) {
   const createCampaignMut = useCreateEmailCampaign();
   const actionMut = useEmailCampaignAction();
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleAddRow = () => {
+    setManualRows((prev) => [...prev, { id: String(Date.now() + Math.random()), name: '', email: '' }]);
+  };
+
+  const handleRemoveRow = (id: string) => {
+    setManualRows((prev) => prev.filter((r) => r.id !== id));
+  };
+
+  const handleRowChange = (id: string, field: 'name' | 'email', val: string) => {
+    setManualRows((prev) => prev.map((r) => (r.id === id ? { ...r, [field]: val } : r)));
+  };
+
+  const handleParseBulkPaste = () => {
+    if (!bulkPasteText.trim()) return;
+    const lines = bulkPasteText.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+    const parsedRows = lines.map((line, idx) => {
+      const parts = line.split(',');
+      return {
+        id: String(Date.now() + idx),
+        email: (parts[0] || '').trim(),
+        name: parts.slice(1).join(',').trim(),
+      };
+    });
+    setManualRows((prev) => {
+      const existingFilled = prev.filter((r) => r.name.trim() || r.email.trim());
+      return [...existingFilled, ...parsedRows];
+    });
+    setBulkPasteText("");
+    setShowBulkPaste(false);
+  };
 
   async function handleFileUpload(file: File) {
     setError("");
@@ -110,13 +150,19 @@ function EmailCampaignWizard({ onClose, onCreated }: WizardProps) {
     setLoading(false);
   }
 
-  async function handleManualValidate() {
-    if (!manualList.trim()) return;
+  async function handleManualTableValidate() {
+    const validRows = manualRows.filter((r) => r.email.trim() || r.name.trim());
+    if (validRows.length === 0) {
+      setError("Please enter at least one email address.");
+      return;
+    }
     setError("");
     setValidation(null);
     setLoading(true);
     try {
-      const data = await importCsvMut.mutateAsync({ manualList });
+      const data = await importCsvMut.mutateAsync({
+        manualRecipients: validRows.map((r) => ({ name: r.name.trim(), email: r.email.trim() })),
+      });
       setValidation(data);
     } catch (err: any) {
       setError(err.message || "Validation failed");
@@ -124,18 +170,40 @@ function EmailCampaignWizard({ onClose, onCreated }: WizardProps) {
     setLoading(false);
   }
 
+  const [templateConfig, setTemplateConfig] = useState<EmailTemplateConfig>({
+    templateKey: 'personal',
+    subject: 'Quick question from {{businessName}}',
+    greeting: 'Hi {{name}},',
+    customMessage: '',
+    buttonText: 'Leave a Review →',
+  });
+  const [selectedProvider, setSelectedProvider] = useState<'platform' | 'gmail'>('platform');
+  const { data: business } = useCurrentBusiness();
+
+  // Keep emailSubject state synced with templateConfig
+  const handleTemplateChange = (cfg: EmailTemplateConfig) => {
+    setTemplateConfig(cfg);
+    setEmailSubject(cfg.subject || `Quick question from ${business?.name || 'our business'}`);
+  };
+
   async function createCampaign() {
-    if (!campaignName.trim() || !emailSubject.trim() || !validation?.valid.length) return;
+    const finalSubject = (templateConfig.subject || emailSubject || `Quick question from ${business?.name || 'our business'}`).trim();
+    if (!campaignName.trim() || !finalSubject || !validation?.valid.length) return;
     setError("");
     setLoading(true);
     try {
       const data = await createCampaignMut.mutateAsync({
         name: campaignName.trim(),
-        emailSubject: emailSubject.trim(),
+        emailSubject: finalSubject,
         recipients: validation.valid,
+        provider: selectedProvider,
+        templateKey: templateConfig.templateKey,
+        greeting: templateConfig.greeting,
+        customMessage: templateConfig.customMessage,
+        buttonText: templateConfig.buttonText,
       });
       setCreatedId(data.campaign._id);
-      setStep(3);
+      setStep(4);
     } catch (err: any) {
       setError(err.message || "Failed to create campaign");
     }
@@ -156,8 +224,9 @@ function EmailCampaignWizard({ onClose, onCreated }: WizardProps) {
     setLaunching(false);
   }
 
-  const canGoNext1 = campaignName.trim().length > 0 && emailSubject.trim().length > 0;
+  const canGoNext1 = campaignName.trim().length > 0;
   const canGoNext2 = (validation?.valid.length ?? 0) > 0;
+  const canGoNext3 = (templateConfig.subject || emailSubject || 'Quick question').trim().length > 0;
 
   return (
     <div className="ec-wizard-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
@@ -168,7 +237,7 @@ function EmailCampaignWizard({ onClose, onCreated }: WizardProps) {
           <h2 className="ec-wizard-title">New Email Campaign</h2>
           <button className="ec-wizard-close" onClick={onClose} aria-label="Close wizard">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
             </svg>
           </button>
         </div>
@@ -179,44 +248,92 @@ function EmailCampaignWizard({ onClose, onCreated }: WizardProps) {
         {/* Body */}
         <div className="ec-wizard-body">
 
-          {/* ── Step 1: Template ── */}
+          {/* ── Step 1: Campaign Details & Provider ── */}
           {step === 1 && (
-            <>
-              <div className="ec-field">
-                <label className="ec-label" htmlFor="ec-campaign-name">Campaign name</label>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              {/* Campaign Name */}
+              <div className="ec-field" style={{ marginBottom: 0 }}>
+                <label className="ec-label" htmlFor="ec-campaign-name">Campaign Name</label>
                 <input id="ec-campaign-name" className="ec-input" type="text"
                   placeholder="e.g. July review push"
                   value={campaignName} onChange={(e) => setCampaignName(e.target.value)} maxLength={120} />
               </div>
 
-              <div className="ec-field">
-                <label className="ec-label" htmlFor="ec-email-subject">
-                  Email subject <span className="ec-label-hint">shown in the recipient's inbox</span>
-                </label>
-                <input id="ec-email-subject" className="ec-input" type="text"
-                  placeholder="Share your experience with us"
-                  value={emailSubject} onChange={(e) => setEmailSubject(e.target.value)} maxLength={200} />
-              </div>
+              {/* Provider Selection — professional cards */}
+              <div className="ec-field" style={{ marginBottom: 0 }}>
+                <label className="ec-label">Send Emails Via</label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '14px', marginTop: '8px' }}>
+                  {/* Gmail Card */}
+                  <div
+                    onClick={() => { if (business?.gmailConnected) setSelectedProvider('gmail'); }}
+                    style={{
+                      padding: '18px',
+                      borderRadius: '12px',
+                      border: selectedProvider === 'gmail' ? '2px solid #1A1A1A' : '1px solid #E3E1D9',
+                      background: selectedProvider === 'gmail' ? '#F9F8F5' : '#fff',
+                      cursor: business?.gmailConnected ? 'pointer' : 'default',
+                      opacity: business?.gmailConnected ? 1 : 0.65,
+                      transition: 'all 0.15s ease',
+                      boxShadow: selectedProvider === 'gmail' ? '0 2px 8px rgba(0,0,0,0.04)' : 'none',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                      <span style={{ fontSize: '14px', fontWeight: 600, color: '#1A1A1A', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span>✉️</span> Gmail OAuth
+                      </span>
+                      {business?.gmailConnected ? (
+                        <span className="ec-status-badge running" style={{ fontSize: '10px' }}>Connected</span>
+                      ) : (
+                        <span className="ec-status-badge draft" style={{ fontSize: '10px' }}>Not Connected</span>
+                      )}
+                    </div>
+                    <p style={{ fontSize: '12px', color: '#6B6B63', margin: 0, lineHeight: 1.5 }}>
+                      {business?.gmailConnected
+                        ? `Sends directly from ${business.gmailEmail}. Customer replies land in your Gmail inbox.`
+                        : 'Connect your Gmail account to send emails directly from your personal or business email.'}
+                    </p>
+                    {!business?.gmailConnected && (
+                      <button type="button" onClick={async (e) => {
+                        e.stopPropagation();
+                        try { const url = await getGoogleAuthUrl(); window.location.href = url; } catch {}
+                      }} style={{
+                        marginTop: '12px', fontSize: '12px', fontWeight: 600, color: '#1A1A1A',
+                        background: '#fff', border: '1px solid #E3E1D9', borderRadius: '8px',
+                        padding: '6px 14px', cursor: 'pointer', fontFamily: 'inherit',
+                      }}>
+                        Connect Gmail →
+                      </button>
+                    )}
+                  </div>
 
-              {/* Live preview */}
-              <p className="ec-label">Email preview</p>
-              <div className="ec-email-preview">
-                <div className="ec-email-preview-header">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="3" y="3" width="18" height="18" rx="2"/><polyline points="3,9 12,15 21,9"/>
-                  </svg>
-                  <span>{emailSubject || "Share your experience with us"}</span>
-                </div>
-                <div className="ec-email-preview-body">
-                  <p>Hi <strong>[Customer Name]</strong>,</p>
-                  <p>Thank you for visiting <strong>your business</strong>!<br />
-                     We'd love to hear your thoughts — it only takes 30 seconds.</p>
-                  <span className="ec-email-cta">Leave a Review →</span>
-                  <p className="ec-email-unsubscribe">You can <u>unsubscribe</u> from these emails at any time.</p>
+                  {/* Default Server Card */}
+                  <div
+                    onClick={() => setSelectedProvider('platform')}
+                    style={{
+                      padding: '18px',
+                      borderRadius: '12px',
+                      border: selectedProvider === 'platform' ? '2px solid #1A1A1A' : '1px solid #E3E1D9',
+                      background: selectedProvider === 'platform' ? '#F9F8F5' : '#fff',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                      boxShadow: selectedProvider === 'platform' ? '0 2px 8px rgba(0,0,0,0.04)' : 'none',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                      <span style={{ fontSize: '14px', fontWeight: 600, color: '#1A1A1A', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span>⚡</span> Default Server
+                      </span>
+                      <span style={{ fontSize: '10px', fontWeight: 600, padding: '2px 8px', borderRadius: '99px', background: '#E3F2FD', color: '#1976D2' }}>Default</span>
+                    </div>
+                    <p style={{ fontSize: '12px', color: '#6B6B63', margin: 0, lineHeight: 1.5 }}>
+                      Sends as "{business?.name || 'Your Business'}" with your logo. Customer replies go to {business?.contactEmail || 'your email'}.
+                    </p>
+                  </div>
                 </div>
               </div>
-            </>
+            </div>
           )}
+
 
           {/* ── Step 2: Import Contacts ── */}
           {step === 2 && (
@@ -246,9 +363,9 @@ function EmailCampaignWizard({ onClose, onCreated }: WizardProps) {
                     }}>
                     <div className="ec-upload-icon">
                       <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                        <polyline points="17 8 12 3 7 8"/>
-                        <line x1="12" y1="3" x2="12" y2="15"/>
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                        <polyline points="17 8 12 3 7 8" />
+                        <line x1="12" y1="3" x2="12" y2="15" />
                       </svg>
                     </div>
                     <p className="ec-upload-text"><strong>Click to upload</strong> or drag and drop</p>
@@ -281,21 +398,129 @@ function EmailCampaignWizard({ onClose, onCreated }: WizardProps) {
                 </div>
               )}
 
-              {/* Manual entry */}
+              {/* Manual entry — Structured Recipient Table */}
               {importTab === "manual" && (
-                <div className="ec-field">
-                  <label className="ec-label" htmlFor="ec-manual-list">
-                    Paste emails <span className="ec-label-hint">one per line, or "email, name" format</span>
-                  </label>
-                  <textarea id="ec-manual-list" className="ec-input ec-textarea"
-                    placeholder={"john@example.com, John\njane@example.com\nbob@example.com, Bob Smith"}
-                    value={manualList} onChange={(e) => setManualList(e.target.value)}
-                    style={{ minHeight: "140px" }} />
-                  <button id="ec-manual-validate-btn" className="ec-btn ec-btn-secondary"
-                    style={{ marginTop: "10px" }}
-                    onClick={handleManualValidate} disabled={loading || !manualList.trim()}>
-                    {loading ? "Validating…" : "Validate list"}
-                  </button>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+                    <div>
+                      <label className="ec-label" style={{ marginBottom: '2px' }}>Enter Recipients</label>
+                      <span className="ec-label-hint">Fill in customer names and email addresses cleanly into separate columns below.</span>
+                    </div>
+                    <button
+                      type="button"
+                      className="ec-btn ec-btn-ghost"
+                      onClick={() => setShowBulkPaste(!showBulkPaste)}
+                      style={{ fontSize: '12px', padding: '5px 12px' }}
+                    >
+                      {showBulkPaste ? '✕ Close Paste Box' : '📋 Paste Bulk Text'}
+                    </button>
+                  </div>
+
+                  {showBulkPaste && (
+                    <div style={{ background: '#F9F8F5', border: '1px solid #E3E1D9', borderRadius: '10px', padding: '14px' }}>
+                      <p style={{ fontSize: '12px', fontWeight: 600, color: '#1A1A1A', margin: '0 0 6px' }}>
+                        Paste lines (Format: email, name — e.g. john@gmail.com, John)
+                      </p>
+                      <textarea
+                        rows={4}
+                        value={bulkPasteText}
+                        onChange={(e) => setBulkPasteText(e.target.value)}
+                        placeholder={"maheshgo2079@gmail.com, Mahesh\nakashsingh10993@gmail.com, Akash"}
+                        className="ec-input ec-textarea"
+                        style={{ fontSize: '12px', marginBottom: '10px' }}
+                      />
+                      <button
+                        type="button"
+                        className="ec-btn ec-btn-secondary"
+                        onClick={handleParseBulkPaste}
+                        disabled={!bulkPasteText.trim()}
+                        style={{ fontSize: '12px', padding: '6px 14px' }}
+                      >
+                        Convert to Table ↓
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Table Grid */}
+                  <div style={{ border: '1px solid #E3E1D9', borderRadius: '10px', overflow: 'hidden', background: '#fff' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left' }}>
+                      <thead>
+                        <tr style={{ background: '#F9F8F5', borderBottom: '1px solid #E3E1D9', color: '#6B6B63', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                          <th style={{ padding: '10px 14px', width: '36px' }}>#</th>
+                          <th style={{ padding: '10px 14px' }}>Customer Name</th>
+                          <th style={{ padding: '10px 14px' }}>Email Address <span style={{ color: '#C0392B' }}>*</span></th>
+                          <th style={{ padding: '10px 14px', width: '50px', textAlign: 'center' }}>Remove</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {manualRows.map((row, idx) => (
+                          <tr key={row.id} style={{ borderBottom: '1px solid #F3F2EE' }}>
+                            <td style={{ padding: '8px 14px', color: '#A3A39A', fontWeight: 600, fontSize: '12px' }}>{idx + 1}</td>
+                            <td style={{ padding: '8px 10px' }}>
+                              <input
+                                type="text"
+                                value={row.name}
+                                onChange={(e) => handleRowChange(row.id, 'name', e.target.value)}
+                                placeholder="e.g. Mahesh Wagh"
+                                style={{
+                                  width: '100%', padding: '7px 10px', border: '1px solid #E3E1D9', borderRadius: '6px',
+                                  fontSize: '13px', color: '#1A1A1A', background: '#fff', boxSizing: 'border-box'
+                                }}
+                              />
+                            </td>
+                            <td style={{ padding: '8px 10px' }}>
+                              <input
+                                type="email"
+                                value={row.email}
+                                onChange={(e) => handleRowChange(row.id, 'email', e.target.value)}
+                                placeholder="e.g. maheshgo2079@gmail.com"
+                                style={{
+                                  width: '100%', padding: '7px 10px', border: '1px solid #E3E1D9', borderRadius: '6px',
+                                  fontSize: '13px', color: '#1A1A1A', background: '#fff', boxSizing: 'border-box'
+                                }}
+                              />
+                            </td>
+                            <td style={{ padding: '8px 10px', textAlign: 'center' }}>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveRow(row.id)}
+                                disabled={manualRows.length <= 1}
+                                style={{
+                                  background: 'none', border: 'none', color: '#C0392B', cursor: manualRows.length <= 1 ? 'not-allowed' : 'pointer',
+                                  fontSize: '15px', opacity: manualRows.length <= 1 ? 0.3 : 0.8, padding: '4px'
+                                }}
+                                title="Remove row"
+                              >
+                                ✕
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+
+                    {/* Table Footer Controls */}
+                    <div style={{ padding: '10px 14px', background: '#FAFAF7', borderTop: '1px solid #E3E1D9', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <button
+                        type="button"
+                        className="ec-btn ec-btn-ghost"
+                        onClick={handleAddRow}
+                        style={{ fontSize: '12px', fontWeight: 600 }}
+                      >
+                        + Add Row
+                      </button>
+
+                      <button
+                        type="button"
+                        className="ec-btn ec-btn-primary"
+                        onClick={handleManualTableValidate}
+                        disabled={loading || !manualRows.some(r => r.email.trim() || r.name.trim())}
+                        style={{ fontSize: '12px', padding: '7px 16px' }}
+                      >
+                        {loading ? "Validating…" : "Validate List →"}
+                      </button>
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -327,8 +552,18 @@ function EmailCampaignWizard({ onClose, onCreated }: WizardProps) {
             </>
           )}
 
-          {/* ── Step 3: Review & Launch ── */}
+          {/* ── Step 3: Email Design ── */}
           {step === 3 && (
+            <EmailTemplateSelector
+              businessName={business?.name || ''}
+              logoUrl={business?.logoUrl}
+              value={templateConfig}
+              onChange={handleTemplateChange}
+            />
+          )}
+
+          {/* ── Step 4: Review & Launch ── */}
+          {step === 4 && (
             <>
               {launched ? (
                 <div style={{ textAlign: "center", padding: "20px 0" }}>
@@ -345,6 +580,16 @@ function EmailCampaignWizard({ onClose, onCreated }: WizardProps) {
                       <span className="count" style={{ color: "#1A1A1A" }}>{campaignName}</span>
                     </div>
                     <div className="ec-validation-row">
+                      <span className="label">Sending Method</span>
+                      <span className="count" style={{ color: selectedProvider === 'gmail' ? "#10B981" : "#3B82F6" }}>
+                        {selectedProvider === 'gmail' ? `✉️ Gmail (${business?.gmailEmail})` : `⚡ Default Server ("${business?.name}")`}
+                      </span>
+                    </div>
+                    <div className="ec-validation-row">
+                      <span className="label">Template Style</span>
+                      <span className="count" style={{ textTransform: "capitalize" }}>{templateConfig.templateKey}</span>
+                    </div>
+                    <div className="ec-validation-row">
                       <span className="label">Subject</span>
                       <span style={{ fontSize: "13px", color: "#6B6B63", maxWidth: "260px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{emailSubject}</span>
                     </div>
@@ -355,12 +600,14 @@ function EmailCampaignWizard({ onClose, onCreated }: WizardProps) {
                     <div className="ec-validation-row">
                       <span className="label">Estimated send time</span>
                       <span style={{ fontSize: "13px", color: "#6B6B63" }}>
-                        ~{Math.max(1, Math.ceil(((validation?.valid.length ?? 0) * 2) / 60))} min
+                        ~{Math.max(1, Math.ceil(((validation?.valid.length ?? 0) * (selectedProvider === 'gmail' ? 3 : 0.5)) / 60))} min
                       </span>
                     </div>
                   </div>
                   <p style={{ fontSize: "13px", color: "#6B6B63", lineHeight: 1.6, margin: 0 }}>
-                    Every email includes a one-click unsubscribe link. Opted-out customers are automatically skipped.
+                    {selectedProvider === 'gmail'
+                      ? 'Emails will be sent directly through your Gmail API connection. Replies will arrive in your Gmail inbox.'
+                      : 'Emails will be sent via our default server with your logo and business identity.'}
                   </p>
                 </>
               )}
@@ -385,16 +632,22 @@ function EmailCampaignWizard({ onClose, onCreated }: WizardProps) {
             {step === 1 && (
               <button id="ec-wizard-next-1" className="ec-btn ec-btn-primary"
                 disabled={!canGoNext1} onClick={() => setStep(2)}>
-                Next: Add contacts →
+                Next: Import contacts →
               </button>
             )}
             {step === 2 && (
               <button id="ec-wizard-next-2" className="ec-btn ec-btn-primary"
-                disabled={!canGoNext2 || loading} onClick={createCampaign}>
+                disabled={!canGoNext2 || loading} onClick={() => setStep(3)}>
+                Next: Email design →
+              </button>
+            )}
+            {step === 3 && (
+              <button id="ec-wizard-next-3" className="ec-btn ec-btn-primary"
+                disabled={!canGoNext3 || loading} onClick={createCampaign}>
                 {loading ? "Creating…" : "Review & confirm →"}
               </button>
             )}
-            {step === 3 && !launched && (
+            {step === 4 && !launched && (
               <>
                 <button className="ec-btn ec-btn-secondary" onClick={onClose}>Save as draft</button>
                 <button id="ec-wizard-launch-btn" className="ec-btn ec-btn-primary"
@@ -428,7 +681,7 @@ function CampaignDetailPanel({
     try {
       await actionMut.mutateAsync({ id: campaignId, action: isRunning ? "pause" : "start" });
       onAction();
-    } catch {/* ignore */}
+    } catch {/* ignore */ }
     setActionLoading(false);
   }
 
@@ -440,7 +693,7 @@ function CampaignDetailPanel({
             <p style={{ color: "#6B6B63", fontSize: "14px" }}>Loading…</p>
             <button className="ec-wizard-close" onClick={onClose} aria-label="Close">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
               </svg>
             </button>
           </div>
@@ -461,11 +714,17 @@ function CampaignDetailPanel({
           <div style={{ minWidth: 0 }}>
             <p className="ec-detail-name">{c.name}</p>
             <p className="ec-detail-subject">{c.emailSubject}</p>
-            <div style={{ marginTop: "6px" }}><StatusBadge status={c.status} /></div>
+            <div style={{ marginTop: "6px", display: "flex", gap: "6px", alignItems: "center" }}>
+              <StatusBadge status={c.status} />
+              <span className="text-[10px] font-medium px-2 py-0.5 rounded-full border bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700">
+                {c.sendingConfig?.provider === 'gmail' ? '✉️ Gmail' : '⚡ Default Server'}
+              </span>
+            </div>
           </div>
+
           <button className="ec-wizard-close" onClick={onClose} aria-label="Close">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
             </svg>
           </button>
         </div>
@@ -601,7 +860,7 @@ export default function EmailCampaignsPage() {
         <button id="ec-new-campaign-btn" className="ec-btn ec-btn-primary"
           onClick={() => setShowWizard(true)}>
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
           </svg>
           New Campaign
         </button>
@@ -612,7 +871,7 @@ export default function EmailCampaignsPage() {
         <div className="ec-page-stat-card">
           <div className="ec-page-stat-card__icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
             </svg>
           </div>
           <div>
@@ -624,7 +883,7 @@ export default function EmailCampaignsPage() {
         <div className="ec-page-stat-card">
           <div className="ec-page-stat-card__icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+              <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
             </svg>
           </div>
           <div>
@@ -673,8 +932,8 @@ export default function EmailCampaignsPage() {
           <div className="ec-toolbar">
             <label className="ec-search">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="11" cy="11" r="8"/>
-                <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
               </svg>
               <input
                 value={search}
@@ -684,8 +943,8 @@ export default function EmailCampaignsPage() {
               {search && (
                 <button type="button" onClick={() => setSearch("")} aria-label="Clear search">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <line x1="18" y1="6" x2="6" y2="18"/>
-                    <line x1="6" y1="6" x2="18" y2="18"/>
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
                   </svg>
                 </button>
               )}
@@ -717,8 +976,8 @@ export default function EmailCampaignsPage() {
           <div className="ec-empty" style={{ border: "none" }}>
             <div className="ec-empty-icon">
               <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="3" width="18" height="18" rx="2"/>
-                <polyline points="3,9 12,15 21,9"/>
+                <rect x="3" y="3" width="18" height="18" rx="2" />
+                <polyline points="3,9 12,15 21,9" />
               </svg>
             </div>
             <h2 className="ec-empty-title">No campaigns found</h2>

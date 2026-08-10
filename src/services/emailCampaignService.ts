@@ -20,6 +20,8 @@ export interface EmailCampaign {
   failedCount: number;
   skippedCount: number;
   pendingCount: number;
+  sendingConfig?: { provider: 'platform' | 'gmail'; fromEmail?: string; fromName?: string };
+  templateConfig?: { templateKey: string; greeting?: string; customMessage?: string; buttonText?: string };
   createdAt: string;
   completedAt?: string;
 }
@@ -71,7 +73,7 @@ export const emailCampaignService = {
     return res.data.data;
   },
 
-  importCsv: async (file?: File, googleSheetUrl?: string, manualList?: string): Promise<ValidationResult> => {
+  importCsv: async (file?: File, googleSheetUrl?: string, manualList?: string, manualRecipients?: { name: string; email: string }[]): Promise<ValidationResult> => {
     let res;
     if (file) {
       const formData = new FormData();
@@ -80,7 +82,7 @@ export const emailCampaignService = {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
     } else {
-      res = await api.post<ApiResponse<ValidationResult>>('/email-campaigns/import-csv', { googleSheetUrl, manualList });
+      res = await api.post<ApiResponse<ValidationResult>>('/email-campaigns/import-csv', { googleSheetUrl, manualList, manualRecipients });
     }
     
     if (!res.data.success || !res.data.data) {
@@ -89,7 +91,16 @@ export const emailCampaignService = {
     return res.data.data;
   },
 
-  createCampaign: async (data: { name: string; emailSubject: string; recipients: Recipient[] }): Promise<{ campaign: EmailCampaign }> => {
+  createCampaign: async (data: {
+    name: string;
+    emailSubject: string;
+    recipients: Recipient[];
+    provider?: 'platform' | 'gmail';
+    templateKey?: string;
+    greeting?: string;
+    customMessage?: string;
+    buttonText?: string;
+  }): Promise<{ campaign: EmailCampaign }> => {
     const res = await api.post<ApiResponse<{ campaign: EmailCampaign }>>('/email-campaigns', data);
     if (!res.data.success || !res.data.data) {
       throw new Error(res.data.error?.message || 'Failed to create campaign');
@@ -104,3 +115,4 @@ export const emailCampaignService = {
     }
   },
 };
+

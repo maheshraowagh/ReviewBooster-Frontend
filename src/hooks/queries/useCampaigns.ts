@@ -70,7 +70,12 @@ export function useRecipients(id: string, page: number) {
 export function useCreateCampaign() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: { name: string; templateKey: string; recipients: any[] }) => campaignService.createCampaign(data),
+    mutationFn: (data: {
+      name: string;
+      templateKey: string;
+      variables?: Record<string, any>;
+      recipients: any[];
+    }) => campaignService.createCampaign(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.campaigns.all });
     },
@@ -110,7 +115,9 @@ export function useBulkDeleteCampaigns() {
 
 export function useImportCsv() {
   return useMutation({
-    mutationFn: (file: File) => campaignService.importCsv(file),
+    mutationFn: (
+      payload: { file?: File; googleSheetUrl?: string; manualRecipients?: { name: string; phone: string }[]; numbers?: string[] } | File
+    ) => campaignService.importCsv(payload),
   });
 }
 

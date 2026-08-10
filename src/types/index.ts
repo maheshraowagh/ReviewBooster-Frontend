@@ -27,5 +27,10 @@ export interface Business {
   city: string;
   isActive: boolean;
   menuItems: string[];
+  contactEmail?: string;
+  gmailConnected?: boolean;
+  gmailEmail?: string | null;
+  gmailConnectedAt?: string | null;
   createdAt: string;
 }
+

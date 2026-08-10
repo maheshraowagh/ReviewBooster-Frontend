@@ -88,12 +88,26 @@ export const campaignService = {
     };
   },
 
-  importCsv: async (file: File): Promise<CsvPreview> => {
-    const formData = new FormData();
-    formData.append('file', file);
-    const res = await api.post<ApiResponse<CsvPreview>>('/campaigns/import-csv', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
+  importCsv: async (
+    payload: { file?: File; googleSheetUrl?: string; manualRecipients?: { name: string; phone: string }[]; numbers?: string[] } | File
+  ): Promise<CsvPreview> => {
+    let res;
+    if (payload instanceof File) {
+      const formData = new FormData();
+      formData.append('file', payload);
+      res = await api.post<ApiResponse<CsvPreview>>('/campaigns/import-csv', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+    } else if (payload.file) {
+      const formData = new FormData();
+      formData.append('file', payload.file);
+      res = await api.post<ApiResponse<CsvPreview>>('/campaigns/import-csv', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+    } else {
+      res = await api.post<ApiResponse<CsvPreview>>('/campaigns/import-csv', payload);
+    }
+
     if (!res.data.success || !res.data.data) {
       throw new Error(res.data.error?.message || 'Upload failed');
     }
@@ -108,7 +122,12 @@ export const campaignService = {
     return res.data.data;
   },
 
-  createCampaign: async (data: { name: string; templateKey: string; recipients: any[] }): Promise<CampaignSummary> => {
+  createCampaign: async (data: {
+    name: string;
+    templateKey: string;
+    variables?: Record<string, any>;
+    recipients: any[];
+  }): Promise<CampaignSummary> => {
     const res = await api.post<ApiResponse<{ campaign: CampaignSummary }>>('/campaigns', data);
     if (!res.data.success || !res.data.data) {
       throw new Error(res.data.error?.message || 'Failed to create campaign');

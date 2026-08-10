@@ -56,21 +56,30 @@ export function useEmailCampaign(id: string) {
 
 export function useEmailCampaignImportCsv() {
   return useMutation({
-    mutationFn: ({ file, googleSheetUrl, manualList }: { file?: File; googleSheetUrl?: string; manualList?: string }) => 
-      emailCampaignService.importCsv(file, googleSheetUrl, manualList),
+    mutationFn: ({ file, googleSheetUrl, manualList, manualRecipients }: { file?: File; googleSheetUrl?: string; manualList?: string; manualRecipients?: { name: string; email: string }[] }) => 
+      emailCampaignService.importCsv(file, googleSheetUrl, manualList, manualRecipients),
   });
 }
 
 export function useCreateEmailCampaign() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: { name: string; emailSubject: string; recipients: Recipient[] }) => 
-      emailCampaignService.createCampaign(data),
+    mutationFn: (data: {
+      name: string;
+      emailSubject: string;
+      recipients: Recipient[];
+      provider?: 'platform' | 'gmail';
+      templateKey?: string;
+      greeting?: string;
+      customMessage?: string;
+      buttonText?: string;
+    }) => emailCampaignService.createCampaign(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['email-campaigns'] });
     },
   });
 }
+
 
 export function useEmailCampaignAction() {
   const queryClient = useQueryClient();

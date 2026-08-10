@@ -7,7 +7,14 @@ export interface Business {
   logoUrl?: string;
   businessType?: string;
   menuItems?: string[];
+  contactEmail?: string;
+  googleReviewUrl?: string;
+  googleReviewLink?: string;
+  gmailConnected?: boolean;
+  gmailEmail?: string | null;
+  gmailConnectedAt?: string | null;
 }
+
 
 export const businessService = {
   getMe: async (): Promise<Business> => {

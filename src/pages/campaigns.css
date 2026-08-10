@@ -949,34 +949,53 @@
 .campaign-preview-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 10px;
-  margin-bottom: 20px;
+  gap: 12px;
+  padding: 20px 24px;
+  margin: 0;
+  box-sizing: border-box;
 }
 
 .campaign-preview-stat {
-  background: #F9F8F5;
-  border-radius: 8px;
-  padding: 14px 16px;
+  background: #FAFAF7;
+  border: 1px solid #E3E1D9;
+  border-radius: 10px;
+  padding: 16px 14px;
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  box-sizing: border-box;
+  transition: all 0.15s ease;
 }
 
 .campaign-preview-stat span {
   display: block;
-  font-size: 12px;
+  font-size: 11px;
   color: #6B6B63;
-  font-weight: 500;
-  margin-bottom: 4px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 2px;
 }
 
 .campaign-preview-stat strong {
-  font-size: 20px;
+  font-size: 24px;
   font-weight: 700;
   color: #1A1A1A;
+  line-height: 1.1;
 }
 
 .campaign-preview-stat--success strong { color: #3F7D45; }
 .campaign-preview-stat--warning strong { color: #8B7355; }
 .campaign-preview-stat--danger  strong { color: #C0392B; }
+
+/* Delivery progress inside detail panel */
+.campaign-panel .campaign-delivery {
+  padding: 0 24px 20px;
+  box-sizing: border-box;
+}
 
 /* Preview error rows */
 .campaign-preview-errors {
@@ -1288,7 +1307,392 @@
     justify-content: center;
   }
 
-  .campaign-preview-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
+}
+
+/* ============================================================
+   WhatsApp Campaign Wizard Styles (Modal & Step-by-step Flow)
+   ============================================================ */
+
+.ec-wizard-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(26, 26, 26, 0.45);
+  backdrop-filter: blur(3px);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.ec-wizard {
+  background: #fff;
+  border-radius: 14px;
+  width: 100%;
+  max-width: 680px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 16px 48px rgba(0,0,0,0.18);
+}
+
+.ec-wizard-header {
+  padding: 24px 28px 18px;
+  border-bottom: 1px solid #E3E1D9;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ec-wizard-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1A1A1A;
+  margin: 0;
+}
+
+.ec-wizard-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #6B6B63;
+  padding: 4px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  transition: background 0.12s;
+}
+
+.ec-wizard-close:hover {
+  background: #F3F2EE;
+  color: #1A1A1A;
+}
+
+/* Step indicator */
+.ec-step-bar {
+  display: flex;
+  align-items: center;
+  padding: 16px 28px;
+  gap: 0;
+  border-bottom: 1px solid #E3E1D9;
+}
+
+.ec-step-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+
+.ec-step-item:not(:last-child)::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: #E3E1D9;
+  margin: 0 8px;
+}
+
+.ec-step-dot {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  border: 2px solid #E3E1D9;
+  color: #A3A39A;
+  background: #fff;
+  flex-shrink: 0;
+  transition: all 0.2s;
+}
+
+.ec-step-item.active .ec-step-dot {
+  border-color: #1A1A1A;
+  background: #1A1A1A;
+  color: #fff;
+}
+
+.ec-step-item.done .ec-step-dot {
+  border-color: #3F7D45;
+  background: #3F7D45;
+  color: #fff;
+}
+
+.ec-step-label {
+  font-size: 12px;
+  color: #A3A39A;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.ec-step-item.active .ec-step-label {
+  color: #1A1A1A;
+  font-weight: 600;
+}
+
+.ec-step-item.done .ec-step-label {
+  color: #3F7D45;
+}
+
+/* Wizard body */
+.ec-wizard-body {
+  padding: 24px 28px;
+}
+
+.ec-wizard-footer {
+  padding: 18px 28px;
+  border-top: 1px solid #E3E1D9;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Form elements */
+.ec-field {
+  margin-bottom: 20px;
+}
+
+.ec-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1A1A1A;
+  margin-bottom: 6px;
+}
+
+.ec-label-hint {
+  font-weight: 400;
+  color: #A3A39A;
+  font-size: 12px;
+  margin-left: 6px;
+}
+
+.ec-input {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid #E3E1D9;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #1A1A1A;
+  background: #fff;
+  box-sizing: border-box;
+  transition: border-color 0.15s;
+  font-family: inherit;
+}
+
+.ec-input:focus {
+  outline: none;
+  border-color: #1A1A1A;
+}
+
+.ec-textarea {
+  min-height: 100px;
+  resize: vertical;
+}
+
+/* Import tabs */
+.ec-import-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  background: #F3F2EE;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.ec-import-tab {
+  flex: 1;
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #6B6B63;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: inherit;
+}
+
+.ec-import-tab.active {
+  background: #fff;
+  color: #1A1A1A;
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+
+/* Upload drop area */
+.ec-upload-area {
+  border: 2px dashed #E3E1D9;
+  border-radius: 10px;
+  padding: 36px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.ec-upload-area:hover,
+.ec-upload-area.drag-over {
+  border-color: #1A1A1A;
+  background: #F9F8F5;
+}
+
+.ec-upload-icon {
+  margin-bottom: 10px;
+  color: #A3A39A;
+}
+
+.ec-upload-text {
+  font-size: 14px;
+  color: #6B6B63;
+}
+
+.ec-upload-text strong {
+  color: #1A1A1A;
+}
+
+.ec-upload-hint {
+  font-size: 12px;
+  color: #A3A39A;
+  margin-top: 4px;
+}
+
+/* Validation summary */
+.ec-validation-summary {
+  border: 1px solid #E3E1D9;
+  border-radius: 10px;
+  overflow: hidden;
+  margin-top: 16px;
+}
+
+.ec-validation-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid #E3E1D9;
+  font-size: 14px;
+}
+
+.ec-validation-row:last-child {
+  border-bottom: none;
+}
+
+.ec-validation-row .label {
+  color: #6B6B63;
+}
+
+.ec-validation-row .count {
+  font-weight: 700;
+  color: #1A1A1A;
+}
+
+.ec-validation-row.success .count {
+  color: #3F7D45;
+}
+
+.ec-validation-row.warn .count {
+  color: #8B7355;
+}
+
+.ec-validation-row.error .count {
+  color: #C0392B;
+}
+
+/* Progress bar */
+.ec-progress-bar-track {
+  height: 8px;
+  background: #E3E1D9;
+  border-radius: 99px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.ec-progress-bar-fill {
+  height: 100%;
+  background: #3F7D45;
+  border-radius: 99px;
+  transition: width 0.4s ease;
+}
+
+/* Buttons */
+.ec-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  font-family: inherit;
+  text-decoration: none;
+  transition: opacity 0.15s, transform 0.1s, background 0.15s, border-color 0.15s;
+}
+
+.ec-btn:active {
+  transform: scale(0.98);
+}
+
+.ec-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.ec-btn-primary {
+  background: #1A1A1A;
+  color: #fff;
+}
+
+.ec-btn-primary:hover:not(:disabled) {
+  background: #2A2A2A;
+}
+
+.ec-btn-secondary {
+  background: #fff;
+  color: #1A1A1A;
+  border: 1px solid #E3E1D9;
+}
+
+.ec-btn-secondary:hover:not(:disabled) {
+  border-color: #1A1A1A;
+}
+
+.ec-btn-ghost {
+  background: transparent;
+  color: #6B6B63;
+  border: 1px solid #E3E1D9;
+}
+
+.ec-btn-ghost:hover:not(:disabled) {
+  background: #F3F2EE;
+  color: #1A1A1A;
+}
+
+.ec-btn-success {
+  background: #3F7D45;
+  color: #fff;
+}
+
+.ec-btn-success:hover:not(:disabled) {
+  background: #2D6030;
+}
+
+.ec-btn-danger {
+  background: #C0392B;
+  color: #fff;
+}
+
+.ec-btn-danger:hover:not(:disabled) {
+  background: #A93226;
+}
+
+.ec-panel {
+  background: #fff;
+  border: 1px solid #E3E1D9;
+  border-radius: 12px;
+  overflow: hidden;
 }
