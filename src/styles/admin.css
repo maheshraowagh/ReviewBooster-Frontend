@@ -300,6 +300,53 @@
     color: #92400e;
 }
 
+/* Plan Badges */
+.admin-status-badge--free {
+    background: #f3f4f6;
+    color: #4b5563;
+}
+
+.admin-status-badge--starter {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.admin-status-badge--professional {
+    background: #ede9fe;
+    color: #6d28d9;
+}
+
+.admin-status-badge--enterprise {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+/* Plan Status Badges */
+.admin-status-badge--past_due {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.admin-status-badge--paused {
+    background: #ffedd5;
+    color: #c2410c;
+}
+
+.admin-status-badge--cancelled {
+    background: #f3f4f6;
+    color: #6b7280;
+}
+
+.admin-status-badge--trialing {
+    background: #ccfbf1;
+    color: #0f766e;
+}
+
+.admin-status-badge--cancel_at_period_end {
+    background: #fef9c3;
+    color: #854d0e;
+}
+
 .admin-status-badge-dot {
     width: 6px;
     height: 6px;

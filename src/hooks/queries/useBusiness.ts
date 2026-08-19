@@ -20,3 +20,14 @@ export function useUpdateMenuItems() {
     },
   });
 }
+
+export function useUpdateBusinessProfile() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { contactEmail?: string; name?: string; city?: string; businessType?: string }) =>
+      businessService.updateProfile(data),
+    onSuccess: (data) => {
+      queryClient.setQueryData(queryKeys.business.all, data);
+    },
+  });
+}

@@ -45,7 +45,7 @@ export const EmailTemplateSelector: React.FC<EmailTemplateSelectorProps> = ({
       badgeClass: 'ec-status-badge running',
       desc: '1-to-1 owner email. Asks for a quick 30-sec favor.',
       icon: '✉️',
-      defaultSubject: `Quick question from ${businessName || 'our business'}`,
+      defaultSubject: 'Quick question from {{businessName}}',
       defaultGreeting: 'Hi {{name}},',
       defaultBody: `Thanks for visiting ${businessName || 'us'}! As a small local business, customer feedback means everything to us. Could you leave a quick 30-second review?`,
       defaultButton: 'Leave a Review →',
@@ -57,7 +57,7 @@ export const EmailTemplateSelector: React.FC<EmailTemplateSelectorProps> = ({
       badgeClass: 'ec-status-badge draft',
       desc: 'Formal structured card with logo and corporate tone.',
       icon: '🏛️',
-      defaultSubject: `How was your experience at ${businessName || 'our business'}?`,
+      defaultSubject: 'How was your experience at {{businessName}}?',
       defaultGreeting: 'Dear {{name}},',
       defaultBody: `Thank you for choosing ${businessName || 'us'}. We strive for excellence and would greatly appreciate your feedback to help us serve you better.`,
       defaultButton: 'Rate Your Experience',
@@ -69,7 +69,7 @@ export const EmailTemplateSelector: React.FC<EmailTemplateSelectorProps> = ({
       badgeClass: 'ec-status-badge paused',
       desc: 'Enthusiastic tone with soft warm card design & emojis.',
       icon: '☀️',
-      defaultSubject: `We hope you loved your visit to ${businessName || 'us'}! 🌟`,
+      defaultSubject: 'We hope you loved your visit to {{businessName}}! 🌟',
       defaultGreeting: 'Hey {{name}}! 😊',
       defaultBody: `Thank you so much for dropping by! We loved having you. If you had a great experience, could you share the love with a quick Google review?`,
       defaultButton: 'Share the Love ❤️',
@@ -81,29 +81,21 @@ export const EmailTemplateSelector: React.FC<EmailTemplateSelectorProps> = ({
       badgeClass: 'ec-status-badge draft',
       desc: 'Concise 1-line ask. Ultra clean & fast to read.',
       icon: '⚡',
-      defaultSubject: `30 seconds for ${businessName || 'us'}?`,
+      defaultSubject: '30 seconds for {{businessName}}?',
       defaultGreeting: 'Hi {{name}},',
-      defaultBody: `Your feedback helps us grow. Tap below to let us know how we did today.`,
+      defaultBody: 'Your feedback helps us grow. Tap below to let us know how we did today.',
       defaultButton: 'Review Us in 30 Seconds →',
     },
   ];
 
-  // Select a template option & auto-populate tone/preset text if empty or matching another template
+  // Select a template option & update fields to match tone
   const handleSelectTemplate = (t: TemplateOption) => {
     onChange({
       templateKey: t.key,
-      subject: value.subject && value.subject !== '' && !templates.some(tmpl => tmpl.defaultSubject === value.subject)
-        ? value.subject
-        : t.defaultSubject,
-      greeting: value.greeting && value.greeting !== '' && !templates.some(tmpl => tmpl.defaultGreeting === value.greeting)
-        ? value.greeting
-        : t.defaultGreeting,
-      customMessage: value.customMessage && value.customMessage !== '' && !templates.some(tmpl => tmpl.defaultBody === value.customMessage)
-        ? value.customMessage
-        : t.defaultBody,
-      buttonText: value.buttonText && value.buttonText !== '' && !templates.some(tmpl => tmpl.defaultButton === value.buttonText)
-        ? value.buttonText
-        : t.defaultButton,
+      subject: t.defaultSubject,
+      greeting: t.defaultGreeting,
+      customMessage: t.defaultBody,
+      buttonText: t.defaultButton,
     });
   };
 
@@ -113,12 +105,22 @@ export const EmailTemplateSelector: React.FC<EmailTemplateSelectorProps> = ({
 
   const selectedTemplate = templates.find((t) => t.key === value.templateKey) || templates[0];
   const sampleName = 'John';
+  const displayBusinessName = businessName || 'our business';
+  const parsePreviewTokens = (text: string) => {
+    if (!text) return '';
+    return text
+      .replace(/\{\{businessName\}\}/gi, displayBusinessName)
+      .replace(/\{\{business_name\}\}/gi, displayBusinessName)
+      .replace(/\{\{name\}\}/gi, sampleName)
+      .replace(/\{\{customerName\}\}/gi, sampleName);
+  };
+
   const activeGreeting = value.greeting || selectedTemplate.defaultGreeting;
-  const displayGreeting = activeGreeting.replace(/\{\{name\}\}/g, sampleName);
+  const displayGreeting = parsePreviewTokens(activeGreeting);
   const activeBody = value.customMessage || selectedTemplate.defaultBody;
-  const displayBody = activeBody.replace(/\{\{businessName\}\}/g, businessName || 'our business').replace(/\{\{name\}\}/g, sampleName);
-  const displayButton = value.buttonText || selectedTemplate.defaultButton;
-  const displaySubject = value.subject || selectedTemplate.defaultSubject;
+  const displayBody = parsePreviewTokens(activeBody);
+  const displayButton = parsePreviewTokens(value.buttonText || selectedTemplate.defaultButton);
+  const displaySubject = parsePreviewTokens(value.subject || selectedTemplate.defaultSubject);
 
   return (
     <div className="ec-panel" style={{ padding: '20px', margin: '0' }}>

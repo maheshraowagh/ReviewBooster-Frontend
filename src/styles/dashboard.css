@@ -258,6 +258,153 @@
     color: #fff;
 }
 
+/* Date Filter Controls & Custom Picker */
+.db-date-filter-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.5rem;
+}
+
+.db-date-filter-bar {
+    display: flex;
+    align-items: center;
+}
+
+.db-period-select {
+    display: none;
+    padding: 0.4rem 0.75rem;
+    border-radius: 8px;
+    background: var(--color-surface-elevated);
+    border: 1px solid var(--color-border-subtle);
+    color: var(--color-text-primary);
+    font-size: 0.8125rem;
+    font-weight: 500;
+}
+
+.db-custom-date-panel {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.5rem;
+    padding: 0.6rem 0.85rem;
+    background: var(--color-surface-elevated);
+    border: 1px solid var(--color-border-subtle);
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.db-custom-mode-switch {
+    display: flex;
+    gap: 4px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border-subtle);
+    border-radius: 6px;
+    padding: 2px;
+}
+
+.db-mode-btn {
+    padding: 0.2rem 0.55rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--color-text-secondary);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: background 150ms ease, color 150ms ease;
+}
+
+.db-mode-btn:hover {
+    color: var(--color-text-primary);
+}
+
+.db-mode-btn.active {
+    background: var(--color-surface-elevated);
+    color: var(--color-text-primary);
+    font-weight: 600;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.db-custom-date-inputs {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.db-date-field {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.8125rem;
+    color: var(--color-text-secondary);
+    font-weight: 500;
+}
+
+.db-date-input {
+    padding: 0.3rem 0.5rem;
+    border-radius: 6px;
+    border: 1px solid var(--color-border-subtle);
+    background: var(--color-surface);
+    color: var(--color-text-primary);
+    font-size: 0.8125rem;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 150ms ease;
+}
+
+.db-date-input:focus {
+    border-color: var(--color-brand);
+}
+
+.db-date-apply-btn {
+    padding: 0.35rem 0.85rem;
+    border-radius: 6px;
+    background: var(--color-brand);
+    color: #fff;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    transition: background 150ms ease, opacity 150ms ease;
+}
+
+.db-date-apply-btn:hover:not(:disabled) {
+    background: var(--color-brand-hover, #000);
+}
+
+.db-date-apply-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.db-date-error {
+    font-size: 0.75rem;
+    color: #dc5a5a;
+    margin: 0;
+}
+
+@media (max-width: 540px) {
+    .db-period-tabs {
+        display: none;
+    }
+    .db-period-select {
+        display: block;
+    }
+    .db-date-filter-wrapper {
+        align-items: stretch;
+        width: 100%;
+    }
+    .db-custom-date-panel {
+        align-items: stretch;
+    }
+    .db-custom-date-inputs {
+        flex-direction: column;
+        align-items: stretch;
+    }
+}
+
 /* Error */
 .db-error {
     display: flex;
@@ -1133,6 +1280,114 @@
     font-size: 0.75rem;
     color: var(--color-text-muted);
     margin-top: 1.25rem;
+}
+
+/* Category Badge & Presets */
+.settings-category-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    background: #F3F2EE;
+    border: 1px solid #E3E1D9;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #1A1A1A;
+    margin-left: auto;
+}
+
+.settings-category-change-btn {
+    background: transparent;
+    border: none;
+    color: #3f7d45;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: underline;
+    margin-left: 4px;
+}
+
+.settings-preset-section {
+    margin-bottom: 20px;
+    padding: 14px 16px;
+    background: #FAFAF7;
+    border: 1px solid #E3E1D9;
+    border-radius: 12px;
+}
+
+.settings-preset-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: #6B6B63;
+    margin: 0 0 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.settings-preset-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.settings-preset-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 12px;
+    border-radius: 20px;
+    border: 1px dashed #C8C6BC;
+    background: #ffffff;
+    font-size: 13px;
+    font-weight: 500;
+    color: #1A1A1A;
+    cursor: pointer;
+    transition: all 150ms ease;
+}
+
+.settings-preset-chip:hover:not(:disabled) {
+    border-style: solid;
+    border-color: #1A1A1A;
+    background: #1A1A1A;
+    color: #ffffff;
+}
+
+.settings-preset-chip--added {
+    opacity: 0.5;
+    border-style: solid;
+    border-color: #E3E1D9;
+    background: #F3F2EE;
+    cursor: default;
+}
+
+.settings-capacity-container {
+    margin-top: 16px;
+    margin-bottom: 12px;
+}
+
+.settings-capacity-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    color: #6B6B63;
+    font-weight: 500;
+    margin-bottom: 6px;
+}
+
+.settings-capacity-bar-bg {
+    width: 100%;
+    height: 6px;
+    background: #E3E1D9;
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.settings-capacity-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 200ms ease, background-color 200ms ease;
 }
 
 /* ---- Responsive ---- */

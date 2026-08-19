@@ -4,6 +4,8 @@ import { useDashboardOverview } from '../hooks/queries/useDashboardOverview';
 import type { Period } from '../services/dashboardService';
 
 
+import { DateFilterControl } from '../components/dashboard/DateFilterControl';
+
 // ---- Types ----------------------------------------------------------------
 
 
@@ -19,16 +21,31 @@ const PERIODS: { key: Period; label: string }[] = [
   { key: 'week', label: 'Week' },
   { key: 'month', label: 'Month' },
   { key: 'year', label: 'Year' },
+  { key: 'custom', label: 'Custom' },
 ];
 
 export default function DashboardPage() {
+  const todayStr = new Date().toISOString().split('T')[0];
   const [period, setPeriod] = useState<Period>('week');
-  const { data, isLoading: loading, error: queryError, refetch } = useDashboardOverview(period);
+  const [startDate, setStartDate] = useState<string>(todayStr);
+  const [endDate, setEndDate] = useState<string>(todayStr);
+  const [appliedStart, setAppliedStart] = useState<string>(todayStr);
+  const [appliedEnd, setAppliedEnd] = useState<string>(todayStr);
+
+  const activeStart = period === 'custom' ? appliedStart : undefined;
+  const activeEnd = period === 'custom' ? appliedEnd : undefined;
+
+  const { data, isLoading: loading, error: queryError, refetch } = useDashboardOverview(period, activeStart, activeEnd);
   const error = queryError ? (queryError instanceof Error ? queryError.message : 'Could not connect to server. Please try again.') : null;
 
   const dist = data?.ratingDistribution ?? { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
   const maxDist = Math.max(...Object.values(dist), 1);
   const totalFeedback = Object.values(dist).reduce((a, b) => a + b, 0);
+
+  const handleApplyCustom = (start: string, end: string) => {
+    setAppliedStart(start);
+    setAppliedEnd(end);
+  };
 
   return (
     <div className="db-page animate-fade-in">
@@ -40,20 +57,16 @@ export default function DashboardPage() {
             <p className="db-subtitle">{data.businessName}</p>
           )}
         </div>
-        <div className="db-period-tabs" role="tablist" aria-label="Time period selector">
-          {PERIODS.map(({ key, label }) => (
-            <button
-              key={key}
-              id={`period-tab-${key}`}
-              role="tab"
-              aria-selected={period === key}
-              className={`db-period-btn${period === key ? ' active' : ''}`}
-              onClick={() => setPeriod(key)}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        <DateFilterControl
+          periods={PERIODS}
+          activePeriod={period}
+          onPeriodChange={(p) => setPeriod(p as Period)}
+          startDate={startDate}
+          endDate={endDate}
+          onStartDateChange={setStartDate}
+          onEndDateChange={setEndDate}
+          onApplyCustom={handleApplyCustom}
+        />
       </div>
 
       {/* ---- Error state ---- */}

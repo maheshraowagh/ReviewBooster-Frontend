@@ -4,6 +4,8 @@ import axios from "axios";
 import NetworkError from "../../components/NetworkError";
 import "./public.css";
 
+import { getCategoryConfig } from "../../config/businessCategoryConfig";
+
 const API_URL = import.meta.env.VITE_API_URL || "/api";
 
 // ---------------------------------------------------------------------------
@@ -33,31 +35,11 @@ type Step = "landing" | "details" | "review" | "redirect";
 // Must match MAX_TAGS in backend/src/services/aiReviewService.js
 const MAX_TAGS = 4;
 
-// Dynamic labels per business type for Section A
-const SECTION_A_CONFIG: Record<string, { label: string; placeholder: string }> = {
-  restaurant: { label: 'What did you order?',           placeholder: 'e.g. Paneer Tikka, Cold Coffee' },
-  cafe:       { label: 'What did you order?',           placeholder: 'e.g. Cappuccino, Sandwich' },
-  bakery:     { label: 'What did you get?',             placeholder: 'e.g. Croissant, Brownie' },
-  salon:      { label: 'What did you have done?',       placeholder: 'e.g. Haircut, Hair Colour' },
-  spa:        { label: 'What treatment did you have?',  placeholder: 'e.g. Deep Tissue Massage' },
-  gym:        { label: 'What did you use?',             placeholder: 'e.g. Treadmill, Yoga Class' },
-  clinic:     { label: 'What was your visit for?',      placeholder: 'e.g. Dental Cleaning, Eye Checkup' },
-  hotel:      { label: 'What room type did you stay in?', placeholder: 'e.g. Deluxe Room, Suite' },
-  retail:     { label: 'What did you buy?',             placeholder: 'e.g. Shoes, Electronics' },
-};
-const DEFAULT_SECTION_A = { label: 'What service did you use?', placeholder: 'e.g. SEO Package, Consulting' };
-
 // Above this many menu items, switch from inline chips to a searchable
 // modal so the list doesn't overwhelm the screen.
 const MENU_MODAL_THRESHOLD = 6;
 
 const GROUP_SIZES = ['Solo', 'Couple', 'Family', 'Friends', 'Work'] as const;
-
-// Only show the group size question for hospitality / leisure businesses
-const SHOW_GROUP_SIZE_FOR = new Set(['restaurant', 'cafe', 'bakery', 'hotel', 'spa']);
-
-// Only show menu items for restaurants, cafes, and bakeries
-const SHOW_MENU_FOR = new Set(['restaurant', 'cafe', 'bakery']);
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -460,6 +442,14 @@ export default function PublicReviewFlow() {
   // 1-2 stars: Only negative
   // 3 stars: Both negative and positive
   // 4-5 stars: Only positive
+  if (!business) return null;
+
+  const categoryConfig = getCategoryConfig(business.businessType);
+
+  // Determine which tags to show based on the star rating:
+  // 1-2 stars: Only negative
+  // 3 stars: Both negative and positive
+  // 4-5 stars: Only positive
   const positiveTags = business.positiveTags || [];
   const negativeTags = business.negativeTags || [];
   
@@ -613,73 +603,71 @@ export default function PublicReviewFlow() {
                   <p className="note-count">{note.length}/500</p>
                 </div>
 
-                {/* 3. What did you get? (Optional, Dimmed, Food only) */}
-                {SHOW_MENU_FOR.has(business.businessType?.toLowerCase()) && (
-                  <div className="detail-section detail-section--optional">
-                    <p className="detail-section-label">
-                      {(SECTION_A_CONFIG[business.businessType?.toLowerCase()] || DEFAULT_SECTION_A).label}{" "}
-                      <span className="detail-optional">(optional)</span>
-                    </p>
-                    {business.menuItems.length === 0 ? (
-                      <input
-                        type="text"
-                        className="dish-text-input"
-                        placeholder={(SECTION_A_CONFIG[business.businessType?.toLowerCase()] || DEFAULT_SECTION_A).placeholder}
-                        value={dishFreeText}
-                        onChange={(e) => setDishFreeText(e.target.value.slice(0, 200))}
-                      />
-                    ) : useMenuModal ? (
-                      <>
-                        <button
-                          type="button"
-                          className="menu-select-btn"
-                          onClick={() => {
-                            setMenuSearch("");
-                            setShowMenuModal(true);
-                          }}
-                        >
-                          🔍 Select from menu ({business.menuItems.length} items)
-                        </button>
-                        {selectedDishes.length > 0 && (
-                          <div className="tags-list-horizontal" style={{ marginTop: "0.625rem" }}>
-                            {selectedDishes.map((dish) => (
-                              <span key={dish} className="tag-chip selected">
-                                {dish}
-                                <button
-                                  type="button"
-                                  className="dish-chip-remove"
-                                  onClick={() => toggleDish(dish)}
-                                  aria-label={`Remove ${dish}`}
-                                >
-                                  ×
-                                </button>
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </>
-                    ) : (
-                      <div className="tags-list-horizontal tags-list-scroll">
-                        {business.menuItems.map((dish) => {
-                          const isSelected = selectedDishes.includes(dish);
-                          return (
-                            <button
-                              key={dish}
-                              type="button"
-                              className={`tag-chip ${isSelected ? "selected" : ""}`}
-                              onClick={() => toggleDish(dish)}
-                            >
+                {/* 3. What did you get / use? (Optional, Dimmed) */}
+                <div className="detail-section detail-section--optional">
+                  <p className="detail-section-label">
+                    {categoryConfig.review.promptLabel}{" "}
+                    <span className="detail-optional">(optional)</span>
+                  </p>
+                  {business.menuItems.length === 0 ? (
+                    <input
+                      type="text"
+                      className="dish-text-input"
+                      placeholder={categoryConfig.review.promptPlaceholder}
+                      value={dishFreeText}
+                      onChange={(e) => setDishFreeText(e.target.value.slice(0, 200))}
+                    />
+                  ) : useMenuModal ? (
+                    <>
+                      <button
+                        type="button"
+                        className="menu-select-btn"
+                        onClick={() => {
+                          setMenuSearch("");
+                          setShowMenuModal(true);
+                        }}
+                      >
+                        🔍 Select items/services ({business.menuItems.length} available)
+                      </button>
+                      {selectedDishes.length > 0 && (
+                        <div className="tags-list-horizontal" style={{ marginTop: "0.625rem" }}>
+                          {selectedDishes.map((dish) => (
+                            <span key={dish} className="tag-chip selected">
                               {dish}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                )}
+                              <button
+                                type="button"
+                                className="dish-chip-remove"
+                                onClick={() => toggleDish(dish)}
+                                aria-label={`Remove ${dish}`}
+                              >
+                                ×
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="tags-list-horizontal tags-list-scroll">
+                      {business.menuItems.map((dish) => {
+                        const isSelected = selectedDishes.includes(dish);
+                        return (
+                          <button
+                            key={dish}
+                            type="button"
+                            className={`tag-chip ${isSelected ? "selected" : ""}`}
+                            onClick={() => toggleDish(dish)}
+                          >
+                            {dish}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
 
-                {/* 4. Who did you visit with? (Optional, Dimmed, Hospitality only) */}
-                {business.businessType && SHOW_GROUP_SIZE_FOR.has(business.businessType.toLowerCase()) && (
+                {/* 4. Who did you visit with? (Optional, Dimmed, Hospitality/Leisure only) */}
+                {categoryConfig.showGroupSize && (
                   <div className="detail-section detail-section--optional">
                     <p className="detail-section-label">
                       Who did you visit with? <span className="detail-optional">(optional)</span>
@@ -705,70 +693,68 @@ export default function PublicReviewFlow() {
             ) : (
               // ---- 3-5 Star Reviews Flow (Standard Order) ----
               <>
-                {/* 1. What did you get? (Optional, Food only) */}
-                {SHOW_MENU_FOR.has(business.businessType?.toLowerCase()) && (
-                  <div className="detail-section detail-section--optional">
-                    <p className="detail-section-label">
-                      {(SECTION_A_CONFIG[business.businessType?.toLowerCase()] || DEFAULT_SECTION_A).label}{" "}
-                      <span className="detail-optional">(optional)</span>
-                    </p>
-                    {business.menuItems.length === 0 ? (
-                      <input
-                        type="text"
-                        className="dish-text-input"
-                        placeholder={(SECTION_A_CONFIG[business.businessType?.toLowerCase()] || DEFAULT_SECTION_A).placeholder}
-                        value={dishFreeText}
-                        onChange={(e) => setDishFreeText(e.target.value.slice(0, 200))}
-                      />
-                    ) : useMenuModal ? (
-                      <>
-                        <button
-                          type="button"
-                          className="menu-select-btn"
-                          onClick={() => {
-                            setMenuSearch("");
-                            setShowMenuModal(true);
-                          }}
-                        >
-                          🔍 Select from menu ({business.menuItems.length} items)
-                        </button>
-                        {selectedDishes.length > 0 && (
-                          <div className="tags-list-horizontal" style={{ marginTop: "0.625rem" }}>
-                            {selectedDishes.map((dish) => (
-                              <span key={dish} className="tag-chip selected">
-                                {dish}
-                                <button
-                                  type="button"
-                                  className="dish-chip-remove"
-                                  onClick={() => toggleDish(dish)}
-                                  aria-label={`Remove ${dish}`}
-                                >
-                                  ×
-                                </button>
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </>
-                    ) : (
-                      <div className="tags-list-horizontal tags-list-scroll">
-                        {business.menuItems.map((dish) => {
-                          const isSelected = selectedDishes.includes(dish);
-                          return (
-                            <button
-                              key={dish}
-                              type="button"
-                              className={`tag-chip ${isSelected ? "selected" : ""}`}
-                              onClick={() => toggleDish(dish)}
-                            >
+                {/* 1. What did you get / use? (Optional) */}
+                <div className="detail-section detail-section--optional">
+                  <p className="detail-section-label">
+                    {categoryConfig.review.promptLabel}{" "}
+                    <span className="detail-optional">(optional)</span>
+                  </p>
+                  {business.menuItems.length === 0 ? (
+                    <input
+                      type="text"
+                      className="dish-text-input"
+                      placeholder={categoryConfig.review.promptPlaceholder}
+                      value={dishFreeText}
+                      onChange={(e) => setDishFreeText(e.target.value.slice(0, 200))}
+                    />
+                  ) : useMenuModal ? (
+                    <>
+                      <button
+                        type="button"
+                        className="menu-select-btn"
+                        onClick={() => {
+                          setMenuSearch("");
+                          setShowMenuModal(true);
+                        }}
+                      >
+                        🔍 Select items/services ({business.menuItems.length} available)
+                      </button>
+                      {selectedDishes.length > 0 && (
+                        <div className="tags-list-horizontal" style={{ marginTop: "0.625rem" }}>
+                          {selectedDishes.map((dish) => (
+                            <span key={dish} className="tag-chip selected">
                               {dish}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                )}
+                              <button
+                                type="button"
+                                className="dish-chip-remove"
+                                onClick={() => toggleDish(dish)}
+                                aria-label={`Remove ${dish}`}
+                              >
+                                ×
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="tags-list-horizontal tags-list-scroll">
+                      {business.menuItems.map((dish) => {
+                        const isSelected = selectedDishes.includes(dish);
+                        return (
+                          <button
+                            key={dish}
+                            type="button"
+                            className={`tag-chip ${isSelected ? "selected" : ""}`}
+                            onClick={() => toggleDish(dish)}
+                          >
+                            {dish}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
 
                 {/* 2. What went well? (Required) */}
                 <div className="detail-section">
@@ -812,8 +798,8 @@ export default function PublicReviewFlow() {
                   <p className="note-count">{note.length}/500</p>
                 </div>
 
-                {/* 4. Who did you visit with? (Optional, Dimmed, Hospitality only) */}
-                {business.businessType && SHOW_GROUP_SIZE_FOR.has(business.businessType.toLowerCase()) && (
+                {/* 4. Who did you visit with? (Optional, Dimmed, Hospitality/Leisure only) */}
+                {categoryConfig.showGroupSize && (
                   <div className="detail-section detail-section--optional">
                     <p className="detail-section-label">
                       Who did you visit with? <span className="detail-optional">(optional)</span>

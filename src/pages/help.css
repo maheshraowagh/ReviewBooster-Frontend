@@ -1,0 +1,551 @@
+/* ==========================================
+   Help & Support Page Styles - ReviewBoost SaaS Design System
+   ========================================== */
+
+.help-page-container {
+  padding-bottom: 3rem;
+}
+
+/* --- Hero Banner & Search --- */
+.help-hero {
+  background: linear-gradient(135deg, #3F7D45 0%, #2e5d33 100%);
+  border-radius: 16px;
+  padding: 2.5rem 2rem;
+  color: #ffffff;
+  text-align: center;
+  margin-bottom: 2rem;
+  box-shadow: 0 8px 20px rgba(63, 125, 69, 0.18);
+  position: relative;
+  overflow: hidden;
+}
+
+.help-hero::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -20%;
+  width: 300px;
+  height: 300px;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0) 70%);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.help-hero-title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+}
+
+.help-hero-subtitle {
+  font-size: 0.9375rem;
+  opacity: 0.92;
+  margin-bottom: 1.75rem;
+  max-width: 520px;
+  margin-left: auto;
+  margin-right: auto;
+  line-height: 1.5;
+}
+
+.help-search-wrapper {
+  position: relative;
+  max-width: 520px;
+  margin: 0 auto;
+}
+
+.help-search-icon {
+  position: absolute;
+  left: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #6B6B63;
+  pointer-events: none;
+}
+
+.help-search-input {
+  width: 100%;
+  padding: 0.875rem 1rem 0.875rem 2.875rem;
+  border-radius: 10px;
+  border: 1px solid #E3E1D9;
+  background: #ffffff;
+  font-size: 0.9375rem;
+  color: #1A1A1A;
+  outline: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transition: all 0.2s ease;
+}
+
+.help-search-input:focus {
+  border-color: #3F7D45;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+}
+
+.help-search-input::placeholder {
+  color: #9CA3AF;
+}
+
+/* --- Action Cards Grid --- */
+.help-actions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1.25rem;
+  margin-bottom: 2rem;
+}
+
+.help-action-card {
+  background: #ffffff;
+  border: 1px solid #E3E1D9;
+  border-radius: 14px;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  text-decoration: none;
+  color: inherit;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+.help-action-card:hover {
+  transform: translateY(-2px);
+  border-color: #3F7D45;
+  box-shadow: 0 8px 20px rgba(63, 125, 69, 0.12);
+}
+
+.help-card-icon-badge {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+
+.icon-badge-email {
+  background: #1A1A1A;
+  color: #ffffff;
+}
+
+.icon-badge-whatsapp {
+  background: #E9F2E7;
+  color: #25D366;
+}
+
+.icon-badge-feature {
+  background: #E9F2E7;
+  color: #3F7D45;
+}
+
+.help-card-heading {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1A1A1A;
+  margin-bottom: 0.375rem;
+}
+
+.help-card-desc {
+  font-size: 0.875rem;
+  color: #6B6B63;
+  line-height: 1.5;
+  margin-bottom: 1.25rem;
+  flex: 1;
+}
+
+.help-card-cta {
+  font-size: 0.875rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  color: #3F7D45;
+}
+
+.help-action-card:hover .help-card-cta {
+  text-decoration: underline;
+}
+
+/* --- FAQ Section --- */
+.help-faq-card {
+  background: #ffffff;
+  border: 1px solid #E3E1D9;
+  border-radius: 16px;
+  padding: 1.75rem;
+  margin-bottom: 2rem;
+}
+
+.help-faq-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.help-faq-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1A1A1A;
+}
+
+.help-category-pills {
+  display: flex;
+  gap: 4px;
+  background: #F2F0EA;
+  border: 1px solid #E3E1D9;
+  border-radius: 10px;
+  padding: 4px;
+  flex-wrap: wrap;
+}
+
+.category-pill {
+  padding: 0.375rem 0.875rem;
+  border-radius: 8px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  border: none;
+  background: transparent;
+  color: #6B6B63;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.category-pill:hover {
+  color: #1A1A1A;
+}
+
+.category-pill.active {
+  background: #ffffff;
+  color: #3F7D45;
+  font-weight: 600;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+/* Accordion List */
+.faq-accordion-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.faq-item {
+  border: 1px solid #E3E1D9;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #ffffff;
+  transition: all 0.2s ease;
+}
+
+.faq-item.expanded {
+  border-color: #3F7D45;
+  background: #ffffff;
+  box-shadow: 0 4px 12px rgba(63, 125, 69, 0.08);
+}
+
+.faq-question-btn {
+  width: 100%;
+  padding: 1rem 1.25rem;
+  text-align: left;
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.faq-question-btn:hover {
+  background: #F2F0EA;
+}
+
+.faq-index-badge {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #3F7D45;
+  background: #E9F2E7;
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+  margin-right: 0.75rem;
+}
+
+.faq-question-text {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #1A1A1A;
+  flex: 1;
+}
+
+.faq-chevron {
+  color: #6B6B63;
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.faq-item.expanded .faq-chevron {
+  transform: rotate(180deg);
+  color: #3F7D45;
+}
+
+.faq-answer-body {
+  padding: 0 1.25rem 1.25rem 1.25rem;
+  font-size: 0.875rem;
+  color: #1A1A1A;
+  line-height: 1.7;
+  border-top: 1px solid #E3E1D9;
+  background: #F2F0EA;
+}
+
+/* --- Feature Request Section --- */
+.feature-req-section {
+  background: #ffffff;
+  border: 1px solid #E3E1D9;
+  border-radius: 16px;
+  padding: 1.75rem;
+  margin-bottom: 2rem;
+}
+
+.feature-req-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.25rem;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.btn-primary-green {
+  background: #3F7D45;
+  color: #ffffff;
+  border: none;
+  padding: 0.625rem 1.25rem;
+  border-radius: 10px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 6px rgba(63, 125, 69, 0.2);
+}
+
+.btn-primary-green:hover {
+  background: #2e5d33;
+  box-shadow: 0 4px 12px rgba(63, 125, 69, 0.3);
+}
+
+.request-card-item {
+  border: 1px solid #E3E1D9;
+  border-radius: 10px;
+  padding: 1.125rem 1.25rem;
+  margin-bottom: 0.75rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  background: #ffffff;
+  transition: border-color 0.2s ease;
+}
+
+.request-card-item:hover {
+  border-color: #3F7D45;
+}
+
+.upvote-button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 0.625rem;
+  border-radius: 8px;
+  border: 1px solid #E3E1D9;
+  background: #F2F0EA;
+  color: #6B6B63;
+  cursor: pointer;
+  min-width: 44px;
+  transition: all 0.2s ease;
+}
+
+.upvote-button:hover {
+  border-color: #3F7D45;
+  color: #3F7D45;
+  background: #E9F2E7;
+}
+
+.upvote-button.upvoted {
+  background: #3F7D45;
+  color: #ffffff;
+  border-color: #3F7D45;
+}
+
+.upvote-count {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  margin-top: 2px;
+}
+
+.request-content {
+  flex: 1;
+}
+
+.request-title {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: #1A1A1A;
+  margin-bottom: 0.25rem;
+}
+
+.request-desc {
+  font-size: 0.875rem;
+  color: #6B6B63;
+  line-height: 1.5;
+  margin-bottom: 0.5rem;
+}
+
+.request-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.75rem;
+  color: #6B6B63;
+}
+
+/* Status Badges */
+.status-badge {
+  padding: 0.25rem 0.625rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.status-badge.pending {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.status-badge.in-review {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.status-badge.planned {
+  background: #E9F2E7;
+  color: #3F7D45;
+}
+
+.status-badge.completed {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.status-badge.declined {
+  background: #F2F0EA;
+  color: #6B6B63;
+}
+
+/* --- Modal Styles --- */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 1rem;
+}
+
+.modal-content-box {
+  background: #ffffff;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 520px;
+  padding: 1.75rem;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.18);
+  border: 1px solid #E3E1D9;
+}
+
+.modal-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.25rem;
+}
+
+.modal-title-text {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #1A1A1A;
+}
+
+.modal-close-btn {
+  background: none;
+  border: none;
+  color: #6B6B63;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 6px;
+}
+
+.modal-close-btn:hover {
+  color: #1A1A1A;
+  background: #F2F0EA;
+}
+
+.form-group-label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #1A1A1A;
+  margin-bottom: 0.375rem;
+}
+
+.form-input-field {
+  width: 100%;
+  padding: 0.625rem 0.875rem;
+  border-radius: 8px;
+  border: 1px solid #E3E1D9;
+  font-size: 0.875rem;
+  outline: none;
+  transition: border-color 0.2s ease;
+  margin-bottom: 1rem;
+  background: #ffffff;
+}
+
+.form-input-field:focus {
+  border-color: #3F7D45;
+  box-shadow: 0 0 0 3px rgba(63, 125, 69, 0.12);
+}
+
+/* Quick Tips Cards */
+.tips-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1.25rem;
+}
+
+.tip-card {
+  padding: 1.25rem;
+  border-radius: 12px;
+  background: #F2F0EA;
+  border: 1px solid #E3E1D9;
+}
+
+.tip-icon-box {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #3F7D45;
+  margin-bottom: 0.75rem;
+  border: 1px solid #E3E1D9;
+}

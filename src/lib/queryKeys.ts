@@ -8,7 +8,8 @@ export const queryKeys = {
   // ---- Dashboard ----
   dashboard: {
     all: ['dashboard'] as const,
-    overview: (period: string) => ['dashboard', 'overview', period] as const,
+    overview: (period: string, startDate?: string, endDate?: string) =>
+      ['dashboard', 'overview', period, startDate, endDate] as const,
   },
 
   // ---- Business ----
@@ -27,7 +28,8 @@ export const queryKeys = {
   // ---- Insights ----
   insights: {
     all: ['insights'] as const,
-    stats: (period: string) => ['insights', 'stats', period] as const,
+    stats: (period: string, startDate?: string, endDate?: string) =>
+      ['insights', 'stats', period, startDate, endDate] as const,
   },
 
   // ---- Campaigns ----

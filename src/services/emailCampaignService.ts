@@ -100,6 +100,7 @@ export const emailCampaignService = {
     greeting?: string;
     customMessage?: string;
     buttonText?: string;
+    replyTo?: string;
   }): Promise<{ campaign: EmailCampaign }> => {
     const res = await api.post<ApiResponse<{ campaign: EmailCampaign }>>('/email-campaigns', data);
     if (!res.data.success || !res.data.data) {

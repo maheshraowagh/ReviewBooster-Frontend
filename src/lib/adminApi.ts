@@ -143,6 +143,24 @@ export interface AuditLogEntry {
   businessId: { _id: string; name: string; businessCode: string } | null;
 }
 
+export interface AdminFeatureRequest {
+  _id: string;
+  userId: string;
+  businessId: { _id: string; name: string; businessCode: string } | null;
+  title: string;
+  category: string;
+  description: string;
+  upvotes: string[];
+  status: 'pending' | 'in-review' | 'planned' | 'completed' | 'declined';
+  adminNote: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminFeatureRequestsResponse extends PaginatedResponse<AdminFeatureRequest> {
+  statusCounts: Record<string, number>;
+}
+
 export const adminApi = {
   getStats: (filters: AdminStatsFilters = { range: "30d" }) => {
     const params = new URLSearchParams({ range: filters.range });
@@ -171,18 +189,46 @@ export const adminApi = {
       { isActive }
     ),
 
+  updateBusinessPlan: (
+    id: string,
+    data: { plan?: string; planStatus?: string; forceOverride?: boolean }
+  ) =>
+    api.patch<{ success: boolean; data: { business: AdminBusiness } }>(
+      `/admin/businesses/${id}/plan`,
+      data
+    ),
+
   getBusinessReport: (id: string) =>
     api.get<{ success: boolean; data: MonthlyReport }>(
       `/admin/businesses/${id}/report`
     ),
 
-  getUsers: (page = 1, limit = 10, search = "") =>
-    api.get<{ success: boolean; data: PaginatedResponse<AppUser> }>(
-      `/admin/users?page=${page}&limit=${limit}&search=${encodeURIComponent(search)}`
-    ),
+  getUsers: (page = 1, limit = 10, search = "", plan = "") => {
+    const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+    if (search) params.set("search", search);
+    if (plan) params.set("plan", plan);
+    return api.get<{ success: boolean; data: PaginatedResponse<AppUser> }>(
+      `/admin/users?${params.toString()}`
+    );
+  },
 
   getActivity: (page = 1, limit = 20) =>
     api.get<{ success: boolean; data: PaginatedResponse<AuditLogEntry> }>(
       `/admin/activity?page=${page}&limit=${limit}`
+    ),
+
+  getFeatureRequests: (page = 1, limit = 20, status = "", search = "") => {
+    const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+    if (status) params.set("status", status);
+    if (search) params.set("search", search);
+    return api.get<{ success: boolean; data: AdminFeatureRequestsResponse }>(
+      `/admin/feature-requests?${params.toString()}`
+    );
+  },
+
+  updateFeatureRequest: (id: string, data: { status?: string; adminNote?: string }) =>
+    api.patch<{ success: boolean; data: AdminFeatureRequest }>(
+      `/admin/feature-requests/${id}`,
+      data
     ),
 };

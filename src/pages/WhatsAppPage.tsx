@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 
 import {
   useWhatsappStatusRaw,
@@ -17,13 +18,16 @@ import { RecentMessagesCard } from "../components/whatsapp/RecentMessagesCard";
 // ─── Component ───────────────────────────────────────────────────
 
 export default function WhatsAppPage() {
-  const { data: statusData, isLoading, refetch: fetchStatus } = useWhatsappStatusRaw();
-  const instance = statusData?.instance || null;
-  
   const [qrBase64, setQrBase64] = useState<string | null>(null);
+
+  // Poll faster (5s) during QR phase to quickly detect connection after scan
+  const statusPollMs = qrBase64 ? 5000 : 30000;
+  const { data: statusData, isLoading, refetch: fetchStatus } = useWhatsappStatusRaw(statusPollMs);
+  const instance = statusData?.instance || null;
   const [connecting, setConnecting] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
   const [showDisconnectModal, setShowDisconnectModal] = useState(false);
+  const [showTestModal, setShowTestModal] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState("");
 
@@ -40,7 +44,7 @@ export default function WhatsAppPage() {
   const resumeMut = useResumeMessaging();
   const sendReviewMut = useSendReviewRequest();
   const sendTestMut = useSendTestMessage();
-  const { refetch: fetchQr } = useWhatsappQr();
+  const queryClient = useQueryClient();
 
   // Review request form
   const [rrPhone, setRrPhone] = useState("");
@@ -57,31 +61,42 @@ export default function WhatsAppPage() {
   // Pause
   const [pausing, setPausing] = useState(false);
 
+  const isConnected = instance?.status === "connected";
+  const isQrPhase = instance?.status === "qr_generated" || qrBase64 !== null;
+
+  // Track connection state transitions to auto-trigger Test Popup on connect
+  const prevConnectedRef = useRef<boolean | null>(null);
+  useEffect(() => {
+    if (prevConnectedRef.current === false && isConnected) {
+      setShowTestModal(true);
+      setSuccessMsg("WhatsApp Connected Successfully! 🎉");
+      setTimeout(() => setSuccessMsg(""), 4000);
+    }
+    prevConnectedRef.current = isConnected;
+  }, [isConnected]);
+
   // Sync QR base64 state from instance status changes if needed
   useEffect(() => {
-    if (instance?.status === "connected") {
+    if (isConnected) {
       setQrBase64(null);
     }
-  }, [instance?.status]);
+  }, [isConnected]);
 
-  // Auto-recover: if DB says qr_generated but we have no QR data, fetch a fresh QR
+  // Auto-recover: if DB says qr_generated but we have no QR data, fetch a fresh QR.
+  // Also continuously poll for fresh QR while in QR phase (QR codes expire).
+  const qrEnabled = !isLoading && !isConnected && (instance?.status === 'qr_generated' || qrBase64 !== null);
+  const { data: qrQueryData } = useWhatsappQr(qrEnabled);
+
+  // Sync QR data from query cache into local state
   useEffect(() => {
-    if (!isLoading && instance && !qrBase64) {
-      if (instance.status === "qr_generated") {
-        fetchQr().then(({ data }) => {
-          if (data?.needsQr && data.qr?.base64) {
-            setQrBase64(data.qr.base64);
-          } else {
-            fetchStatus();
-          }
-        }).catch(() => {
-          // fetchStatus();
-        });
-      }
+    if (qrQueryData?.needsQr && qrQueryData.qr?.base64) {
+      setQrBase64(qrQueryData.qr.base64);
+    } else if (qrQueryData && !qrQueryData.needsQr) {
+      // Backend says already connected — refresh status
+      setQrBase64(null);
+      fetchStatus();
     }
-  }, [isLoading, instance, qrBase64, fetchQr, fetchStatus]);
-
-
+  }, [qrQueryData, fetchStatus]);
 
   // ─── Actions ──────────────────────────────────────────────────
 
@@ -94,6 +109,7 @@ export default function WhatsAppPage() {
       if (data.instance.status === "connected") {
         setSuccessMsg("Already connected! ✅");
         setTimeout(() => setSuccessMsg(""), 3000);
+        setShowTestModal(true);
       } else if (data.qr) {
         setQrBase64(data.qr.base64 || data.qr.code || null);
       }
@@ -121,12 +137,7 @@ export default function WhatsAppPage() {
   };
 
   const handleRefreshQr = async () => {
-    const { data } = await fetchQr();
-    if (data?.needsQr && data.qr?.base64) {
-      setQrBase64(data.qr.base64);
-    } else {
-      fetchStatus();
-    }
+    await queryClient.refetchQueries({ queryKey: ['whatsapp', 'qr'] });
   };
 
   const handlePauseResume = async () => {
@@ -178,19 +189,14 @@ export default function WhatsAppPage() {
         phone: testPhone.trim(),
         message: testMessage.trim(),
       });
-      setSendResult({ type: "success", msg: "Message sent! ✅" });
+      setSendResult({ type: "success", msg: "Test message sent! ✅" });
     } catch (err: any) {
-      setSendResult({ type: "error", msg: err.message || "Failed" });
+      setSendResult({ type: "error", msg: err.message || "Failed to send test message" });
     } finally {
       setSending(false);
       setTimeout(() => setSendResult(null), 5000);
     }
   };
-
-  // ─── Derived ──────────────────────────────────────────────────
-
-  const isConnected = instance?.status === "connected";
-  const isQrPhase = instance?.status === "qr_generated" || qrBase64 !== null;
 
   // ─── Render ───────────────────────────────────────────────────
 
@@ -209,6 +215,14 @@ export default function WhatsAppPage() {
           <h1 className="db-title">WhatsApp</h1>
           <p className="db-subtitle">Connect, send review requests, and manage messaging</p>
         </div>
+        {isConnected && (
+          <button className="wa-btn wa-btn-secondary" onClick={() => setShowTestModal(true)}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="16" height="16">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+            </svg>
+            Send Test Message
+          </button>
+        )}
       </div>
 
       {error && (
@@ -220,20 +234,29 @@ export default function WhatsAppPage() {
         </div>
       )}
 
+      {successMsg && <div className="wa-success-toast" role="status">{successMsg}</div>}
+
+      {/* ──── Modals ──── */}
+      {/* 1. Disconnect Confirmation Modal */}
       {showDisconnectModal && (
-        <div style={{
-          position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
-        }} onClick={() => setShowDisconnectModal(false)}>
-          <div style={{
-            background: 'white', padding: '24px', borderRadius: '8px', maxWidth: '400px', width: '90%', boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
-          }} onClick={e => e.stopPropagation()}>
-            <h2 style={{ fontSize: '18px', fontWeight: 'bold', margin: '0 0 12px 0', color: '#1A1A1A' }}>Disconnect WhatsApp?</h2>
-            <p style={{ fontSize: '14px', color: '#6B6B63', margin: '0 0 24px 0', lineHeight: 1.5 }}>
+        <div className="wa-modal-overlay" onClick={() => setShowDisconnectModal(false)}>
+          <div className="wa-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="wa-modal-header">
+              <div className="wa-modal-icon-danger">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+              </div>
+              <h2 className="wa-modal-title">Disconnect WhatsApp?</h2>
+            </div>
+            <div className="wa-modal-body">
               Are you sure you want to disconnect? You won't be able to send review requests or campaign messages until you reconnect.
-            </p>
-            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+            </div>
+            <div className="wa-modal-actions">
               <button className="wa-btn wa-btn-secondary" onClick={() => setShowDisconnectModal(false)}>Cancel</button>
-              <button className="wa-btn wa-btn-danger" onClick={confirmDisconnect}>
+              <button className="wa-btn wa-btn-danger" onClick={confirmDisconnect} disabled={disconnecting}>
                 {disconnecting ? "Disconnecting..." : "Yes, Disconnect"}
               </button>
             </div>
@@ -241,126 +264,202 @@ export default function WhatsAppPage() {
         </div>
       )}
 
-      {successMsg && <div className="wa-success-toast" role="status">{successMsg}</div>}
-
-      {/* ──── Connection Card ──── */}
-      <div className="wa-card">
-        <div className="wa-card-header">
-          <div className="wa-card-icon">
-            <svg viewBox="0 0 24 24" fill="none" width="24" height="24">
-              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z" fill="#25D366" />
-              <path d="M12 2C6.477 2 2 6.477 2 12c0 1.89.525 3.66 1.438 5.168L2 22l4.832-1.438A9.955 9.955 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2z" stroke="#25D366" strokeWidth="1.5" fill="none" />
-            </svg>
-          </div>
-          <div>
-            <h2 className="wa-card-title">WhatsApp Connection</h2>
-            <p className="wa-card-desc">{isConnected ? "Connected and ready" : isQrPhase ? "Scan QR code to connect" : "Connect to get started"}</p>
-          </div>
-          <div className={`wa-status-badge wa-status-${instance?.status || "disconnected"}`}>
-            <span className="wa-status-dot" />
-            {isConnected ? "Connected" : instance?.status === "qr_generated" ? "Awaiting Scan" : "Disconnected"}
-          </div>
-        </div>
-
-        <div className="wa-card-body">
-          {isConnected && (
-            <div className="wa-connected-info">
-              <div className="wa-info-row">
-                <span className="wa-info-label">Phone</span>
-                <span className="wa-info-value">{instance?.connectedPhone ? `+${instance.connectedPhone}` : "Connected"}</span>
+      {/* 2. Send Test Message Modal */}
+      {showTestModal && (
+        <div className="wa-modal-overlay" onClick={() => setShowTestModal(false)}>
+          <div className="wa-modal" style={{ maxWidth: '480px' }} onClick={(e) => e.stopPropagation()}>
+            <div className="wa-modal-header-between">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <div className="wa-card-icon wa-card-icon-blue" style={{ width: 36, height: 36 }}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="20" height="20">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                  </svg>
+                </div>
+                <div>
+                  <h2 className="wa-modal-title">Send Test Message</h2>
+                  <p className="wa-card-desc">Verify your WhatsApp connection</p>
+                </div>
               </div>
-              <div className="wa-info-row">
-                <span className="wa-info-label">Provider</span>
-                <span className="wa-info-value wa-provider-badge">Evolution (Baileys)</span>
-              </div>
-              <button className="wa-btn wa-btn-danger" onClick={triggerDisconnect} disabled={disconnecting}>
-                {disconnecting ? "Disconnecting..." : "Disconnect"}
-              </button>
-            </div>
-          )}
-
-          {!isConnected && isQrPhase && qrBase64 && (
-            <div className="wa-qr-section">
-              <div className="wa-qr-container">
-                <img src={qrBase64.startsWith("data:") ? qrBase64 : `data:image/png;base64,${qrBase64}`} alt="QR Code" className="wa-qr-image" />
-              </div>
-              <div className="wa-qr-instructions">
-                <p className="wa-qr-step"><strong>1.</strong> Open WhatsApp → <strong>Linked Devices → Link a Device</strong></p>
-                <p className="wa-qr-step"><strong>2.</strong> Point camera at this QR code</p>
-              </div>
-              <button className="wa-btn wa-btn-secondary" onClick={handleRefreshQr}>Refresh QR Code</button>
-            </div>
-          )}
-
-          {!isConnected && !isQrPhase && (
-            <div className="wa-disconnected-section">
-              <div className="wa-disconnected-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="48" height="48">
-                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z" />
-                  <path d="M12 2C6.477 2 2 6.477 2 12c0 1.89.525 3.66 1.438 5.168L2 22l4.832-1.438A9.955 9.955 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2z" />
+              <button className="wa-modal-close" onClick={() => setShowTestModal(false)} aria-label="Close modal">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
                 </svg>
-              </div>
-              <p className="wa-disconnected-text">Connect your WhatsApp to send review requests and campaign messages.</p>
-              <button className="wa-btn wa-btn-primary" onClick={handleConnect} disabled={connecting}>
-                {connecting ? <><span className="wa-btn-spinner" /> Connecting...</> : "Connect WhatsApp"}
               </button>
             </div>
-          )}
-        </div>
-      </div>
 
-      {/* ──── Usage Card ──── */}
-      {isConnected && usage?.configured && (
-        <div className="wa-card">
-          <div className="wa-card-header">
-            <div className="wa-card-icon wa-card-icon-blue">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="24" height="24">
-                <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
-              </svg>
-            </div>
-            <div>
-              <h2 className="wa-card-title">Usage & Limits</h2>
-              <p className="wa-card-desc">Warming progress, daily sends, and credits</p>
-            </div>
-            <button className="wa-btn wa-btn-sm" onClick={handlePauseResume} disabled={pausing} style={{
-              background: usage.messagingPaused ? "#f0fdf4" : "#fef2f2",
-              color: usage.messagingPaused ? "#15803d" : "#dc2626",
-              border: `1px solid ${usage.messagingPaused ? "rgba(34,197,94,0.2)" : "rgba(220,38,38,0.15)"}`,
-            }}>
-              {pausing ? "..." : usage.messagingPaused ? "▶ Resume" : "⏸ Pause"}
-            </button>
-          </div>
+            <form className="wa-test-form" onSubmit={handleSendTest}>
+              <div className="wa-form-group">
+                <label className="wa-form-label" htmlFor="popup-test-phone">Phone Number (with Country Code)</label>
+                <input
+                  id="popup-test-phone"
+                  className="wa-form-input"
+                  type="text"
+                  placeholder="e.g. 919876543210"
+                  value={testPhone}
+                  onChange={(e) => setTestPhone(e.target.value)}
+                  autoFocus
+                />
+              </div>
 
-          {usage.messagingPaused && (
-            <div className="wa-paused-banner">
-              ⚠️ Messaging is paused{usage.messagingPauseReason ? `: ${usage.messagingPauseReason}` : ""}
-            </div>
-          )}
+              <div className="wa-form-group">
+                <label className="wa-form-label" htmlFor="popup-test-message">Message</label>
+                <textarea
+                  id="popup-test-message"
+                  className="wa-form-textarea"
+                  value={testMessage}
+                  onChange={(e) => setTestMessage(e.target.value)}
+                  rows={3}
+                />
+              </div>
 
-          <div className="wa-usage-grid">
-            <div className="wa-usage-item">
-              <span className="wa-usage-label">Warm-up Day</span>
-              <span className="wa-usage-value">{usage.warming?.ageDays ?? 0}</span>
-              <span className="wa-usage-sub">{usage.warming?.warmupComplete ? "✅ Complete" : `Limit: ${usage.warming?.currentWarmupLimit}/day`}</span>
-            </div>
-            <div className="wa-usage-item">
-              <span className="wa-usage-label">Today</span>
-              <span className="wa-usage-value">{usage.daily?.sentToday ?? 0} / {usage.daily?.limit ?? 0}</span>
-              <span className="wa-usage-sub">{usage.daily?.remaining ?? 0} remaining</span>
-            </div>
-            <div className="wa-usage-item">
-              <span className="wa-usage-label">Monthly Credits</span>
-              <span className="wa-usage-value">{usage.monthly?.used ?? 0} / {usage.monthly?.limit ?? 0}</span>
-              <span className="wa-usage-sub">{usage.monthly?.remaining ?? 0} remaining</span>
-            </div>
-            <div className="wa-usage-item">
-              <span className="wa-usage-label">Quiet Hours</span>
-              <span className="wa-usage-value">{usage.quietHours?.isQuiet ? "🌙 Active" : "☀️ Open"}</span>
-              <span className="wa-usage-sub">9 PM – 8 AM</span>
-            </div>
+              {sendResult && (
+                <div className={`wa-send-result wa-send-${sendResult.type}`}>
+                  {sendResult.msg}
+                </div>
+              )}
+
+              <div className="wa-modal-actions" style={{ marginTop: '0.5rem' }}>
+                <button type="button" className="wa-btn wa-btn-secondary" onClick={() => setShowTestModal(false)}>
+                  Close
+                </button>
+                <button type="submit" className="wa-btn wa-btn-primary" disabled={sending || !testPhone.trim()}>
+                  {sending ? <><span className="wa-btn-spinner" /> Sending...</> : "Send Test"}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
+
+      {/* ──── Top Section: Side-by-side grid ──── */}
+      <div className={isConnected && usage?.configured ? "wa-top-grid" : ""}>
+        {/* Connection Card */}
+        <div className="wa-card" style={{ marginBottom: isConnected && usage?.configured ? 0 : '1.25rem' }}>
+          <div className="wa-card-header">
+            <div className="wa-card-icon">
+              <svg viewBox="0 0 24 24" fill="none" width="24" height="24">
+                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z" fill="#25D366" />
+                <path d="M12 2C6.477 2 2 6.477 2 12c0 1.89.525 3.66 1.438 5.168L2 22l4.832-1.438A9.955 9.955 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2z" stroke="#25D366" strokeWidth="1.5" fill="none" />
+              </svg>
+            </div>
+            <div>
+              <h2 className="wa-card-title">WhatsApp Connection</h2>
+              <p className="wa-card-desc">{isConnected ? "Connected and ready" : isQrPhase ? "Scan QR code to connect" : "Connect to get started"}</p>
+            </div>
+            <div className={`wa-status-badge wa-status-${instance?.status || "disconnected"}`}>
+              <span className="wa-status-dot" />
+              {isConnected ? "Connected" : instance?.status === "qr_generated" ? "Awaiting Scan" : "Disconnected"}
+            </div>
+          </div>
+
+          <div className="wa-card-body">
+            {isConnected && (
+              <div className="wa-connected-info">
+                <div className="wa-info-row">
+                  <span className="wa-info-label">Phone</span>
+                  <span className="wa-info-value">{instance?.connectedPhone ? `+${instance.connectedPhone}` : "Connected"}</span>
+                </div>
+                <div className="wa-info-row">
+                  <span className="wa-info-label">Provider</span>
+                  <span className="wa-info-value wa-provider-badge">Evolution (Baileys)</span>
+                </div>
+                <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
+                  <button className="wa-btn wa-btn-secondary" style={{ flex: 1 }} onClick={() => setShowTestModal(true)}>
+                    Send Test
+                  </button>
+                  <button className="wa-btn wa-btn-danger" style={{ flex: 1, marginTop: 0 }} onClick={triggerDisconnect} disabled={disconnecting}>
+                    {disconnecting ? "Disconnecting..." : "Disconnect"}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {!isConnected && isQrPhase && qrBase64 && (
+              <div className="wa-qr-section">
+                <div className="wa-qr-container">
+                  <img src={qrBase64.startsWith("data:") ? qrBase64 : `data:image/png;base64,${qrBase64}`} alt="QR Code" className="wa-qr-image" />
+                </div>
+                <div className="wa-qr-instructions">
+                  <p className="wa-qr-step"><strong>1.</strong> Open WhatsApp → <strong>Linked Devices → Link a Device</strong></p>
+                  <p className="wa-qr-step"><strong>2.</strong> Point camera at this QR code</p>
+                </div>
+                <button className="wa-btn wa-btn-secondary" onClick={handleRefreshQr}>Refresh QR Code</button>
+              </div>
+            )}
+
+            {!isConnected && !isQrPhase && (
+              <div className="wa-disconnected-section">
+                <div className="wa-disconnected-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="48" height="48">
+                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z" />
+                    <path d="M12 2C6.477 2 2 6.477 2 12c0 1.89.525 3.66 1.438 5.168L2 22l4.832-1.438A9.955 9.955 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2z" />
+                  </svg>
+                </div>
+                <p className="wa-disconnected-text">Connect your WhatsApp to send review requests and campaign messages.</p>
+                <button className="wa-btn wa-btn-primary" onClick={handleConnect} disabled={connecting}>
+                  {connecting ? <><span className="wa-btn-spinner" /> Connecting...</> : "Connect WhatsApp"}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Usage & Limits Card */}
+        {isConnected && usage?.configured && (
+          <div className="wa-card" style={{ marginBottom: 0 }}>
+            <div className="wa-card-header">
+              <div className="wa-card-icon wa-card-icon-blue">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="24" height="24">
+                  <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+                </svg>
+              </div>
+              <div>
+                <h2 className="wa-card-title">Usage & Limits</h2>
+                <p className="wa-card-desc">{usage.planDisplayName ? `${usage.planDisplayName} Plan` : 'Daily sends & credits'}</p>
+              </div>
+              <button className="wa-btn wa-btn-sm" onClick={handlePauseResume} disabled={pausing} style={{
+                background: usage.messagingPaused ? "#f0fdf4" : "#fef2f2",
+                color: usage.messagingPaused ? "#15803d" : "#dc2626",
+                border: `1px solid ${usage.messagingPaused ? "rgba(34,197,94,0.2)" : "rgba(220,38,38,0.15)"}`,
+              }}>
+                {pausing ? "..." : usage.messagingPaused ? "▶ Resume" : "⏸ Pause"}
+              </button>
+            </div>
+
+            {usage.messagingPaused && (
+              <div className="wa-paused-banner">
+                ⚠️ Messaging is paused{usage.messagingPauseReason ? `: ${usage.messagingPauseReason}` : ""}
+              </div>
+            )}
+
+            <div className="wa-usage-grid" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
+              <div className="wa-usage-item">
+                <span className="wa-usage-label">Warm-up Day</span>
+                <span className="wa-usage-value">{usage.warming?.ageDays ?? 0}</span>
+                <span className="wa-usage-sub">{usage.warming?.warmupComplete ? "✅ Complete" : `Limit: ${usage.warming?.currentWarmupLimit}/day`}</span>
+              </div>
+              <div className="wa-usage-item">
+                <span className="wa-usage-label">Today</span>
+                <span className="wa-usage-value">{usage.daily?.sentToday ?? 0} / {usage.daily?.limit ?? 0}</span>
+                <span className="wa-usage-sub">{usage.daily?.remaining ?? 0} remaining</span>
+              </div>
+              <div className="wa-usage-item">
+                <span className="wa-usage-label">Monthly Credits</span>
+                <span className="wa-usage-value">{usage.monthly?.used ?? 0} / {usage.monthly?.limit ?? 0}</span>
+                <span className="wa-usage-sub">
+                  {usage.monthly?.limit === 0 ? "Upgrade plan to send" : `${usage.monthly?.remaining ?? 0} remaining`}
+                </span>
+              </div>
+              <div className="wa-usage-item">
+                <span className="wa-usage-label">Quiet Hours</span>
+                <span className="wa-usage-value">{usage.quietHours?.isQuiet ? "🌙 Active" : "☀️ Open"}</span>
+                <span className="wa-usage-sub">9 PM – 8 AM</span>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* ──── Send Review Request Card ──── */}
       {isConnected && (
@@ -395,37 +494,7 @@ export default function WhatsAppPage() {
         </div>
       )}
 
-      {/* ──── Test Message Card ──── */}
-      {isConnected && (
-        <div className="wa-card">
-          <div className="wa-card-header">
-            <div className="wa-card-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="24" height="24">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-              </svg>
-            </div>
-            <div>
-              <h2 className="wa-card-title">Send Test Message</h2>
-              <p className="wa-card-desc">Verify your connection</p>
-            </div>
-          </div>
-          <form className="wa-test-form" onSubmit={handleSendTest}>
-            <div className="wa-form-group">
-              <label className="wa-form-label" htmlFor="wa-test-phone">Phone Number</label>
-              <input id="wa-test-phone" className="wa-form-input" type="text" placeholder="919876543210" value={testPhone} onChange={(e) => setTestPhone(e.target.value)} />
-            </div>
-            <div className="wa-form-group">
-              <label className="wa-form-label" htmlFor="wa-test-message">Message</label>
-              <textarea id="wa-test-message" className="wa-form-textarea" value={testMessage} onChange={(e) => setTestMessage(e.target.value)} rows={2} />
-            </div>
-            <button type="submit" className="wa-btn wa-btn-primary" disabled={sending || !testPhone.trim()}>
-              {sending ? <><span className="wa-btn-spinner" /> Sending...</> : "Send Test"}
-            </button>
-            {sendResult && <div className={`wa-send-result wa-send-${sendResult.type}`}>{sendResult.msg}</div>}
-          </form>
-        </div>
-      )}
-
+      {/* ──── Recent Messages Log ──── */}
       {isConnected && (
         <RecentMessagesCard 
           messages={messages} 
@@ -438,3 +507,4 @@ export default function WhatsAppPage() {
     </div>
   );
 }
+

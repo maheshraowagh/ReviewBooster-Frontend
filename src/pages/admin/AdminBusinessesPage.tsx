@@ -387,6 +387,7 @@ export default function AdminBusinessesPage() {
                   <th>Business</th>
                   <th>Code</th>
                   <th>Owner</th>
+                  <th>Plan</th>
                   <th>Type</th>
                   <th>Created</th>
                   <th>Status</th>
@@ -406,6 +407,11 @@ export default function AdminBusinessesPage() {
                       <td>
                         <div style={{ fontWeight: 500 }}>{business.ownerId?.name || "—"}</div>
                         <div className="admin-table-cell-secondary">{business.ownerId?.email}</div>
+                      </td>
+                      <td>
+                        <span className={`admin-status-badge admin-status-badge--${business.plan || 'free'}`}>
+                          {business.plan ? business.plan.charAt(0).toUpperCase() + business.plan.slice(1) : 'Free'}
+                        </span>
                       </td>
                       <td style={{ textTransform: "capitalize" }}>{business.businessType || "—"}</td>
                       <td style={{ color: "var(--color-text-muted)" }}>
@@ -437,7 +443,7 @@ export default function AdminBusinessesPage() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={7}>
+                    <td colSpan={8}>
                       <div className="admin-empty-state">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                           <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />

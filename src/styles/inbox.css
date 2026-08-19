@@ -288,11 +288,20 @@
 .inbox-table-rating {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    gap: 6px;
     font-size: 0.8125rem;
     font-weight: 700;
-    padding: 0.25rem 0.5rem;
+    padding: 0.25rem 0.625rem;
     border-radius: 6px;
+    white-space: nowrap;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+.inbox-table-stars {
+    font-size: 0.8125rem;
+    letter-spacing: 1.5px;
+    line-height: 1;
 }
 
 .inbox-table-note-col {
@@ -475,6 +484,7 @@
     from {
         opacity: 0;
     }
+
     to {
         opacity: 1;
     }
@@ -500,6 +510,7 @@
     from {
         transform: translateX(100%);
     }
+
     to {
         transform: translateX(0);
     }
@@ -563,7 +574,7 @@
 }
 
 .inbox-drawer-stars {
-    font-size: 1.125rem;
+    font-size: 1.2rem;
     letter-spacing: 2px;
 }
 
@@ -888,12 +899,10 @@
 }
 
 .skeleton-box {
-    background: linear-gradient(
-        90deg,
-        rgba(255, 255, 255, 0.04) 25%,
-        rgba(255, 255, 255, 0.08) 50%,
-        rgba(255, 255, 255, 0.04) 75%
-    );
+    background: linear-gradient(90deg,
+            rgba(255, 255, 255, 0.04) 25%,
+            rgba(255, 255, 255, 0.08) 50%,
+            rgba(255, 255, 255, 0.04) 75%);
     background-size: 200% 100%;
     animation: skeleton-shimmer 1.5s infinite;
     border-radius: 6px;
@@ -903,6 +912,7 @@
     0% {
         background-position: 200% 0;
     }
+
     100% {
         background-position: -200% 0;
     }
@@ -954,13 +964,16 @@
     .inbox-toolbar {
         flex-direction: column;
     }
+
     .inbox-filters {
         flex-direction: column;
         align-items: flex-start;
     }
+
     .inbox-drawer {
         width: 100vw;
     }
+
     .inbox-card-note {
         white-space: normal;
         display: -webkit-box;
@@ -1111,11 +1124,9 @@
     content: "";
     position: absolute;
     inset: 0;
-    background: linear-gradient(
-        135deg,
-        rgba(99, 102, 241, 0.1) 0%,
-        rgba(139, 92, 246, 0.06) 100%
-    );
+    background: linear-gradient(135deg,
+            rgba(99, 102, 241, 0.1) 0%,
+            rgba(139, 92, 246, 0.06) 100%);
     opacity: 0;
     transition: opacity 250ms;
 }
@@ -1168,6 +1179,7 @@
     .onboarding-title {
         font-size: 1.75rem;
     }
+
     .onboarding-subtitle {
         font-size: 0.9375rem;
     }
@@ -1247,6 +1259,7 @@
     background: #ecfdf5;
     color: #15803d;
 }
+
 .wa-status-connected .wa-status-dot {
     background: #22c55e;
     box-shadow: 0 0 6px rgba(34, 197, 94, 0.5);
@@ -1257,6 +1270,7 @@
     background: #eff6ff;
     color: #1d4ed8;
 }
+
 .wa-status-qr_generated .wa-status-dot {
     background: #3b82f6;
     animation: wa-pulse 1.5s ease-in-out infinite;
@@ -1268,6 +1282,7 @@
     background: #fef2f2;
     color: #b91c1c;
 }
+
 .wa-status-disconnected .wa-status-dot,
 .wa-status-pending .wa-status-dot,
 .wa-status-not_configured .wa-status-dot {
@@ -1275,8 +1290,15 @@
 }
 
 @keyframes wa-pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.4; }
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.4;
+    }
 }
 
 /* WhatsApp & Campaigns Modal */
@@ -1346,14 +1368,66 @@
     gap: 0.75rem;
 }
 
+.wa-modal-header-between {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    margin-bottom: 1.25rem;
+}
+
+.wa-modal-close {
+    background: transparent;
+    border: none;
+    color: var(--color-text-muted, #999);
+    cursor: pointer;
+    padding: 0.25rem;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 150ms ease;
+}
+
+.wa-modal-close:hover {
+    color: var(--color-text-primary, #1a1a1a);
+    background: var(--color-surface-hover, rgba(0, 0, 0, 0.05));
+}
+
+.wa-top-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
+    margin-bottom: 1.25rem;
+}
+
+@media (max-width: 900px) {
+    .wa-top-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+
 @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
 }
 
 @keyframes scaleUp {
-    from { opacity: 0; transform: scale(0.95); }
-    to { opacity: 1; transform: scale(1); }
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
 }
 
 /* Connected info */
@@ -1620,22 +1694,28 @@
     .wa-card {
         padding: 1.25rem;
     }
+
     .wa-card-header {
         flex-direction: column;
     }
+
     .wa-status-badge {
         margin-left: 0;
     }
+
     .wa-qr-container {
         width: 220px;
         height: 220px;
     }
+
     .wa-usage-grid {
         grid-template-columns: 1fr 1fr !important;
     }
+
     .wa-form-row {
         flex-direction: column !important;
     }
+
     .wa-messages-table-wrap {
         font-size: 0.75rem;
     }
@@ -1647,6 +1727,7 @@
 .wa-card-icon-blue {
     background: #eff6ff;
 }
+
 .wa-card-icon-blue svg {
     stroke: #3b82f6;
 }
@@ -1654,6 +1735,7 @@
 .wa-card-icon-green {
     background: #f0fdf4;
 }
+
 .wa-card-icon-green svg {
     stroke: #22c55e;
 }
@@ -1661,6 +1743,7 @@
 .wa-card-icon-purple {
     background: #faf5ff;
 }
+
 .wa-card-icon-purple svg {
     stroke: #a855f7;
 }

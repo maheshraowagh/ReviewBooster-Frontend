@@ -5,13 +5,24 @@
 
 export type UserRole = "owner" | "staff" | "admin";
 
+export interface AdminUserBusiness {
+  _id: string;
+  name: string;
+  businessCode: string;
+  plan: string;
+  planStatus: string;
+  whatsappMsgQuota: number;
+  whatsappMsgUsed: number;
+  razorpaySubscriptionId?: string | null;
+}
+
 export interface AppUser {
   _id: string;
   clerkUserId: string;
   email: string;
   name: string;
   role: UserRole;
-  businessId: string | null;
+  businessId: string | AdminUserBusiness | null;
   createdAt: string;
 }
 
@@ -27,6 +38,11 @@ export interface Business {
   city: string;
   isActive: boolean;
   menuItems: string[];
+  plan?: string;
+  planStatus?: string;
+  whatsappMsgQuota?: number;
+  whatsappMsgUsed?: number;
+  razorpaySubscriptionId?: string | null;
   contactEmail?: string;
   gmailConnected?: boolean;
   gmailEmail?: string | null;

@@ -3,10 +3,11 @@ import { insightsService, type Period } from '../../services/insightsService';
 import { queryKeys } from '../../lib/queryKeys';
 
 
-export function useSentimentData(period: Period) {
+export function useSentimentData(period: Period, startDate?: string, endDate?: string) {
   return useQuery({
-    queryKey: queryKeys.insights.stats(`sentiment-${period}`),
-    queryFn: () => insightsService.getSentiment(period),
+    queryKey: queryKeys.insights.stats(`sentiment-${period}`, startDate, endDate),
+    queryFn: () => insightsService.getSentiment(period, startDate, endDate),
+    enabled: period !== 'custom' || (Boolean(startDate) && Boolean(endDate)),
   });
 }
 

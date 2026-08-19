@@ -73,6 +73,7 @@ export function useCreateEmailCampaign() {
       greeting?: string;
       customMessage?: string;
       buttonText?: string;
+      replyTo?: string;
     }) => emailCampaignService.createCampaign(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['email-campaigns'] });

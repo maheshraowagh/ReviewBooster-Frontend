@@ -99,6 +99,7 @@ function WhatsAppCampaignWizard({
   ]);
   const [showBulkPaste, setShowBulkPaste] = useState(false);
   const [bulkPasteText, setBulkPasteText] = useState("");
+  const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
   const [validation, setValidation] = useState<CsvPreview | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -151,6 +152,15 @@ function WhatsAppCampaignWizard({
     setShowBulkPaste(false);
   };
 
+  const handleRemoveUploadedFile = () => {
+    setUploadedFileName(null);
+    setValidation(null);
+    setError("");
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
   async function handleFileUpload(file: File) {
     setError("");
     setValidation(null);
@@ -158,8 +168,10 @@ function WhatsAppCampaignWizard({
     try {
       const data = await importCsvMut.mutateAsync(file);
       setValidation(data);
+      setUploadedFileName(file.name);
     } catch (err: any) {
       setError(err.message || "Upload failed");
+      setUploadedFileName(null);
     }
     setLoading(false);
   }
@@ -356,7 +368,6 @@ function WhatsAppCampaignWizard({
                     className={`ec-import-tab${importTab === tab ? " active" : ""}`}
                     onClick={() => {
                       setImportTab(tab);
-                      setValidation(null);
                       setError("");
                     }}
                   >
@@ -368,35 +379,112 @@ function WhatsAppCampaignWizard({
               {/* CSV Upload */}
               {importTab === "csv" && (
                 <>
-                  <div
-                    className="ec-upload-area"
-                    onClick={() => fileInputRef.current?.click()}
-                    onDragOver={(e) => {
-                      e.preventDefault();
-                      e.currentTarget.classList.add("drag-over");
-                    }}
-                    onDragLeave={(e) => e.currentTarget.classList.remove("drag-over")}
-                    onDrop={(e) => {
-                      e.preventDefault();
-                      e.currentTarget.classList.remove("drag-over");
-                      const file = e.dataTransfer.files[0];
-                      if (file) handleFileUpload(file);
-                    }}
-                  >
-                    <div className="ec-upload-icon">
-                      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                        <polyline points="17 8 12 3 7 8" />
-                        <line x1="12" y1="3" x2="12" y2="15" />
-                      </svg>
+                  {uploadedFileName ? (
+                    <div
+                      style={{
+                        background: "#F9F8F5",
+                        border: "1px dashed #1A1A1A",
+                        borderRadius: "12px",
+                        padding: "20px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        gap: "16px",
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+                        <div
+                          style={{
+                            width: "44px",
+                            height: "44px",
+                            borderRadius: "10px",
+                            background: "#E8F5E9",
+                            color: "#2E7D32",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            fontSize: "22px",
+                          }}
+                        >
+                          📄
+                        </div>
+                        <div>
+                          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                            <span style={{ fontSize: "14px", fontWeight: 600, color: "#1A1A1A" }}>{uploadedFileName}</span>
+                            <span
+                              style={{
+                                fontSize: "11px",
+                                fontWeight: 600,
+                                padding: "2px 8px",
+                                borderRadius: "12px",
+                                background: "#E8F5E9",
+                                color: "#2E7D32",
+                              }}
+                            >
+                              Uploaded & Validated
+                            </span>
+                          </div>
+                          <p style={{ margin: "4px 0 0", fontSize: "12px", color: "#6B6B63" }}>
+                            {validation ? `${validation.validRecords?.length || 0} valid recipient(s) ready` : "File uploaded successfully"}
+                          </p>
+                        </div>
+                      </div>
+                      <div style={{ display: "flex", gap: "8px" }}>
+                        <button
+                          type="button"
+                          className="ec-btn ec-btn-ghost"
+                          onClick={() => {
+                            if (fileInputRef.current) fileInputRef.current.value = "";
+                            fileInputRef.current?.click();
+                          }}
+                          style={{ fontSize: "12px", padding: "6px 12px" }}
+                        >
+                          Change File
+                        </button>
+                        <button
+                          type="button"
+                          className="ec-btn ec-btn-ghost"
+                          onClick={handleRemoveUploadedFile}
+                          style={{ fontSize: "12px", padding: "6px 12px", color: "#C0392B" }}
+                        >
+                          Remove
+                        </button>
+                      </div>
                     </div>
-                    <p className="ec-upload-text">
-                      <strong>Click to upload</strong> or drag and drop
-                    </p>
-                    <p className="ec-upload-hint">
-                      CSV file with a <code>phone</code> column (and optional <code>name</code>)
-                    </p>
-                  </div>
+                  ) : (
+                    <div
+                      className="ec-upload-area"
+                      onClick={() => {
+                        if (fileInputRef.current) fileInputRef.current.value = "";
+                        fileInputRef.current?.click();
+                      }}
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        e.currentTarget.classList.add("drag-over");
+                      }}
+                      onDragLeave={(e) => e.currentTarget.classList.remove("drag-over")}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        e.currentTarget.classList.remove("drag-over");
+                        const file = e.dataTransfer.files[0];
+                        if (file) handleFileUpload(file);
+                      }}
+                    >
+                      <div className="ec-upload-icon">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                          <polyline points="17 8 12 3 7 8" />
+                          <line x1="12" y1="3" x2="12" y2="15" />
+                        </svg>
+                      </div>
+                      <p className="ec-upload-text">
+                        <strong>Click to upload</strong> or drag and drop
+                      </p>
+                      <p className="ec-upload-hint">
+                        CSV file with a <code>phone</code> column (and optional <code>name</code>)
+                      </p>
+                    </div>
+                  )}
                   <input
                     ref={fileInputRef}
                     type="file"
@@ -407,6 +495,40 @@ function WhatsAppCampaignWizard({
                       if (f) handleFileUpload(f);
                     }}
                   />
+
+                  {/* Format Helper Card */}
+                  <div style={{ background: "#F9F8F5", border: "1px solid #E3E1D9", borderRadius: "10px", padding: "14px", marginTop: "14px" }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px", flexWrap: "wrap", gap: "8px" }}>
+                      <span style={{ fontSize: "12px", fontWeight: 600, color: "#1A1A1A", display: "flex", alignItems: "center", gap: "6px" }}>
+                        💡 Expected CSV Format
+                      </span>
+                      <button
+                        type="button"
+                        className="ec-btn ec-btn-ghost"
+                        onClick={() => {
+                          const content = "name,phone\nMahesh Wagh,+12345678901\nAkash Singh,+19876543210\nJohn Doe,+15551234567";
+                          const blob = new Blob([content], { type: "text/csv;charset=utf-8;" });
+                          const url = URL.createObjectURL(blob);
+                          const a = document.createElement("a");
+                          a.href = url;
+                          a.download = "sample_whatsapp_contacts.csv";
+                          a.click();
+                          URL.revokeObjectURL(url);
+                        }}
+                        style={{ fontSize: "11px", padding: "4px 10px", color: "#1A1A1A", border: "1px solid #E3E1D9" }}
+                      >
+                        📥 Download Sample CSV
+                      </button>
+                    </div>
+                    <p style={{ margin: "0 0 8px", fontSize: "12px", color: "#6B6B63", lineHeight: 1.4 }}>
+                      First row must contain column headers. Requires a <code>phone</code> (or <code>mobile</code>) column and optional <code>name</code> column.
+                    </p>
+                    <div style={{ background: "#fff", border: "1px solid #E3E1D9", borderRadius: "6px", padding: "8px 12px", fontFamily: "monospace", fontSize: "11px", color: "#333" }}>
+                      <div style={{ fontWeight: 700, color: "#1A1A1A" }}>name, phone</div>
+                      <div style={{ color: "#6B6B63" }}>Mahesh Wagh, +12345678901</div>
+                      <div style={{ color: "#6B6B63" }}>Akash Singh, +19876543210</div>
+                    </div>
+                  </div>
                 </>
               )}
 
@@ -435,9 +557,24 @@ function WhatsAppCampaignWizard({
                       {loading ? "Fetching…" : "Fetch"}
                     </button>
                   </div>
-                  <p style={{ margin: "8px 0 0", fontSize: "12px", color: "#A3A39A" }}>
-                    First row must be column headers. Include a <code>phone</code> or <code>mobile</code> column (and optional <code>name</code>).
-                  </p>
+                  
+                  {/* Google Sheet Format Helper */}
+                  <div style={{ background: "#F9F8F5", border: "1px solid #E3E1D9", borderRadius: "10px", padding: "14px", marginTop: "14px" }}>
+                    <span style={{ fontSize: "12px", fontWeight: 600, color: "#1A1A1A", display: "block", marginBottom: "8px" }}>
+                      💡 How to format & share your Google Sheet:
+                    </span>
+                    <ol style={{ margin: "0 0 10px", paddingLeft: "18px", fontSize: "12px", color: "#6B6B63", lineHeight: 1.6 }}>
+                      <li>Row 1 must be headers containing <code>phone</code> (or <code>mobile</code>) and optional <code>name</code>.</li>
+                      <li>In Google Sheets, click the <strong>Share</strong> button (top right).</li>
+                      <li>Under General Access, select <strong>"Anyone with the link can view"</strong>.</li>
+                      <li>Copy the sheet URL, paste it above, and click <strong>Fetch</strong>.</li>
+                    </ol>
+                    <div style={{ background: "#fff", border: "1px solid #E3E1D9", borderRadius: "6px", padding: "8px 12px", fontFamily: "monospace", fontSize: "11px", color: "#333" }}>
+                      <div style={{ fontWeight: 700, color: "#1A1A1A" }}>name | phone</div>
+                      <div style={{ color: "#6B6B63" }}>Mahesh Wagh | +12345678901</div>
+                      <div style={{ color: "#6B6B63" }}>Akash Singh | +19876543210</div>
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -1605,7 +1742,7 @@ function CampaignDetail({
           <CampaignStatusBadge status={detail.status} />
         </div>
 
-        {detail.pauseReason && <div className="campaign-paused-banner">⚠ {detail.pauseReason}</div>}
+        {detail.pauseReason && <CampaignPauseBanner reason={detail.pauseReason} />}
 
         <div className="campaign-preview-grid">
           <PreviewStat label="Total" value={detail.totalRecipients} />
@@ -1871,6 +2008,42 @@ function formatDate(value: string | null) {
   return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(new Date(value));
 }
 
+function CampaignPauseBanner({ reason }: { reason: string }) {
+  const lower = reason.toLowerCase();
+  const isConnection = lower.includes("connection") || lower.includes("disconnected") || lower.includes("offline");
+  const isLimit = lower.includes("limit") || lower.includes("quota");
+
+  let title = "Campaign Paused";
+  let description = reason;
+  let action: ReactNode = null;
+
+  if (isConnection) {
+    title = "Campaign Paused — WhatsApp Connection Lost";
+    description = "The WhatsApp session was disconnected during sending. Please check your connection state and resume the campaign.";
+    action = (
+      <Link to="/whatsapp" className="campaign-btn campaign-btn--sm campaign-btn--secondary" style={{ marginTop: "8px", display: "inline-flex" }}>
+        Check WhatsApp Connection →
+      </Link>
+    );
+  } else if (isLimit) {
+    title = "Campaign Paused — Daily Limit Reached";
+    description = "You have reached your daily send limit. Paused messages will resume when your limit resets.";
+    action = (
+      <Link to="/billing" className="campaign-btn campaign-btn--sm campaign-btn--secondary" style={{ marginTop: "8px", display: "inline-flex" }}>
+        View Plan & Limits →
+      </Link>
+    );
+  }
+
+  return (
+    <div style={{ background: "#FEF2F2", border: "1px solid #FCA5A5", borderRadius: "10px", padding: "14px 16px", marginBottom: "16px", color: "#991B1B" }}>
+      <div style={{ fontWeight: 600, fontSize: "14px", marginBottom: "4px" }}>⚠️ {title}</div>
+      <div style={{ fontSize: "13px", opacity: 0.9 }}>{description}</div>
+      {action}
+    </div>
+  );
+}
+
 function formatDateTime(value: string | null) {
   if (!value) return "";
   return new Intl.DateTimeFormat("en-US", {
@@ -1889,6 +2062,7 @@ function formatTime(value: string | null) {
 
 function formatRecipientError(raw: string) {
   if (!raw) return "";
+  const lower = raw.toLowerCase();
   if (raw.includes("[object Object]")) return "Send failed - invalid phone format";
   if (raw.toLowerCase().includes("phone") && raw.includes("400")) return "Invalid phone number - include country code";
   return raw;

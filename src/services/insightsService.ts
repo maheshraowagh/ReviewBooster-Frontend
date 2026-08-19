@@ -1,6 +1,6 @@
 import api, { type ApiResponse } from '../lib/api';
 
-export type Period = 'week' | 'month' | 'year';
+export type Period = 'week' | 'month' | 'year' | 'custom';
 
 export interface AtRiskCustomer {
   feedbackId: string;
@@ -54,8 +54,12 @@ export interface SentimentData {
 
 export const insightsService = {
 
-  getSentiment: async (period: Period): Promise<SentimentData> => {
-    const res = await api.get<ApiResponse<SentimentData>>(`/dashboard/sentiment?period=${period}`);
+  getSentiment: async (period: Period, startDate?: string, endDate?: string): Promise<SentimentData> => {
+    const params = new URLSearchParams({ period });
+    if (startDate) params.set('startDate', startDate);
+    if (endDate) params.set('endDate', endDate);
+
+    const res = await api.get<ApiResponse<SentimentData>>(`/dashboard/sentiment?${params.toString()}`);
     if (!res.data.success || !res.data.data) {
       throw new Error(res.data.error?.message || "Failed to load sentiment data");
     }

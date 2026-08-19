@@ -18,7 +18,7 @@ const PLAN_FEATURES: Record<string, string[]> = {
     '1 Location',
     'Unlimited QR scans',
     'AI review generation',
-    '500 WhatsApp msgs/mo',
+    '1,000 WhatsApp msgs/mo',
     'Campaign management',
     'Advanced analytics',
     'Priority support',
@@ -770,7 +770,7 @@ export default function BillingPage() {
                 <tr>
                   <td className="rb-comparison-table__feature-name">WhatsApp messages</td>
                   <td>—</td>
-                  <td>500 / month</td>
+                  <td>1,000 / month</td>
                   <td>2,000 / month</td>
                   <td>Unlimited</td>
                 </tr>

@@ -35,6 +35,7 @@ const AdminDashboardPage = lazy(() => import("./pages/admin/AdminDashboardPage")
 const AdminBusinessesPage = lazy(() => import("./pages/admin/AdminBusinessesPage"));
 const AdminUsersPage = lazy(() => import("./pages/admin/AdminUsersPage"));
 const AdminActivityPage = lazy(() => import("./pages/admin/AdminActivityPage"));
+const AdminFeatureRequestsPage = lazy(() => import("./pages/admin/AdminFeatureRequestsPage"));
 
 // Minimal loading spinner
 function PageLoader() {
@@ -102,6 +103,7 @@ export default function App() {
                 <Route path="/admin/businesses" element={<AdminBusinessesPage />} />
                 <Route path="/admin/users" element={<AdminUsersPage />} />
                 <Route path="/admin/activity" element={<AdminActivityPage />} />
+                <Route path="/admin/feature-requests" element={<AdminFeatureRequestsPage />} />
               </Route>
             </Route>
 

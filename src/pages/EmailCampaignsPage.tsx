@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useMemo, useEffect } from "react";
 import "./email-campaigns.css";
 import {
   useEmailCampaigns,
@@ -81,6 +81,7 @@ function EmailCampaignWizard({ onClose, onCreated }: WizardProps) {
   ]);
   const [showBulkPaste, setShowBulkPaste] = useState(false);
   const [bulkPasteText, setBulkPasteText] = useState("");
+  const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
   const [validation, setValidation] = useState<ValidationResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -123,6 +124,15 @@ function EmailCampaignWizard({ onClose, onCreated }: WizardProps) {
     setShowBulkPaste(false);
   };
 
+  const handleRemoveUploadedFile = () => {
+    setUploadedFileName(null);
+    setValidation(null);
+    setError("");
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
   async function handleFileUpload(file: File) {
     setError("");
     setValidation(null);
@@ -130,8 +140,10 @@ function EmailCampaignWizard({ onClose, onCreated }: WizardProps) {
     try {
       const data = await importCsvMut.mutateAsync({ file });
       setValidation(data);
+      setUploadedFileName(file.name);
     } catch (err: any) {
       setError(err.message || "Upload failed");
+      setUploadedFileName(null);
     }
     setLoading(false);
   }
@@ -177,8 +189,25 @@ function EmailCampaignWizard({ onClose, onCreated }: WizardProps) {
     customMessage: '',
     buttonText: 'Leave a Review →',
   });
-  const [selectedProvider, setSelectedProvider] = useState<'platform' | 'gmail'>('platform');
   const { data: business } = useCurrentBusiness();
+  const [selectedProvider, setSelectedProvider] = useState<'platform' | 'gmail'>(() =>
+    business?.gmailConnected ? 'gmail' : 'platform'
+  );
+  const [replyToEmail, setReplyToEmail] = useState<string>(() =>
+    business?.contactEmail || business?.gmailEmail || ''
+  );
+
+  useEffect(() => {
+    if (business) {
+      if (!replyToEmail) {
+        setReplyToEmail(business.contactEmail || business.gmailEmail || '');
+      }
+      // If business was not loaded initially, sync provider when connected
+      if (business.gmailConnected && selectedProvider === 'platform') {
+        setSelectedProvider('gmail');
+      }
+    }
+  }, [business?.gmailConnected, business?.contactEmail, business?.gmailEmail]);
 
   // Keep emailSubject state synced with templateConfig
   const handleTemplateChange = (cfg: EmailTemplateConfig) => {
@@ -201,6 +230,7 @@ function EmailCampaignWizard({ onClose, onCreated }: WizardProps) {
         greeting: templateConfig.greeting,
         customMessage: templateConfig.customMessage,
         buttonText: templateConfig.buttonText,
+        replyTo: replyToEmail.trim() || undefined,
       });
       setCreatedId(data.campaign._id);
       setStep(4);
@@ -278,8 +308,21 @@ function EmailCampaignWizard({ onClose, onCreated }: WizardProps) {
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                      <span style={{ fontSize: '14px', fontWeight: 600, color: '#1A1A1A', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span>✉️</span> Gmail OAuth
+                      <span style={{ fontSize: '14px', fontWeight: 600, color: '#1A1A1A', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <svg width="20" height="16" viewBox="0 0 75 56" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M7.5 0h7.8L37.5 22.1 59.7 0h7.8c4.1 0 7.5 3.4 7.5 7.5v41c0 4.1-3.4 7.5-7.5 7.5h-7.5V14L37.5 36.2 15 14v42H7.5C3.4 56 0 52.6 0 48.5v-41C0 3.4 3.4 0 7.5 0z" fill="#EA4335"/>
+                          <path d="M0 7.5C0 3.4 3.4 0 7.5 0h7.8L37.5 22.1V56H7.5C3.4 56 0 52.6 0 48.5V7.5z" fill="#4285F4" opacity="0"/>
+                          <path d="M0 7.5V48.5C0 52.6 3.4 56 7.5 56H15V14L0 7.5z" fill="#4285F4"/>
+                          <path d="M75 7.5V48.5c0 4.1-3.4 7.5-7.5 7.5H60V14l15-6.5z" fill="#34A853"/>
+                          <path d="M75 7.5C75 3.4 71.6 0 67.5 0h-7.8L37.5 22.1 15.3 0H7.5C3.4 0 0 3.4 0 7.5L37.5 36.2 75 7.5z" fill="#EA4335"/>
+                          <path d="M0 7.5L37.5 36.2V22.1L15.3 0H7.5C3.4 0 0 3.4 0 7.5z" fill="#C5221F" opacity="0.8"/>
+                          <path d="M75 7.5L37.5 36.2V22.1L59.7 0h7.8C71.6 0 75 3.4 75 7.5z" fill="#34A853" opacity="0"/>
+                          <path d="M60 56h7.5c4.1 0 7.5-3.4 7.5-7.5V7.5L60 14v42z" fill="#34A853"/>
+                          <path d="M15 56H7.5C3.4 56 0 52.6 0 48.5V7.5L15 14v42z" fill="#4285F4"/>
+                          <path d="M37.5 36.2L75 7.5 60 14 37.5 36.2z" fill="#FBBC04"/>
+                          <path d="M37.5 36.2L0 7.5 15 14 37.5 36.2z" fill="#C5221F"/>
+                        </svg>
+                        Gmail
                       </span>
                       {business?.gmailConnected ? (
                         <span className="ec-status-badge running" style={{ fontSize: '10px' }}>Connected</span>
@@ -295,7 +338,7 @@ function EmailCampaignWizard({ onClose, onCreated }: WizardProps) {
                     {!business?.gmailConnected && (
                       <button type="button" onClick={async (e) => {
                         e.stopPropagation();
-                        try { const url = await getGoogleAuthUrl(); window.location.href = url; } catch {}
+                        try { const url = await getGoogleAuthUrl(); window.location.href = url; } catch { }
                       }} style={{
                         marginTop: '12px', fontSize: '12px', fontWeight: 600, color: '#1A1A1A',
                         background: '#fff', border: '1px solid #E3E1D9', borderRadius: '8px',
@@ -320,10 +363,21 @@ function EmailCampaignWizard({ onClose, onCreated }: WizardProps) {
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                      <span style={{ fontSize: '14px', fontWeight: 600, color: '#1A1A1A', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span>⚡</span> Default Server
+                      <span style={{ fontSize: '14px', fontWeight: 600, color: '#1A1A1A', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <defs>
+                            <linearGradient id="rb-grad" x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse">
+                              <stop stopColor="#6366F1"/>
+                              <stop offset="1" stopColor="#8B5CF6"/>
+                            </linearGradient>
+                          </defs>
+                          <rect width="24" height="24" rx="6" fill="url(#rb-grad)"/>
+                          <path d="M6 9L12 13L18 9" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                          <rect x="5" y="7" width="14" height="10" rx="2" stroke="#fff" strokeWidth="1.5"/>
+                        </svg>
+                        ReviewBooster Mail
                       </span>
-                      <span style={{ fontSize: '10px', fontWeight: 600, padding: '2px 8px', borderRadius: '99px', background: '#E3F2FD', color: '#1976D2' }}>Default</span>
+                      <span style={{ fontSize: '10px', fontWeight: 600, padding: '2px 8px', borderRadius: '99px', background: '#EEF2FF', color: '#6366F1' }}>Built-in</span>
                     </div>
                     <p style={{ fontSize: '12px', color: '#6B6B63', margin: 0, lineHeight: 1.5 }}>
                       Sends as "{business?.name || 'Your Business'}" with your logo. Customer replies go to {business?.contactEmail || 'your email'}.
@@ -331,6 +385,30 @@ function EmailCampaignWizard({ onClose, onCreated }: WizardProps) {
                   </div>
                 </div>
               </div>
+
+              {/* Reply-To Email Address — hidden when Gmail is selected (replies go to Gmail inbox) */}
+              {selectedProvider !== 'gmail' && (
+                <div className="ec-field" style={{ marginBottom: 0 }}>
+                  <label className="ec-label" htmlFor="ec-reply-to">Reply-To Email Address</label>
+                  <p style={{ fontSize: '12px', color: '#6B6B63', margin: '2px 0 8px', lineHeight: 1.5 }}>
+                    Customer replies to campaign emails will go to this inbox.
+                    {!business?.contactEmail && !replyToEmail.trim() && (
+                      <span style={{ color: '#E67E22', fontWeight: 500 }}>
+                        {' '}⚠ Not set yet — configure it here for this campaign or set a default in Settings.
+                      </span>
+                    )}
+                  </p>
+                  <input
+                    id="ec-reply-to"
+                    className="ec-input"
+                    type="email"
+                    placeholder="e.g. contact@yourbusiness.com"
+                    value={replyToEmail}
+                    onChange={(e) => setReplyToEmail(e.target.value)}
+                    style={{ maxWidth: '420px' }}
+                  />
+                </div>
+              )}
             </div>
           )}
 
@@ -342,7 +420,7 @@ function EmailCampaignWizard({ onClose, onCreated }: WizardProps) {
                 {(["csv", "sheet", "manual"] as const).map((tab) => (
                   <button key={tab} id={`ec-import-tab-${tab}`}
                     className={`ec-import-tab${importTab === tab ? " active" : ""}`}
-                    onClick={() => { setImportTab(tab); setValidation(null); setError(""); }}>
+                    onClick={() => { setImportTab(tab); setError(""); }}>
                     {tab === "csv" ? "📄 Upload CSV" : tab === "sheet" ? "📊 Google Sheet" : "✏️ Type manually"}
                   </button>
                 ))}
@@ -351,28 +429,126 @@ function EmailCampaignWizard({ onClose, onCreated }: WizardProps) {
               {/* CSV upload */}
               {importTab === "csv" && (
                 <>
-                  <div className="ec-upload-area"
-                    onClick={() => fileInputRef.current?.click()}
-                    onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add("drag-over"); }}
-                    onDragLeave={(e) => e.currentTarget.classList.remove("drag-over")}
-                    onDrop={(e) => {
-                      e.preventDefault();
-                      e.currentTarget.classList.remove("drag-over");
-                      const file = e.dataTransfer.files[0];
-                      if (file) handleFileUpload(file);
+                  {uploadedFileName ? (
+                    <div style={{
+                      background: '#F9F8F5',
+                      border: '1px dashed #1A1A1A',
+                      borderRadius: '12px',
+                      padding: '20px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '16px'
                     }}>
-                    <div className="ec-upload-icon">
-                      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                        <polyline points="17 8 12 3 7 8" />
-                        <line x1="12" y1="3" x2="12" y2="15" />
-                      </svg>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                        <div style={{
+                          width: '44px',
+                          height: '44px',
+                          borderRadius: '10px',
+                          background: '#E8F5E9',
+                          color: '#2E7D32',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '22px'
+                        }}>
+                          📄
+                        </div>
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ fontSize: '14px', fontWeight: 600, color: '#1A1A1A' }}>{uploadedFileName}</span>
+                            <span style={{ fontSize: '11px', fontWeight: 600, padding: '2px 8px', borderRadius: '12px', background: '#E8F5E9', color: '#2E7D32' }}>
+                              Uploaded & Validated
+                            </span>
+                          </div>
+                          <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#6B6B63' }}>
+                            {validation ? `${validation.valid.length} valid recipient(s) ready` : 'File uploaded successfully'}
+                          </p>
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button
+                          type="button"
+                          className="ec-btn ec-btn-ghost"
+                          onClick={() => {
+                            if (fileInputRef.current) fileInputRef.current.value = "";
+                            fileInputRef.current?.click();
+                          }}
+                          style={{ fontSize: '12px', padding: '6px 12px' }}
+                        >
+                          Change File
+                        </button>
+                        <button
+                          type="button"
+                          className="ec-btn ec-btn-ghost"
+                          onClick={handleRemoveUploadedFile}
+                          style={{ fontSize: '12px', padding: '6px 12px', color: '#C0392B' }}
+                        >
+                          Remove
+                        </button>
+                      </div>
                     </div>
-                    <p className="ec-upload-text"><strong>Click to upload</strong> or drag and drop</p>
-                    <p className="ec-upload-hint">CSV file with an <code>email</code> column (and optional <code>name</code>)</p>
-                  </div>
+                  ) : (
+                    <div className="ec-upload-area"
+                      onClick={() => {
+                        if (fileInputRef.current) fileInputRef.current.value = "";
+                        fileInputRef.current?.click();
+                      }}
+                      onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add("drag-over"); }}
+                      onDragLeave={(e) => e.currentTarget.classList.remove("drag-over")}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        e.currentTarget.classList.remove("drag-over");
+                        const file = e.dataTransfer.files[0];
+                        if (file) handleFileUpload(file);
+                      }}>
+                      <div className="ec-upload-icon">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                          <polyline points="17 8 12 3 7 8" />
+                          <line x1="12" y1="3" x2="12" y2="15" />
+                        </svg>
+                      </div>
+                      <p className="ec-upload-text"><strong>Click to upload</strong> or drag and drop</p>
+                      <p className="ec-upload-hint">CSV file with an <code>email</code> column (and optional <code>name</code>)</p>
+                    </div>
+                  )}
                   <input ref={fileInputRef} type="file" accept=".csv" style={{ display: "none" }}
                     onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileUpload(f); }} />
+
+                  {/* Format Helper Card */}
+                  <div style={{ background: '#F9F8F5', border: '1px solid #E3E1D9', borderRadius: '10px', padding: '14px', marginTop: '14px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
+                      <span style={{ fontSize: '12px', fontWeight: 600, color: '#1A1A1A', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        💡 Expected CSV Format
+                      </span>
+                      <button
+                        type="button"
+                        className="ec-btn ec-btn-ghost"
+                        onClick={() => {
+                          const content = "name,email\nMahesh Wagh,mahesh@example.com\nAkash Singh,akash@example.com\nJohn Doe,john@example.com";
+                          const blob = new Blob([content], { type: "text/csv;charset=utf-8;" });
+                          const url = URL.createObjectURL(blob);
+                          const a = document.createElement("a");
+                          a.href = url;
+                          a.download = "sample_email_contacts.csv";
+                          a.click();
+                          URL.revokeObjectURL(url);
+                        }}
+                        style={{ fontSize: '11px', padding: '4px 10px', color: '#1A1A1A', border: '1px solid #E3E1D9' }}
+                      >
+                        📥 Download Sample CSV
+                      </button>
+                    </div>
+                    <p style={{ margin: '0 0 8px', fontSize: '12px', color: '#6B6B63', lineHeight: 1.4 }}>
+                      First row must contain column headers. Requires an <code>email</code> column (or <code>email address</code>) and optional <code>name</code> column.
+                    </p>
+                    <div style={{ background: '#fff', border: '1px solid #E3E1D9', borderRadius: '6px', padding: '8px 12px', fontFamily: 'monospace', fontSize: '11px', color: '#333' }}>
+                      <div style={{ fontWeight: 700, color: '#1A1A1A' }}>name, email</div>
+                      <div style={{ color: '#6B6B63' }}>Mahesh Wagh, mahesh@example.com</div>
+                      <div style={{ color: '#6B6B63' }}>Akash Singh, akash@example.com</div>
+                    </div>
+                  </div>
                 </>
               )}
 
@@ -392,9 +568,24 @@ function EmailCampaignWizard({ onClose, onCreated }: WizardProps) {
                       {loading ? "Fetching…" : "Fetch"}
                     </button>
                   </div>
-                  <p style={{ margin: "8px 0 0", fontSize: "12px", color: "#A3A39A" }}>
-                    First row must be column headers. Include an <code>email</code> column (and optionally <code>name</code>).
-                  </p>
+                  
+                  {/* Google Sheet Format Helper */}
+                  <div style={{ background: '#F9F8F5', border: '1px solid #E3E1D9', borderRadius: '10px', padding: '14px', marginTop: '14px' }}>
+                    <span style={{ fontSize: '12px', fontWeight: 600, color: '#1A1A1A', display: 'block', marginBottom: '8px' }}>
+                      💡 How to format & share your Google Sheet:
+                    </span>
+                    <ol style={{ margin: '0 0 10px', paddingLeft: '18px', fontSize: '12px', color: '#6B6B63', lineHeight: 1.6 }}>
+                      <li>Row 1 must be headers with an <code>email</code> column (or <code>email address</code>) and optional <code>name</code>.</li>
+                      <li>In Google Sheets, click the <strong>Share</strong> button (top right).</li>
+                      <li>Under General Access, select <strong>"Anyone with the link can view"</strong>.</li>
+                      <li>Copy the sheet URL, paste it above, and click <strong>Fetch</strong>.</li>
+                    </ol>
+                    <div style={{ background: '#fff', border: '1px solid #E3E1D9', borderRadius: '6px', padding: '8px 12px', fontFamily: 'monospace', fontSize: '11px', color: '#333' }}>
+                      <div style={{ fontWeight: 700, color: '#1A1A1A' }}>name | email</div>
+                      <div style={{ color: '#6B6B63' }}>Mahesh Wagh | mahesh@example.com</div>
+                      <div style={{ color: '#6B6B63' }}>Akash Singh | akash@example.com</div>
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -461,7 +652,7 @@ function EmailCampaignWizard({ onClose, onCreated }: WizardProps) {
                                 type="text"
                                 value={row.name}
                                 onChange={(e) => handleRowChange(row.id, 'name', e.target.value)}
-                                placeholder="e.g. Mahesh Wagh"
+                                placeholder="e.g. john"
                                 style={{
                                   width: '100%', padding: '7px 10px', border: '1px solid #E3E1D9', borderRadius: '6px',
                                   fontSize: '13px', color: '#1A1A1A', background: '#fff', boxSizing: 'border-box'
@@ -473,7 +664,7 @@ function EmailCampaignWizard({ onClose, onCreated }: WizardProps) {
                                 type="email"
                                 value={row.email}
                                 onChange={(e) => handleRowChange(row.id, 'email', e.target.value)}
-                                placeholder="e.g. maheshgo2079@gmail.com"
+                                placeholder="e.g. john@gmail.com"
                                 style={{
                                   width: '100%', padding: '7px 10px', border: '1px solid #E3E1D9', borderRadius: '6px',
                                   fontSize: '13px', color: '#1A1A1A', background: '#fff', boxSizing: 'border-box'
@@ -582,7 +773,13 @@ function EmailCampaignWizard({ onClose, onCreated }: WizardProps) {
                     <div className="ec-validation-row">
                       <span className="label">Sending Method</span>
                       <span className="count" style={{ color: selectedProvider === 'gmail' ? "#10B981" : "#3B82F6" }}>
-                        {selectedProvider === 'gmail' ? `✉️ Gmail (${business?.gmailEmail})` : `⚡ Default Server ("${business?.name}")`}
+                        {selectedProvider === 'gmail' ? `Gmail (${business?.gmailEmail})` : `ReviewBooster Mail ("${business?.name}")`}
+                      </span>
+                    </div>
+                    <div className="ec-validation-row">
+                      <span className="label">Reply-To</span>
+                      <span style={{ fontSize: "13px", color: "#1A1A1A", fontWeight: 500 }}>
+                        {replyToEmail.trim() || business?.contactEmail || business?.gmailEmail || 'Default server noreply'}
                       </span>
                     </div>
                     <div className="ec-validation-row">
@@ -665,6 +862,47 @@ function EmailCampaignWizard({ onClose, onCreated }: WizardProps) {
 
 // ── Detail Panel ───────────────────────────────────────────────────────────────
 
+function EmailPauseBanner({ reason }: { reason: string }) {
+  const lower = (reason || '').toLowerCase();
+  const isReauth = lower.includes("gmail_reauth") || lower.includes("reconnect") || lower.includes("invalid_grant") || lower.includes("token");
+  const isRateLimit = lower.includes("rate_limit") || lower.includes("limit");
+
+  let title = "Campaign Paused";
+  let description = reason || "Campaign was paused during send execution.";
+  let action: React.ReactNode = null;
+
+  if (isReauth) {
+    title = "Campaign Paused — Gmail Authentication Lost";
+    description = "Your Gmail connection expired or was revoked. Reconnect your Gmail account to resume email sending.";
+    action = (
+      <button
+        type="button"
+        className="ec-btn ec-btn-sm ec-btn-secondary"
+        style={{ marginTop: "8px" }}
+        onClick={async () => {
+          try {
+            const url = await getGoogleAuthUrl();
+            window.location.href = url;
+          } catch {}
+        }}
+      >
+        Reconnect Gmail Account →
+      </button>
+    );
+  } else if (isRateLimit) {
+    title = "Campaign Paused — Gmail Sending Limit Reached";
+    description = "Gmail daily rate limit was reached. The campaign will automatically resume tomorrow when Google resets your limit.";
+  }
+
+  return (
+    <div style={{ background: "#FEF2F2", border: "1px solid #FCA5A5", borderRadius: "10px", padding: "14px 16px", marginBottom: "16px", color: "#991B1B" }}>
+      <div style={{ fontWeight: 600, fontSize: "14px", marginBottom: "4px" }}>⚠️ {title}</div>
+      <div style={{ fontSize: "13px", opacity: 0.9 }}>{description}</div>
+      {action}
+    </div>
+  );
+}
+
 function CampaignDetailPanel({
   campaignId,
   onClose,
@@ -673,15 +911,19 @@ function CampaignDetailPanel({
   const { data: detail, isLoading } = useEmailCampaign(campaignId);
   const actionMut = useEmailCampaignAction();
   const [actionLoading, setActionLoading] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   async function toggleRunning() {
     if (!detail) return;
     setActionLoading(true);
+    setActionError(null);
     const isRunning = detail.campaign.status === "running";
     try {
       await actionMut.mutateAsync({ id: campaignId, action: isRunning ? "pause" : "start" });
       onAction();
-    } catch {/* ignore */ }
+    } catch (err: any) {
+      setActionError(err.message || `Failed to ${isRunning ? "pause" : "start"} campaign.`);
+    }
     setActionLoading(false);
   }
 
@@ -717,7 +959,7 @@ function CampaignDetailPanel({
             <div style={{ marginTop: "6px", display: "flex", gap: "6px", alignItems: "center" }}>
               <StatusBadge status={c.status} />
               <span className="text-[10px] font-medium px-2 py-0.5 rounded-full border bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700">
-                {c.sendingConfig?.provider === 'gmail' ? '✉️ Gmail' : '⚡ Default Server'}
+                {c.sendingConfig?.provider === 'gmail' ? 'Gmail' : 'ReviewBooster Mail'}
               </span>
             </div>
           </div>
@@ -730,6 +972,11 @@ function CampaignDetailPanel({
         </div>
 
         <div className="ec-detail-body">
+          {/* Pause Banner */}
+          {(c.pauseReason || c.status === "paused") && (
+            <EmailPauseBanner reason={c.pauseReason || "Campaign is paused."} />
+          )}
+
           {/* Progress bar */}
           {(c.status === "running" || c.status === "paused") && (
             <div style={{ marginBottom: "20px" }}>
@@ -765,12 +1012,19 @@ function CampaignDetailPanel({
 
           {/* Action button */}
           {(c.status === "running" || c.status === "paused" || c.status === "draft") && (
-            <button id="ec-detail-toggle-btn"
-              className={`ec-btn ${c.status === "running" ? "ec-btn-secondary" : "ec-btn-primary"}`}
-              style={{ marginBottom: "24px", width: "100%", justifyContent: "center" }}
-              onClick={toggleRunning} disabled={actionLoading}>
-              {actionLoading ? "…" : c.status === "running" ? "⏸ Pause campaign" : "▶ Resume / Start"}
-            </button>
+            <div style={{ marginBottom: "24px" }}>
+              <button id="ec-detail-toggle-btn"
+                className={`ec-btn ${c.status === "running" ? "ec-btn-secondary" : "ec-btn-primary"}`}
+                style={{ width: "100%", justifyContent: "center" }}
+                onClick={toggleRunning} disabled={actionLoading}>
+                {actionLoading ? "…" : c.status === "running" ? "⏸ Pause campaign" : "▶ Resume / Start"}
+              </button>
+              {actionError && (
+                <p style={{ marginTop: "8px", fontSize: "12px", color: "#C0392B", background: "#FDF2F2", padding: "8px 12px", borderRadius: "6px", margin: "8px 0 0" }}>
+                  ⚠️ {actionError}
+                </p>
+              )}
+            </div>
           )}
 
           {/* Recipient table */}
@@ -790,7 +1044,14 @@ function CampaignDetailPanel({
                     {r.email || r.customerId?.email || "—"}
                   </td>
                   <td>{r.customerId?.name || "—"}</td>
-                  <td><StatusBadge status={r.status} /></td>
+                  <td>
+                    <StatusBadge status={r.status} />
+                    {r.lastError && (r.status === 'failed' || r.status === 'retry_scheduled') && (
+                      <span style={{ display: "block", fontSize: "11px", color: "#C0392B", marginTop: "2px" }}>
+                        {r.lastError}
+                      </span>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>

@@ -1,81 +1,26 @@
 import { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import AtRiskSection from '../components/AtRiskSection';
 import { useAtRiskData, useSentimentData } from '../hooks/queries/useInsights';
 import type {
+  AtRiskData,
   Period,
-  RatingBand,
   SentimentData,
   TopicItem,
 } from '../services/insightsService';
+
+import { DateFilterControl } from '../components/dashboard/DateFilterControl';
+
+/* ── Constants ─────────────────────────────────────────────── */
 
 const PERIODS: { key: Period; label: string }[] = [
   { key: 'week', label: '7 days' },
   { key: 'month', label: '30 days' },
   { key: 'year', label: '12 months' },
+  { key: 'custom', label: 'Custom' },
 ];
 
-const TOPICS_PER_PAGE = 6;
-
-const BAND_CONFIG: {
-  key: string;
-  label: string;
-  stars: string;
-  color: string;
-}[] = [
-  { key: 'excellent', label: 'Excellent', stars: '5 star', color: '#3f7d45' },
-  { key: 'good', label: 'Good', stars: '4 star', color: '#68a05d' },
-  { key: 'average', label: 'Average', stars: '3 star', color: '#e5a93d' },
-  { key: 'poor', label: 'Poor', stars: '1–2 star', color: '#dc5a5a' },
-];
-
-type MetricIcon = 'responses' | 'rating' | 'positive' | 'risk';
-
-function MetricIcon({ name }: { name: MetricIcon }) {
-  const common = {
-    width: 18,
-    height: 18,
-    viewBox: '0 0 24 24',
-    fill: 'none',
-    stroke: 'currentColor',
-    strokeWidth: 1.8,
-    strokeLinecap: 'round' as const,
-    strokeLinejoin: 'round' as const,
-    'aria-hidden': true,
-  };
-
-  if (name === 'rating') {
-    return (
-      <svg {...common}>
-        <path d="m12 3 2.75 5.57 6.15.9-4.45 4.33 1.05 6.12L12 17.03l-5.5 2.89 1.05-6.12L3.1 9.47l6.15-.9L12 3Z" />
-      </svg>
-    );
-  }
-
-  if (name === 'positive') {
-    return (
-      <svg {...common}>
-        <path d="M4 15.5 9 10l4 4 7-8" />
-        <path d="M15 6h5v5" />
-      </svg>
-    );
-  }
-
-  if (name === 'risk') {
-    return (
-      <svg {...common}>
-        <path d="M10.3 4.2 2.7 17a2 2 0 0 0 1.7 3h15.2a2 2 0 0 0 1.7-3L13.7 4.2a2 2 0 0 0-3.4 0Z" />
-        <path d="M12 9v4m0 3h.01" />
-      </svg>
-    );
-  }
-
-  return (
-    <svg {...common}>
-      <path d="M6 3h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9l-5 4V5a2 2 0 0 1 2-2Z" />
-      <path d="M8 8h8M8 12h5" />
-    </svg>
-  );
-}
+/* ── Pure helper functions ─────────────────────────────────── */
 
 function getAverageRating(data?: SentimentData) {
   if (!data) return 0;
@@ -90,13 +35,16 @@ function getAverageRating(data?: SentimentData) {
   return totals.count > 0 ? totals.weighted / totals.count : 0;
 }
 
-function getBand(data: SentimentData | undefined, key: string): RatingBand {
-  return data?.byRatingBand[key] ?? { min: 0, max: 0, count: 0, pct: 0 };
+function getPositiveRate(data?: SentimentData) {
+  if (!data || !data.totalFeedback) return 0;
+  const excellent = data.byRatingBand['excellent']?.count ?? 0;
+  const good = data.byRatingBand['good']?.count ?? 0;
+  return Math.round(((excellent + good) / data.totalFeedback) * 100);
 }
 
 function getTrendSummary(data: SentimentData | undefined) {
   if (!data || data.overallTrend.length < 2) {
-    return { label: 'Collecting trend data', delta: 0, tone: 'neutral' };
+    return { label: 'Collecting data', delta: 0, tone: 'neutral' as const };
   }
 
   const half = Math.max(1, Math.floor(data.overallTrend.length / 2));
@@ -115,36 +63,184 @@ function getTrendSummary(data: SentimentData | undefined) {
 
   const delta = Math.round(rate(recent) - rate(older));
   if (delta > 0) {
-    return { label: `Positive sentiment up ${delta} pts`, delta, tone: 'good' };
+    return { label: `Customer happiness improved`, delta, tone: 'good' as const };
   }
   if (delta < 0) {
     return {
-      label: `Positive sentiment down ${Math.abs(delta)} pts`,
+      label: `Customer happiness declined`,
       delta,
-      tone: 'bad',
+      tone: 'bad' as const,
     };
   }
-  return { label: 'Sentiment is holding steady', delta, tone: 'neutral' };
+  return { label: 'Customer happiness is steady', delta, tone: 'neutral' as const };
 }
 
-function topicDelta(item: TopicItem) {
-  const delta = item.count - item.prevCount;
-  const improving =
-    (item.sentiment === 'positive' && delta >= 0) ||
-    (item.sentiment === 'negative' && delta <= 0);
+/** Generates the dynamic headline and explanation for the summary section. */
+function getBusinessSummary(
+  sentimentData: SentimentData | undefined,
+  positiveRate: number,
+  averageRating: number,
+  trendTone: string,
+) {
+  if (!sentimentData || sentimentData.totalFeedback === 0) {
+    return {
+      headline: 'Not enough data yet',
+      explanation:
+        "Once you receive a few customer reviews, we'll show you how your business is doing.",
+      tone: 'neutral' as const,
+    };
+  }
 
-  return {
-    delta,
-    improving,
-    label: delta === 0 ? 'No change' : `${delta > 0 ? '+' : ''}${delta}`,
-  };
+  let headline: string;
+  let tone: 'good' | 'mixed' | 'attention' | 'neutral';
+
+  if (positiveRate >= 80 && averageRating >= 4.0) {
+    headline = 'Your customers are responding well 👍';
+    tone = 'good';
+  } else if (positiveRate >= 60) {
+    headline = 'Your business is doing okay, with room to improve';
+    tone = 'mixed';
+  } else if (positiveRate >= 40) {
+    headline = 'Customer experience needs some attention ⚠️';
+    tone = 'attention';
+  } else {
+    headline = 'Your customers are reporting issues that need action';
+    tone = 'attention';
+  }
+
+  // Add trend context
+  if (trendTone === 'good') {
+    headline += " — and it's improving";
+  } else if (trendTone === 'bad') {
+    headline = headline.replace(' 👍', '') + ' \u2014 but things are slipping';
+  }
+
+  const total = sentimentData.totalFeedback;
+  const ratingStr = averageRating > 0 ? averageRating.toFixed(1) : '—';
+  const explanation = `You received ${total} ${total === 1 ? 'response' : 'responses'} this period. Your average rating is ${ratingStr} ⭐ and ${positiveRate}% of customers rated you positively.`;
+
+  return { headline, explanation, tone };
 }
+
+/** Extracts plain-language "what this means" insights from the data. */
+function getWhatThisMeans(
+  sentimentData: SentimentData | undefined,
+  atRiskData: AtRiskData | undefined,
+  positiveRate: number,
+  trendSummary: ReturnType<typeof getTrendSummary>,
+) {
+  const insights: { type: 'good' | 'attention'; text: string }[] = [];
+
+  if (!sentimentData || sentimentData.totalFeedback === 0) return insights;
+
+  // Overall experience
+  if (positiveRate >= 75) {
+    insights.push({ type: 'good', text: 'Customers are generally happy with your business.' });
+  } else if (positiveRate >= 50) {
+    insights.push({ type: 'attention', text: "Customer experience is mixed \u2014 some are happy, some aren't." });
+  } else {
+    insights.push({ type: 'attention', text: 'Most customers are reporting a below-average experience.' });
+  }
+
+  // Trend
+  if (trendSummary.tone === 'good') {
+    insights.push({ type: 'good', text: `Customer happiness improved by ${trendSummary.delta} points compared to the earlier part of this period.` });
+  } else if (trendSummary.tone === 'bad') {
+    insights.push({ type: 'attention', text: `Customer happiness dropped by ${Math.abs(trendSummary.delta)} points compared to the earlier part of this period.` });
+  }
+
+  // Top positive topic
+  const positiveTopics = sentimentData.topicBreakdown.filter((t) => t.sentiment === 'positive');
+  if (positiveTopics.length > 0) {
+    const top = positiveTopics[0];
+    insights.push({ type: 'good', text: `Customers are consistently mentioning "${top.tag}" positively.` });
+  }
+
+  // Top negative topic
+  const negativeTopics = sentimentData.topicBreakdown.filter((t) => t.sentiment === 'negative');
+  if (negativeTopics.length > 0) {
+    const top = negativeTopics[0];
+    insights.push({ type: 'attention', text: `"${top.tag}" is a recurring concern — mentioned ${top.count} ${top.count === 1 ? 'time' : 'times'}.` });
+  }
+
+  // At-risk
+  const openCount = atRiskData?.atRiskList.filter((i) => i.recoveryStatus === 'unhandled').length ?? 0;
+  if (openCount > 0) {
+    insights.push({ type: 'attention', text: `You have ${openCount} unhappy ${openCount === 1 ? 'customer' : 'customers'} waiting for a follow-up.` });
+  }
+
+  return insights;
+}
+
+/** Generates 2–3 actionable recommendations from actual data. */
+function getRecommendations(
+  sentimentData: SentimentData | undefined,
+  atRiskData: AtRiskData | undefined,
+) {
+  const recs: { title: string; description: string; cta: string; href: string }[] = [];
+
+  const openCount = atRiskData?.atRiskList.filter((i) => i.recoveryStatus === 'unhandled').length ?? 0;
+  if (openCount > 0) {
+    recs.push({
+      title: `Respond to ${openCount} customer ${openCount === 1 ? 'issue' : 'issues'}`,
+      description: `You have ${openCount} low-rating ${openCount === 1 ? 'review' : 'reviews'} without a follow-up.`,
+      cta: 'View below',
+      href: '#recovery-queue',
+    });
+  }
+
+  if (sentimentData) {
+    const negativeTopics = sentimentData.topicBreakdown.filter((t) => t.sentiment === 'negative');
+    if (negativeTopics.length > 0) {
+      const top = negativeTopics[0];
+      recs.push({
+        title: `Address "${top.tag}" complaints`,
+        description: `${top.count} ${top.count === 1 ? 'customer' : 'customers'} mentioned this issue.`,
+        cta: 'View feedback',
+        href: '/inbox',
+      });
+    }
+
+    const positiveRate = getPositiveRate(sentimentData);
+    if (positiveRate >= 70) {
+      recs.push({
+        title: 'Encourage happy customers to leave Google reviews',
+        description: 'Your recent customers are satisfied — this is a great time to ask for reviews.',
+        cta: 'Go to dashboard',
+        href: '/',
+      });
+    }
+  }
+
+  // Always have at least one recommendation
+  if (recs.length === 0) {
+    recs.push({
+      title: 'Keep collecting feedback',
+      description: 'The more responses you gather, the better insights we can provide.',
+      cta: 'Go to dashboard',
+      href: '/',
+    });
+  }
+
+  return recs.slice(0, 3);
+}
+
+/* ── Main Component ────────────────────────────────────────── */
 
 export default function InsightsPage() {
+  const todayStr = new Date().toISOString().split('T')[0];
   const [period, setPeriod] = useState<Period>('week');
-  const [topicPage, setTopicPage] = useState(0);
+  const [startDate, setStartDate] = useState<string>(todayStr);
+  const [endDate, setEndDate] = useState<string>(todayStr);
+  const [appliedStart, setAppliedStart] = useState<string>(todayStr);
+  const [appliedEnd, setAppliedEnd] = useState<string>(todayStr);
+  const [recoveryExpanded, setRecoveryExpanded] = useState(false);
+  const [ratingDetailOpen, setRatingDetailOpen] = useState(false);
 
-  const sentiment = useSentimentData(period);
+  const activeStart = period === 'custom' ? appliedStart : undefined;
+  const activeEnd = period === 'custom' ? appliedEnd : undefined;
+
+  const sentiment = useSentimentData(period, activeStart, activeEnd);
   const atRisk = useAtRiskData();
 
   const sentimentData = sentiment.data;
@@ -153,30 +249,24 @@ export default function InsightsPage() {
     (sentiment.isLoading && !sentimentData) || (atRisk.isLoading && !atRiskData);
   const error = sentiment.error?.message || atRisk.error?.message || null;
 
+  // Computed values
   const averageRating = getAverageRating(sentimentData);
-  const positiveCount =
-    getBand(sentimentData, 'excellent').count + getBand(sentimentData, 'good').count;
-  const positiveRate = sentimentData?.totalFeedback
-    ? Math.round((positiveCount / sentimentData.totalFeedback) * 100)
-    : 0;
-  const openAtRisk =
-    atRiskData?.atRiskList.filter((item) => item.recoveryStatus === 'unhandled') ??
-    [];
-  const criticalCount = openAtRisk.filter((item) => item.rating === 1).length;
+  const positiveRate = getPositiveRate(sentimentData);
   const trendSummary = getTrendSummary(sentimentData);
+  const openAtRisk =
+    atRiskData?.atRiskList.filter((item) => item.recoveryStatus === 'unhandled') ?? [];
 
-  const topicPages = Math.max(
-    1,
-    Math.ceil((sentimentData?.topicBreakdown.length ?? 0) / TOPICS_PER_PAGE),
+  const summary = getBusinessSummary(sentimentData, positiveRate, averageRating, trendSummary.tone);
+  const whatThisMeans = getWhatThisMeans(sentimentData, atRiskData, positiveRate, trendSummary);
+  const recommendations = getRecommendations(sentimentData, atRiskData);
+
+  const positiveTopics = useMemo(
+    () => sentimentData?.topicBreakdown.filter((t) => t.sentiment === 'positive').slice(0, 3) ?? [],
+    [sentimentData],
   );
-  const safeTopicPage = Math.min(topicPage, topicPages - 1);
-  const visibleTopics = useMemo(
-    () =>
-      sentimentData?.topicBreakdown.slice(
-        safeTopicPage * TOPICS_PER_PAGE,
-        (safeTopicPage + 1) * TOPICS_PER_PAGE,
-      ) ?? [],
-    [safeTopicPage, sentimentData],
+  const negativeTopics = useMemo(
+    () => sentimentData?.topicBreakdown.filter((t) => t.sentiment === 'negative').slice(0, 3) ?? [],
+    [sentimentData],
   );
 
   const retry = () => {
@@ -186,18 +276,21 @@ export default function InsightsPage() {
 
   const changePeriod = (nextPeriod: Period) => {
     setPeriod(nextPeriod);
-    setTopicPage(0);
+  };
+
+  const handleApplyCustom = (start: string, end: string) => {
+    setAppliedStart(start);
+    setAppliedEnd(end);
   };
 
   return (
     <div className="db-page insights-page animate-fade-in">
+      {/* ── Header ──────────────────────────────────────── */}
       <header className="insights-header">
         <div>
-          <div className="insights-eyebrow">Customer intelligence</div>
           <h1 className="db-title">Insights</h1>
           <p className="db-subtitle">
-            A focused view of sentiment, recurring issues, and customers needing
-            attention.
+            How your business is doing, and what to focus on next.
           </p>
         </div>
 
@@ -208,50 +301,37 @@ export default function InsightsPage() {
               Updating
             </span>
           )}
-          <div
-            className="db-period-tabs insights-period-tabs"
-            role="tablist"
-            aria-label="Insights period"
-          >
-            {PERIODS.map(({ key, label }) => (
-              <button
-                key={key}
-                role="tab"
-                aria-selected={period === key}
-                className={`db-period-btn${period === key ? ' active' : ''}`}
-                onClick={() => changePeriod(key)}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+          <DateFilterControl
+            periods={PERIODS}
+            activePeriod={period}
+            onPeriodChange={(p) => changePeriod(p as Period)}
+            startDate={startDate}
+            endDate={endDate}
+            onStartDateChange={setStartDate}
+            onEndDateChange={setEndDate}
+            onApplyCustom={handleApplyCustom}
+          />
         </div>
       </header>
 
+      {/* ── Error state ─────────────────────────────────── */}
       {error && (
         <div className="db-error insights-error" role="alert">
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            width="18"
-            height="18"
-          >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
             <circle cx="12" cy="12" r="10" />
             <path d="M12 8v4m0 4h.01" />
           </svg>
-          <span>{error}</span>
-          <button className="db-error-retry" onClick={retry}>
-            Retry
-          </button>
+          <span>We couldn't load your insights. Please try again.</span>
+          <button className="db-error-retry" onClick={retry}>Try again</button>
         </div>
       )}
 
+      {/* ── Loading state ───────────────────────────────── */}
       {isInitialLoading ? (
         <div className="insights-loading" aria-label="Loading insights">
+          <div className="insights-skeleton insights-skeleton--summary" />
           <div className="insights-skeleton-row">
-            {[0, 1, 2, 3].map((item) => (
+            {[0, 1, 2].map((item) => (
               <div className="insights-skeleton insights-skeleton--metric" key={item} />
             ))}
           </div>
@@ -259,76 +339,157 @@ export default function InsightsPage() {
         </div>
       ) : (
         <>
+          {/* ── Section 1: Business Summary ──────────────── */}
+          <section className={`insights-summary insights-summary--${summary.tone}`} aria-label="Business summary">
+            <h2 className="insights-summary-headline">{summary.headline}</h2>
+            <p className="insights-summary-explanation">{summary.explanation}</p>
+          </section>
+
+          {/* ── Section 2: Key Numbers (3 metrics) ──────── */}
           <section className="insights-metrics" aria-label="Key metrics">
             <article className="insights-metric">
-              <span className="insights-metric-icon insights-metric-icon--green">
-                <MetricIcon name="responses" />
-              </span>
+              <span className="insights-metric-emoji">💬</span>
               <div>
-                <span className="insights-metric-label">Responses</span>
                 <strong>{sentimentData?.totalFeedback.toLocaleString() ?? 0}</strong>
-                <small>In the selected period</small>
+                <span className="insights-metric-label">Responses this period</span>
               </div>
             </article>
 
             <article className="insights-metric">
-              <span className="insights-metric-icon insights-metric-icon--amber">
-                <MetricIcon name="rating" />
-              </span>
+              <span className="insights-metric-emoji">⭐</span>
               <div>
-                <span className="insights-metric-label">Average rating</span>
                 <strong>{averageRating > 0 ? averageRating.toFixed(1) : '—'}</strong>
-                <small>{averageRating > 0 ? 'Out of 5 stars' : 'No ratings yet'}</small>
+                <span className="insights-metric-label">
+                  {averageRating > 0 ? 'Average rating out of 5' : 'No ratings yet'}
+                </span>
               </div>
             </article>
 
             <article className="insights-metric">
-              <span className="insights-metric-icon insights-metric-icon--blue">
-                <MetricIcon name="positive" />
+              <span className="insights-metric-emoji">
+                {positiveRate >= 70 ? '😊' : positiveRate >= 40 ? '😐' : '😟'}
               </span>
               <div>
-                <span className="insights-metric-label">Positive sentiment</span>
                 <strong>{positiveRate}%</strong>
+                <span className="insights-metric-label">Happy customers</span>
                 <small className={`insights-metric-trend insights-metric-trend--${trendSummary.tone}`}>
                   {trendSummary.label}
                 </small>
               </div>
             </article>
-
-            <article className="insights-metric">
-              <span className="insights-metric-icon insights-metric-icon--rose">
-                <MetricIcon name="risk" />
-              </span>
-              <div>
-                <span className="insights-metric-label">Needs attention</span>
-                <strong>{openAtRisk.length}</strong>
-                <small>
-                  {criticalCount > 0
-                    ? `${criticalCount} critical ${criticalCount === 1 ? 'case' : 'cases'}`
-                    : 'No critical cases'}
-                </small>
-              </div>
-            </article>
           </section>
 
-          <section className="insights-overview-grid">
+          {/* ── Section 3: What This Means ───────────────── */}
+          {whatThisMeans.length > 0 && (
+            <section className="insights-what-means" aria-label="What this means">
+              <h2>What this means</h2>
+              <div className="insights-what-means-list">
+                {whatThisMeans.map((insight, idx) => (
+                  <div className={`insights-insight insights-insight--${insight.type}`} key={idx}>
+                    <span className="insights-insight-icon">
+                      {insight.type === 'good' ? '✅' : '⚠️'}
+                    </span>
+                    <p>{insight.text}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Rating breakdown — expandable detail */}
+              {sentimentData && sentimentData.totalFeedback > 0 && (
+                <div className="insights-rating-detail-wrapper">
+                  <button
+                    type="button"
+                    className="insights-rating-detail-toggle"
+                    onClick={() => setRatingDetailOpen(!ratingDetailOpen)}
+                    aria-expanded={ratingDetailOpen}
+                  >
+                    {ratingDetailOpen ? 'Hide' : 'View'} rating breakdown
+                    <span className="insights-toggle-arrow">{ratingDetailOpen ? '▲' : '▼'}</span>
+                  </button>
+                  {ratingDetailOpen && (
+                    <div className="insights-rating-detail animate-fade-in">
+                      {(['excellent', 'good', 'average', 'poor'] as const).map((key) => {
+                        const band = sentimentData.byRatingBand[key] ?? { count: 0, pct: 0 };
+                        const labels: Record<string, { name: string; stars: string; color: string }> = {
+                          excellent: { name: 'Excellent', stars: '5 ★', color: '#3f7d45' },
+                          good: { name: 'Good', stars: '4 ★', color: '#68a05d' },
+                          average: { name: 'Average', stars: '3 ★', color: '#e5a93d' },
+                          poor: { name: 'Poor', stars: '1–2 ★', color: '#dc5a5a' },
+                        };
+                        const info = labels[key];
+                        return (
+                          <div className="insights-rating-row" key={key}>
+                            <div>
+                              <strong>{info.name}</strong>
+                              <span>{info.stars}</span>
+                            </div>
+                            <div className="insights-progress">
+                              <span style={{ width: `${band.pct}%`, backgroundColor: info.color }} />
+                            </div>
+                            <b>{band.pct}%</b>
+                            <small>{band.count}</small>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+            </section>
+          )}
+
+          {/* ── Sections 4 & 5: Customer Feedback + Trend ── */}
+          <section className="insights-content-grid">
+            {/* Customer Feedback */}
+            <article className="insights-card insights-card--feedback">
+              <div className="insights-card-header">
+                <h2>What your customers are saying</h2>
+              </div>
+
+              {positiveTopics.length === 0 && negativeTopics.length === 0 ? (
+                <div className="insights-empty insights-empty--compact">
+                  <strong>No topic data yet</strong>
+                  <p>Topics appear after customers submit feedback.</p>
+                </div>
+              ) : (
+                <div className="insights-feedback-lists">
+                  {positiveTopics.length > 0 && (
+                    <div className="insights-feedback-group">
+                      <h3>👍 What customers like</h3>
+                      {positiveTopics.map((topic) => (
+                        <FeedbackItem key={topic.tag} topic={topic} />
+                      ))}
+                    </div>
+                  )}
+                  {negativeTopics.length > 0 && (
+                    <div className="insights-feedback-group">
+                      <h3>⚠️ What needs attention</h3>
+                      {negativeTopics.map((topic) => (
+                        <FeedbackItem key={topic.tag} topic={topic} />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </article>
+
+            {/* Trend Chart — simplified */}
             <article className="insights-card insights-card--trend">
               <div className="insights-card-header">
                 <div>
-                  <h2>Sentiment trend</h2>
-                  <p>Positive and negative feedback volume over time</p>
+                  <h2>Your reviews over time</h2>
+                  <p className={`insights-trend-sentence insights-trend-sentence--${trendSummary.tone}`}>
+                    {trendSummary.tone === 'good'
+                      ? 'Reviews are trending positively 📈'
+                      : trendSummary.tone === 'bad'
+                        ? 'Reviews need attention 📉'
+                        : 'Reviews are holding steady →'}
+                  </p>
                 </div>
-                <span className={`insights-trend-badge insights-trend-badge--${trendSummary.tone}`}>
-                  {trendSummary.delta > 0 ? '↗' : trendSummary.delta < 0 ? '↘' : '→'}
-                  {trendSummary.label}
-                </span>
               </div>
 
               {!sentimentData || sentimentData.totalFeedback < 5 ? (
                 <div className="insights-empty">
-                  <span className="insights-empty-icon">
-                    <MetricIcon name="positive" />
-                  </span>
                   <strong>Trend needs a little more data</strong>
                   <p>
                     {sentimentData?.totalFeedback ?? 0} of 5 responses collected for
@@ -340,13 +501,8 @@ export default function InsightsPage() {
                   <div
                     className="insights-chart"
                     role="img"
-                    aria-label="Stacked bar chart of positive and negative sentiment"
+                    aria-label="Bar chart of positive and negative feedback"
                   >
-                    <div className="insights-chart-grid" aria-hidden="true">
-                      <span />
-                      <span />
-                      <span />
-                    </div>
                     {sentimentData.overallTrend.map((point, index) => {
                       const total = point.positiveCount + point.negativeCount;
                       const maxTotal = Math.max(
@@ -406,177 +562,106 @@ export default function InsightsPage() {
                       <i className="insights-legend-dot insights-legend-dot--negative" />
                       Negative
                     </span>
-                    <span className="insights-legend-note">
-                      Hover a bar for exact values
-                    </span>
                   </div>
                 </>
               )}
             </article>
-
-            <article className="insights-card insights-card--distribution">
-              <div className="insights-card-header">
-                <div>
-                  <h2>Rating mix</h2>
-                  <p>How responses are distributed</p>
-                </div>
-              </div>
-
-              <div className="insights-rating-summary">
-                <div
-                  className="insights-rating-ring"
-                  style={{
-                    background: `conic-gradient(#3f7d45 ${positiveRate * 3.6}deg, #ebe9e2 0deg)`,
-                  }}
-                  aria-label={`${positiveRate}% positive ratings`}
-                >
-                  <div>
-                    <strong>{positiveRate}%</strong>
-                    <span>positive</span>
-                  </div>
-                </div>
-                <div className="insights-rating-copy">
-                  <strong>
-                    {positiveRate >= 75
-                      ? 'Strong customer experience'
-                      : positiveRate >= 50
-                        ? 'Mixed customer experience'
-                        : 'Experience needs attention'}
-                  </strong>
-                  <p>Based on 4 and 5-star responses.</p>
-                </div>
-              </div>
-
-              <div className="insights-rating-list">
-                {BAND_CONFIG.map((bandConfig) => {
-                  const band = getBand(sentimentData, bandConfig.key);
-                  return (
-                    <div className="insights-rating-row" key={bandConfig.key}>
-                      <div>
-                        <strong>{bandConfig.label}</strong>
-                        <span>{bandConfig.stars}</span>
-                      </div>
-                      <div className="insights-progress">
-                        <span
-                          style={{
-                            width: `${band.pct}%`,
-                            backgroundColor: bandConfig.color,
-                          }}
-                        />
-                      </div>
-                      <b>{band.pct}%</b>
-                      <small>{band.count}</small>
-                    </div>
-                  );
-                })}
-              </div>
-            </article>
           </section>
 
-          <section className="insights-detail-grid">
-            <article className="insights-card insights-card--topics">
-              <div className="insights-card-header">
-                <div>
-                  <h2>What customers mention</h2>
-                  <p>Topic health and movement versus the previous period</p>
+          {/* ── Section 6: Recommendations ───────────────── */}
+          <section className="insights-recommendations" aria-label="Recommended actions">
+            <h2>What you should do next</h2>
+            <div className="insights-rec-list">
+              {recommendations.map((rec, idx) => (
+                <div className="insights-rec-item" key={idx}>
+                  <span className="insights-rec-number">{idx + 1}</span>
+                  <div className="insights-rec-content">
+                    <strong>{rec.title}</strong>
+                    <p>{rec.description}</p>
+                  </div>
+                  {rec.href.startsWith('#') ? (
+                    <button
+                      type="button"
+                      className="insights-rec-cta"
+                      onClick={() => {
+                        setRecoveryExpanded(true);
+                        setTimeout(() => {
+                          document.getElementById('recovery-queue')?.scrollIntoView({ behavior: 'smooth' });
+                        }, 100);
+                      }}
+                    >
+                      {rec.cta} →
+                    </button>
+                  ) : (
+                    <Link to={rec.href} className="insights-rec-cta">
+                      {rec.cta} →
+                    </Link>
+                  )}
                 </div>
-                <span className="insights-card-count">
-                  {sentimentData?.topicBreakdown.length ?? 0} topics
-                </span>
+              ))}
+            </div>
+          </section>
+
+          {/* ── Section 7: Recovery Queue (collapsible) ──── */}
+          <section className="insights-recovery-wrapper" id="recovery-queue" aria-label="Recovery queue">
+            <button
+              type="button"
+              className="insights-recovery-toggle"
+              onClick={() => setRecoveryExpanded(!recoveryExpanded)}
+              aria-expanded={recoveryExpanded}
+            >
+              <div>
+                <h2>Customers needing attention</h2>
+                <p>
+                  {openAtRisk.length > 0
+                    ? `${openAtRisk.length} ${openAtRisk.length === 1 ? 'case' : 'cases'} waiting for follow-up`
+                    : 'No cases needing attention right now'}
+                </p>
               </div>
-
-              {visibleTopics.length === 0 ? (
-                <div className="insights-empty insights-empty--compact">
-                  <strong>No topic data yet</strong>
-                  <p>Topics appear after customers submit feedback.</p>
-                </div>
-              ) : (
-                <div className="insights-topic-table">
-                  <div className="insights-topic-head" aria-hidden="true">
-                    <span>Topic</span>
-                    <span>Positive</span>
-                    <span>Mentions</span>
-                    <span>Change</span>
-                  </div>
-                  {visibleTopics.map((topic) => {
-                    const change = topicDelta(topic);
-                    return (
-                      <div className="insights-topic-row" key={topic.tag}>
-                        <div className="insights-topic-name">
-                          <i
-                            className={`insights-sentiment-dot insights-sentiment-dot--${topic.sentiment}`}
-                          />
-                          <div>
-                            <strong>{topic.tag}</strong>
-                            <span>{topic.sentiment} signal</span>
-                          </div>
-                        </div>
-                        <div className="insights-topic-health">
-                          <div className="insights-progress">
-                            <span
-                              style={{
-                                width: `${topic.pctPositive}%`,
-                                backgroundColor:
-                                  topic.pctPositive >= 70
-                                    ? '#3f7d45'
-                                    : topic.pctPositive >= 40
-                                      ? '#e5a93d'
-                                      : '#dc5a5a',
-                              }}
-                            />
-                          </div>
-                          <b>{topic.pctPositive}%</b>
-                        </div>
-                        <strong className="insights-topic-count">{topic.count}</strong>
-                        <span
-                          className={`insights-topic-delta insights-topic-delta--${
-                            change.delta === 0
-                              ? 'neutral'
-                              : change.improving
-                                ? 'good'
-                                : 'bad'
-                          }`}
-                        >
-                          {change.label}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              {topicPages > 1 && (
-                <div className="insights-pagination">
-                  <span>
-                    {safeTopicPage + 1} of {topicPages}
-                  </span>
-                  <div>
-                    <button
-                      type="button"
-                      onClick={() => setTopicPage((page) => Math.max(0, page - 1))}
-                      disabled={safeTopicPage === 0}
-                      aria-label="Previous topics"
-                    >
-                      ←
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setTopicPage((page) => Math.min(topicPages - 1, page + 1))
-                      }
-                      disabled={safeTopicPage === topicPages - 1}
-                      aria-label="Next topics"
-                    >
-                      →
-                    </button>
-                  </div>
-                </div>
-              )}
-            </article>
-
-            <AtRiskSection atRiskData={atRiskData} />
+              <div className="insights-recovery-toggle-right">
+                {openAtRisk.length > 0 && (
+                  <span className="insights-recovery-badge">{openAtRisk.length}</span>
+                )}
+                <span className="insights-toggle-arrow">{recoveryExpanded ? '▲' : '▼'}</span>
+              </div>
+            </button>
+            {recoveryExpanded && (
+              <div className="insights-recovery-body animate-fade-in">
+                <AtRiskSection atRiskData={atRiskData} />
+              </div>
+            )}
           </section>
         </>
+      )}
+    </div>
+  );
+}
+
+/* ── Sub-components ────────────────────────────────────────── */
+
+function FeedbackItem({ topic }: { topic: TopicItem }) {
+  const delta = topic.count - topic.prevCount;
+  const deltaLabel = delta === 0 ? '' : delta > 0 ? `↑ ${delta}` : `↓ ${Math.abs(delta)}`;
+
+  return (
+    <div className="insights-feedback-item">
+      <div>
+        <strong>{topic.tag}</strong>
+        <span className="insights-feedback-count">
+          Mentioned by {topic.count} {topic.count === 1 ? 'customer' : 'customers'}
+        </span>
+      </div>
+      {deltaLabel && (
+        <span
+          className={`insights-feedback-delta insights-feedback-delta--${
+            (topic.sentiment === 'positive' && delta >= 0) ||
+            (topic.sentiment === 'negative' && delta <= 0)
+              ? 'good'
+              : 'bad'
+          }`}
+        >
+          {deltaLabel}
+        </span>
       )}
     </div>
   );

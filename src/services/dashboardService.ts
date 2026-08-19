@@ -8,7 +8,7 @@ import api, { type ApiResponse } from '../lib/api';
 
 // ---- Types (re-exported so hooks & components can import from one place) ----
 
-export type Period = 'today' | 'yesterday' | 'week' | 'month' | 'year';
+export type Period = 'today' | 'yesterday' | 'week' | 'month' | 'year' | 'custom';
 
 export interface TrendPoint {
   label: string;
@@ -37,8 +37,16 @@ export interface OverviewData {
 
 // ---- API calls --------------------------------------------------------------
 
-export async function fetchDashboardOverview(period: Period): Promise<OverviewData> {
-  const res = await api.get<ApiResponse<OverviewData>>(`/dashboard/overview?period=${period}`);
+export async function fetchDashboardOverview(
+  period: Period,
+  startDate?: string,
+  endDate?: string,
+): Promise<OverviewData> {
+  const params = new URLSearchParams({ period });
+  if (startDate) params.set('startDate', startDate);
+  if (endDate) params.set('endDate', endDate);
+
+  const res = await api.get<ApiResponse<OverviewData>>(`/dashboard/overview?${params.toString()}`);
   if (!res.data.success || !res.data.data) {
     throw new Error(res.data.error?.message || 'Failed to load dashboard data');
   }

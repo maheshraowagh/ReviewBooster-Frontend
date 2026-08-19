@@ -842,11 +842,12 @@ export default function InboxPage() {
                     <span
                       className="inbox-table-rating"
                       style={{
-                        background: `${starColor(item.rating)}12`,
+                        background: `${starColor(item.rating)}15`,
                         color: starColor(item.rating)
                       }}
                     >
-                      {item.rating}★ {renderStars(item.rating).substring(0, item.rating)}
+                      <span>{item.rating}★</span>
+                      <span className="inbox-table-stars">{'★'.repeat(item.rating)}</span>
                     </span>
                   </td>
                   <td>

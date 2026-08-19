@@ -31,5 +31,13 @@ export const businessService = {
       throw new Error(res.data.error?.message || 'Failed to save menu items');
     }
     return res.data.data;
+  },
+
+  updateProfile: async (data: { contactEmail?: string; name?: string; city?: string; businessType?: string }): Promise<Business> => {
+    const res = await api.patch<ApiResponse<Business>>('/business/profile', data);
+    if (!res.data.success || !res.data.data) {
+      throw new Error(res.data.error?.message || 'Failed to update business profile');
+    }
+    return res.data.data;
   }
 };

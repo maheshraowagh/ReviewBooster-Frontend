@@ -32,6 +32,8 @@ export interface UsageData {
   provider?: string;
   messagingPaused?: boolean;
   messagingPauseReason?: string;
+  plan?: string;
+  planDisplayName?: string;
   warming?: { ageDays: number; warmupComplete: boolean; currentWarmupLimit: number | null };
   daily?: { sentToday: number; failedToday: number; limit: number; remaining: number };
   monthly?: { used: number; limit: number; remaining: number };

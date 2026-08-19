@@ -2,12 +2,12 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { whatsappService } from '../../services/whatsappService';
 import { queryKeys } from '../../lib/queryKeys';
 
-export function useWhatsappStatusRaw() {
+export function useWhatsappStatusRaw(refetchMs: number = 30000) {
   return useQuery({
     queryKey: queryKeys.whatsapp.status(),
     queryFn: () => whatsappService.getStatusRaw(),
     retry: false, // Don't retry status checks on failure
-    refetchInterval: 30000,
+    refetchInterval: refetchMs,
     refetchOnWindowFocus: false,
   });
 }
@@ -34,11 +34,13 @@ export function useWhatsappMessages(page: number, limit: number = 10) {
   });
 }
 
-export function useWhatsappQr() {
+export function useWhatsappQr(enabled: boolean = false) {
   return useQuery({
     queryKey: ['whatsapp', 'qr'],
     queryFn: () => whatsappService.getQr(),
     retry: false,
+    enabled,
+    refetchInterval: enabled ? 20_000 : false,
     refetchOnWindowFocus: false,
   });
 }
