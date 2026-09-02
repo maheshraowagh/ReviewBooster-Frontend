@@ -29,6 +29,13 @@ const CampaignsPage = lazy(() => import("./pages/CampaignsPage"));
 const EmailCampaignsPage = lazy(() => import("./pages/EmailCampaignsPage"));
 const LocalSeoPage = lazy(() => import("./pages/LocalSeoPage"));
 
+// Lazy-loaded legal & compliance pages
+const PrivacyPolicyPage = lazy(() => import("./pages/legal/PrivacyPolicyPage"));
+const TermsOfServicePage = lazy(() => import("./pages/legal/TermsOfServicePage"));
+const RefundPolicyPage = lazy(() => import("./pages/legal/RefundPolicyPage"));
+const ContactUsPage = lazy(() => import("./pages/legal/ContactUsPage"));
+const CookieConsentBanner = lazy(() => import("./components/CookieConsentBanner"));
+
 // Lazy-loaded admin pages
 const AdminLayout = lazy(() => import("./components/AdminLayout"));
 const AdminDashboardPage = lazy(() => import("./pages/admin/AdminDashboardPage"));
@@ -66,6 +73,12 @@ export default function App() {
               <Route path="/sign-in/*" element={<SignInPage />} />
               <Route path="/sign-up/*" element={<SignUpPage />} />
             </Route>
+
+            {/* ---- Public legal & compliance pages (no auth required) ---- */}
+            <Route path="/privacy" element={<PrivacyPolicyPage />} />
+            <Route path="/terms" element={<TermsOfServicePage />} />
+            <Route path="/refund" element={<RefundPolicyPage />} />
+            <Route path="/contact" element={<ContactUsPage />} />
 
             {/* ---- Public customer flow (no auth required) ---- */}
             <Route path="/r/:businessCode" element={<PublicReviewFlow />} />
@@ -111,6 +124,7 @@ export default function App() {
             <Route path="/" element={<RoleRedirect />} />
             <Route path="*" element={<RoleRedirect />} />
           </Routes>
+          <CookieConsentBanner />
         </Suspense>
         </SocketProvider>
       </AuthProvider>

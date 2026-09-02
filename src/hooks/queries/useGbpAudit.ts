@@ -1,9 +1,9 @@
 /**
- * React Query hook for GBP Health Audit data.
+ * React Query hooks for GBP Health Audit data.
  */
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '../../lib/queryKeys';
-import { fetchGbpAudit, refreshGbpAudit } from '../../services/gbpAuditService';
+import { fetchGbpAudit, refreshGbpAudit, fetchToneProfile } from '../../services/gbpAuditService';
 
 export function useGbpAudit() {
   return useQuery({
@@ -23,5 +23,14 @@ export function useRefreshGbpAudit() {
       // Invalidate immediately so GET /api/gbp-audit reflects processing state
       queryClient.invalidateQueries({ queryKey: queryKeys.gbpAudit.all });
     },
+  });
+}
+
+export function useToneProfile() {
+  return useQuery({
+    queryKey: queryKeys.gbpAudit.toneProfile(),
+    queryFn: fetchToneProfile,
+    staleTime: 30 * 60_000, // 30 minutes — tone profile rarely changes
+    refetchOnWindowFocus: false,
   });
 }

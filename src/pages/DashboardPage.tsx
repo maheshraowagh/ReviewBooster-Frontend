@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { QRCodeCanvas } from 'qrcode.react';
 import { useDashboardOverview } from '../hooks/queries/useDashboardOverview';
+import { useSocket } from '../providers/SocketProvider';
 import type { Period } from '../services/dashboardService';
 
 
@@ -25,12 +27,23 @@ const PERIODS: { key: Period; label: string }[] = [
 ];
 
 export default function DashboardPage() {
+  const navigate = useNavigate();
+  const { socket } = useSocket();
   const todayStr = new Date().toISOString().split('T')[0];
   const [period, setPeriod] = useState<Period>('week');
   const [startDate, setStartDate] = useState<string>(todayStr);
   const [endDate, setEndDate] = useState<string>(todayStr);
   const [appliedStart, setAppliedStart] = useState<string>(todayStr);
   const [appliedEnd, setAppliedEnd] = useState<string>(todayStr);
+  const [auditToast, setAuditToast] = useState(false);
+
+  // Listen for audit completion toast
+  useEffect(() => {
+    if (!socket) return;
+    const handler = () => setAuditToast(true);
+    socket.on('gbp-audit:ready', handler);
+    return () => { socket.off('gbp-audit:ready', handler); };
+  }, [socket]);
 
   const activeStart = period === 'custom' ? appliedStart : undefined;
   const activeEnd = period === 'custom' ? appliedEnd : undefined;
@@ -49,6 +62,18 @@ export default function DashboardPage() {
 
   return (
     <div className="db-page animate-fade-in">
+      {/* ---- Audit ready toast ---- */}
+      {auditToast && (
+        <div className="db-audit-toast animate-slide-down">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#2E7D32" strokeWidth="2" width="20" height="20" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" />
+          </svg>
+          <span>Your Business Health Audit is ready!</span>
+          <button className="db-audit-toast__cta" onClick={() => { setAuditToast(false); navigate('/local-seo'); }}>View Results</button>
+          <button className="db-audit-toast__close" onClick={() => setAuditToast(false)} aria-label="Dismiss">×</button>
+        </div>
+      )}
+
       {/* ---- Top bar ---- */}
       <div className="db-topbar">
         <div>

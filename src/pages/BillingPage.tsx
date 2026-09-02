@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import {
   useBilling,
   loadRazorpayScript,
@@ -864,13 +865,25 @@ export default function BillingPage() {
             <p className="rb-support-card__desc">Questions about your subscription, invoices, or custom plan?</p>
           </div>
           <a
-            href="mailto:support@reviewboost.app?subject=Billing%20Inquiry"
+            href="mailto:billing@reviewbooster.in?subject=Billing%20Inquiry"
             className="rb-btn rb-btn--primary"
             style={{ textDecoration: 'none', color: '#ffffff', flexShrink: 0 }}
           >
             Contact Support
           </a>
         </div>
+      </div>
+
+      {/* ─── Legal & Compliance Terms Notice ─── */}
+      <div style={{ textAlign: 'center', margin: '2rem 0 1rem', fontSize: '0.8125rem', color: 'var(--color-text-secondary)' }}>
+        All subscriptions are processed securely by Razorpay and protected by our 7-day money-back guarantee.
+        <br />
+        By subscribing, you agree to our{' '}
+        <Link to="/terms" style={{ color: 'var(--color-brand)', textDecoration: 'underline' }}>Terms of Service</Link>
+        {', '}
+        <Link to="/refund" style={{ color: 'var(--color-brand)', textDecoration: 'underline' }}>Refund Policy</Link>
+        {', and '}
+        <Link to="/privacy" style={{ color: 'var(--color-brand)', textDecoration: 'underline' }}>Privacy Policy</Link>.
       </div>
 
       {/* ─── Cancel confirmation modal ─── */}

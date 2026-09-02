@@ -6,7 +6,7 @@ import { useAuthStore } from "../stores/authStore";
 const NAV_ITEMS = [
   {
     to: "/dashboard",
-    label: "Overview",
+    label: "Dashboard",
     icon: (
       <svg
         viewBox="0 0 24 24"
@@ -59,7 +59,7 @@ const NAV_ITEMS = [
   },
   {
     to: "/local-seo",
-    label: "GBP Health",
+    label: "Business Health",
     icon: (
       <svg
         viewBox="0 0 24 24"
@@ -205,6 +205,24 @@ export default function Sidebar({ businessName }: SidebarProps) {
   const appUser = useAuthStore((state) => state.appUser);
   const { getToken } = useAuth();
   const [atRiskCount, setAtRiskCount] = useState(0);
+  const [auditReady, setAuditReady] = useState(false);
+
+  // Listen for audit completion via Socket.IO
+  useEffect(() => {
+    let socketInstance: any = null;
+    const connectSocket = async () => {
+      try {
+        const { io } = await import('socket.io-client');
+        const token = await getToken();
+        if (!token) return;
+        const url = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/api$/, '');
+        socketInstance = io(url, { auth: { token }, reconnectionDelay: 3000 });
+        socketInstance.on('gbp-audit:ready', () => setAuditReady(true));
+      } catch { /* ignore */ }
+    };
+    connectSocket();
+    return () => { socketInstance?.disconnect(); };
+  }, [getToken]);
 
   useEffect(() => {
     let es: EventSource | null = null;
@@ -303,12 +321,17 @@ export default function Sidebar({ businessName }: SidebarProps) {
               if (e.button === 1 || e.ctrlKey || e.metaKey) {
                 e.preventDefault();
               }
+              // Clear audit badge when visiting health page
+              if (item.to === '/local-seo') setAuditReady(false);
             }}
           >
             <span className="sidebar-nav-icon">{item.icon}</span>
             <span className="sidebar-nav-text">{item.label}</span>
             {item.hasBadge && atRiskCount > 0 && (
               <span className="sidebar-alert-badge">{atRiskCount}</span>
+            )}
+            {item.to === '/local-seo' && auditReady && (
+              <span className="sidebar-audit-badge">New</span>
             )}
           </NavLink>
         ))}
@@ -317,15 +340,15 @@ export default function Sidebar({ businessName }: SidebarProps) {
       {/* User Profile Footer */}
       <div className="sidebar-footer">
         {appUser?.role === 'admin' && (
-          <NavLink 
-            to="/admin/dashboard" 
-            style={{ 
-              display: "block", 
-              marginBottom: "1rem", 
-              color: "var(--color-brand)", 
-              fontSize: "0.9rem", 
-              fontWeight: 500, 
-              textDecoration: "none" 
+          <NavLink
+            to="/admin/dashboard"
+            style={{
+              display: "block",
+              marginBottom: "1rem",
+              color: "var(--color-brand)",
+              fontSize: "0.9rem",
+              fontWeight: 500,
+              textDecoration: "none"
             }}
           >
             🛡️ Go to Admin Panel

@@ -1,0 +1,352 @@
+/* =========================================================================
+   ReviewBooster — Legal & Compliance Pages Styling
+   ========================================================================= */
+
+.legal-layout {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: #F2F0EA;
+  color: #1A1A1A;
+  font-family: var(--font-family-sans, 'Inter', sans-serif);
+}
+
+.legal-header {
+  border-bottom: 1px solid #E3E1D9;
+  background: #FFFFFF;
+  position: sticky;
+  top: 0;
+  z-index: 40;
+}
+
+.legal-header-inner {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 16px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.legal-logo-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  color: #1A1A1A;
+  font-weight: 700;
+  font-size: 1.15rem;
+}
+
+.legal-logo-badge {
+  background: #1A1A1A;
+  color: #FFFFFF;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+  letter-spacing: 0.5px;
+}
+
+.legal-nav-links {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.legal-nav-link {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #6B6B63;
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.legal-nav-link:hover,
+.legal-nav-link.active {
+  color: #1A1A1A;
+}
+
+.legal-btn-login {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 14px;
+  border-radius: 8px;
+  background: #1A1A1A;
+  color: #FFFFFF;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 0.15s ease;
+}
+
+.legal-btn-login:hover {
+  background: #333333;
+  color: #FFFFFF;
+}
+
+.legal-main {
+  flex: 1;
+  max-width: 860px;
+  width: 100%;
+  margin: 40px auto;
+  padding: 0 24px;
+}
+
+.legal-card {
+  background: #FFFFFF;
+  border: 1px solid #E3E1D9;
+  border-radius: 16px;
+  padding: 48px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+}
+
+@media (max-width: 640px) {
+  .legal-card {
+    padding: 24px 20px;
+  }
+  .legal-main {
+    margin: 20px auto;
+  }
+}
+
+.legal-header-block {
+  border-bottom: 1px solid #E3E1D9;
+  padding-bottom: 24px;
+  margin-bottom: 32px;
+}
+
+.legal-title {
+  font-size: 2rem;
+  font-weight: 800;
+  color: #1A1A1A;
+  margin-bottom: 8px;
+  letter-spacing: -0.02em;
+}
+
+.legal-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  font-size: 0.875rem;
+  color: #6B6B63;
+}
+
+.legal-badge-tag {
+  display: inline-block;
+  background: #E9F2E7;
+  color: #2D5A31;
+  font-weight: 600;
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.legal-prose h2 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1A1A1A;
+  margin-top: 36px;
+  margin-bottom: 14px;
+  letter-spacing: -0.01em;
+}
+
+.legal-prose h3 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #2A2A2A;
+  margin-top: 24px;
+  margin-bottom: 10px;
+}
+
+.legal-prose p {
+  font-size: 0.95rem;
+  line-height: 1.7;
+  color: #4A4A45;
+  margin-bottom: 16px;
+}
+
+.legal-prose ul, .legal-prose ol {
+  margin-bottom: 20px;
+  padding-left: 24px;
+}
+
+.legal-prose li {
+  font-size: 0.95rem;
+  line-height: 1.65;
+  color: #4A4A45;
+  margin-bottom: 8px;
+}
+
+.legal-highlight-box {
+  background: #FAF9F5;
+  border: 1px solid #E3E1D9;
+  border-left: 4px solid #1A1A1A;
+  border-radius: 8px;
+  padding: 16px 20px;
+  margin: 24px 0;
+  font-size: 0.925rem;
+  color: #333333;
+}
+
+.legal-highlight-box strong {
+  color: #1A1A1A;
+}
+
+.legal-contact-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+  margin: 24px 0;
+}
+
+.legal-contact-card {
+  background: #FAF9F5;
+  border: 1px solid #E3E1D9;
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.legal-contact-card-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #6B6B63;
+  margin-bottom: 8px;
+}
+
+.legal-contact-card-value {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1A1A1A;
+  word-break: break-word;
+}
+
+/* Footer */
+.legal-footer {
+  border-top: 1px solid #E3E1D9;
+  background: #FFFFFF;
+  padding: 32px 24px;
+  margin-top: auto;
+}
+
+.legal-footer-inner {
+  max-width: 960px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-items: center;
+  text-align: center;
+}
+
+@media (min-width: 640px) {
+  .legal-footer-inner {
+    flex-direction: row;
+    justify-content: space-between;
+    text-align: left;
+  }
+}
+
+.legal-footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+}
+
+.legal-footer-link {
+  font-size: 0.825rem;
+  color: #6B6B63;
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.legal-footer-link:hover {
+  color: #1A1A1A;
+}
+
+.legal-footer-copy {
+  font-size: 0.825rem;
+  color: #A3A39A;
+}
+
+/* Cookie banner */
+.cookie-banner {
+  position: fixed;
+  bottom: 24px;
+  left: 24px;
+  right: 24px;
+  max-width: 520px;
+  background: #1A1A1A;
+  color: #FFFFFF;
+  border-radius: 16px;
+  padding: 20px 24px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.25);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.cookie-text {
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: #D6D6D0;
+}
+
+.cookie-text a {
+  color: #A5D6A7;
+  text-decoration: underline;
+}
+
+.cookie-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.cookie-btn-accept {
+  background: #FFFFFF;
+  color: #1A1A1A;
+  border: none;
+  padding: 8px 18px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.cookie-btn-accept:hover {
+  background: #E3E1D9;
+}
+
+.cookie-btn-decline {
+  background: transparent;
+  color: #A3A39A;
+  border: 1px solid #444444;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.cookie-btn-decline:hover {
+  color: #FFFFFF;
+  border-color: #888888;
+}

@@ -60,13 +60,14 @@ export function useDisconnectWhatsapp() {
   return useMutation({
     mutationFn: () => whatsappService.disconnect(),
     onSuccess: (data) => {
-      // Optimistically set disconnected state — do NOT invalidate/refetch,
-      // as Evolution may still report 'open' briefly after logout.
       queryClient.setQueryData(queryKeys.whatsapp.status(), (old: any) => ({
         ...old,
         status: 'disconnected',
         instance: data?.instance || { status: 'disconnected' },
+        liveStatus: null,
       }));
+      queryClient.setQueryData(['whatsapp', 'status-string'], 'disconnected');
+      queryClient.invalidateQueries({ queryKey: queryKeys.whatsapp.all, refetchType: 'none' });
     },
   });
 }

@@ -1,32 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { getGoogleAuthUrl, getGmailStatus, disconnectGmail, GmailStatus } from '../services/googleAuthService';
+import { getGoogleAuthUrl, GmailStatus } from '../services/googleAuthService';
+import { useGmailStatus, useDisconnectGmail } from '../hooks/queries/useGoogleAuth';
 
 interface GmailConnectCardProps {
   onStatusChange?: (status: GmailStatus) => void;
 }
 
 export const GmailConnectCard: React.FC<GmailConnectCardProps> = ({ onStatusChange }) => {
-  const [status, setStatus] = useState<GmailStatus | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
+  const { data: status, isLoading: loading, error: queryError } = useGmailStatus();
+  const disconnectMut = useDisconnectGmail();
   const [actionLoading, setActionLoading] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const fetchStatus = async () => {
-    try {
-      setLoading(true);
-      const res = await getGmailStatus();
-      setStatus(res);
-      if (onStatusChange) onStatusChange(res);
-    } catch (err: any) {
-      setErrorMsg(err.message || 'Failed to check Gmail connection');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    fetchStatus();
-  }, []);
+    if (status && onStatusChange) {
+      onStatusChange(status);
+    }
+  }, [status, onStatusChange]);
 
   const handleConnect = async () => {
     try {
@@ -45,14 +35,15 @@ export const GmailConnectCard: React.FC<GmailConnectCardProps> = ({ onStatusChan
     try {
       setActionLoading(true);
       setErrorMsg(null);
-      await disconnectGmail();
-      await fetchStatus();
+      await disconnectMut.mutateAsync();
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to disconnect Gmail');
     } finally {
       setActionLoading(false);
     }
   };
+
+  const combinedError = errorMsg || (queryError instanceof Error ? queryError.message : null);
 
   if (loading) {
     return (
@@ -139,9 +130,9 @@ export const GmailConnectCard: React.FC<GmailConnectCardProps> = ({ onStatusChan
         </div>
       </div>
 
-      {errorMsg && (
+      {combinedError && (
         <div style={{ marginTop: '16px', padding: '10px 14px', borderRadius: '8px', background: '#FDF2F2', border: '1px solid #F8D7DA', color: '#C0392B', fontSize: '12px' }}>
-          ⚠️ {errorMsg}
+          ⚠️ {combinedError}
         </div>
       )}
 

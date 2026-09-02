@@ -78,11 +78,42 @@ export function ConfirmationStep({
         </button>
       </div>
 
+      {/* Health Audit Callout */}
+      <div
+        style={{
+          background: '#F0F9F1',
+          border: '1px solid #C8E6C9',
+          borderRadius: '8px',
+          padding: '14px 16px',
+          marginBottom: '16px',
+          textAlign: 'left',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px',
+        }}
+      >
+        <span style={{ fontSize: '20px' }}>⚡</span>
+        <div style={{ fontSize: '13px', color: '#2E7D32', lineHeight: '1.4' }}>
+          <strong style={{ display: 'block', marginBottom: '2px' }}>Google Health Audit Started!</strong>
+          <p style={{ margin: 0, color: '#388E3C' }}>
+            We're analyzing your profile and recent reviews to generate your instant health score and optimization plan.
+          </p>
+        </div>
+      </div>
+
       <button
-        style={{ ...primaryBtnStyle, width: '100%' }}
+        style={{ ...primaryBtnStyle, width: '100%', marginBottom: '10px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}
+        onClick={() => navigate('/local-seo')}
+      >
+        <span>View Business Health Audit</span>
+        <span>→</span>
+      </button>
+
+      <button
+        style={{ ...outlineBtnStyle, width: '100%' }}
         onClick={() => navigate('/dashboard')}
       >
-        Go to dashboard →
+        Go to Overview Dashboard
       </button>
     </div>
   );

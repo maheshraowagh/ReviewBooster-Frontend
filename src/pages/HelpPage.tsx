@@ -1,61 +1,32 @@
-import { useState, useEffect } from 'react';
-import api from '../lib/api';
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
+import {
+  useFeatureRequests,
+  useCreateFeatureRequest,
+  useUpvoteFeatureRequest,
+} from '../hooks/queries/useFeatureRequests';
 import './help.css';
-
-interface FeatureRequestItem {
-  _id: string;
-  title: string;
-  category: string;
-  description: string;
-  upvotes: string[];
-  status: 'pending' | 'in-review' | 'planned' | 'completed' | 'declined';
-  createdAt: string;
-}
 
 export default function HelpPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
   const [expandedFaq, setExpandedFaq] = useState<number | null>(null);
 
-  // Feature request modal and list state
+  // Feature request modal state
   const [showModal, setShowModal] = useState(false);
   const [reqTitle, setReqTitle] = useState('');
   const [reqCategory, setReqCategory] = useState('new-feature');
   const [reqDescription, setReqDescription] = useState('');
-  const [submitting, setSubmitting] = useState(false);
   const [submitMsg, setSubmitMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  // Feature requests data
-  const [myRequests, setMyRequests] = useState<FeatureRequestItem[]>([]);
-  const [loadingRequests, setLoadingRequests] = useState(false);
-
-  useEffect(() => {
-    fetchRequests();
-  }, []);
-
-  const fetchRequests = async () => {
-    setLoadingRequests(true);
-    try {
-      const res = await api.get('/feature-requests');
-      if (res.data?.success) {
-        setMyRequests(res.data.data.myRequests || []);
-      }
-    } catch {
-      // Non-fatal if server API is launching
-    } finally {
-      setLoadingRequests(false);
-    }
-  };
+  // Feature requests data via TanStack Query
+  const { data: myRequests = [], isLoading: loadingRequests } = useFeatureRequests();
+  const createMutation = useCreateFeatureRequest();
+  const upvoteMutation = useUpvoteFeatureRequest();
 
   const handleUpvote = async (id: string) => {
     try {
-      const res = await api.post(`/feature-requests/${id}/upvote`);
-      if (res.data?.success) {
-        const updated = res.data.data;
-        setMyRequests((prev) =>
-          prev.map((item) => (item._id === updated._id ? updated : item))
-        );
-      }
+      await upvoteMutation.mutateAsync(id);
     } catch (err) {
       console.error('Failed to upvote', err);
     }
@@ -65,30 +36,24 @@ export default function HelpPage() {
     e.preventDefault();
     if (!reqTitle.trim() || !reqDescription.trim()) return;
 
-    setSubmitting(true);
     setSubmitMsg(null);
     try {
-      const res = await api.post('/feature-requests', {
+      await createMutation.mutateAsync({
         title: reqTitle,
         category: reqCategory,
         description: reqDescription,
       });
 
-      if (res.data?.success) {
-        setSubmitMsg({ type: 'success', text: 'Feature request submitted successfully!' });
-        setReqTitle('');
-        setReqDescription('');
-        setReqCategory('new-feature');
-        fetchRequests();
-        setTimeout(() => {
-          setShowModal(false);
-          setSubmitMsg(null);
-        }, 1500);
-      }
+      setSubmitMsg({ type: 'success', text: 'Feature request submitted successfully!' });
+      setReqTitle('');
+      setReqDescription('');
+      setReqCategory('new-feature');
+      setTimeout(() => {
+        setShowModal(false);
+        setSubmitMsg(null);
+      }, 1500);
     } catch {
       setSubmitMsg({ type: 'error', text: 'Failed to submit request. Please try again.' });
-    } finally {
-      setSubmitting(false);
     }
   };
 
@@ -166,11 +131,11 @@ export default function HelpPage() {
     },
     {
       category: 'Getting Started',
-      question: 'What is the Google Business Profile (GBP) Health feature?',
+      question: 'What is the Business Health feature?',
       answer: (
         <div>
           <p style={{ margin: 0 }}>
-            Our <strong>GBP Health Audit</strong> analyzes your Google listing completeness, review response speed, profile optimization, and local SEO health, giving you actionable recommendations to improve your local search rank.
+            Our <strong>Business Health Audit</strong> analyzes your Google listing completeness, review response speed, profile optimization, and local SEO health, giving you actionable recommendations to improve your local search rank.
           </p>
         </div>
       ),
@@ -193,7 +158,7 @@ export default function HelpPage() {
     const matchesCategory = activeCategory === 'All' || faq.category === activeCategory;
     const matchesSearch =
       faq.question.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (typeof faq.answer === 'string' && faq.answer.toLowerCase().includes(searchQuery.toLowerCase()));
+      (typeof faq.answer === 'string' ? (faq.answer as string).toLowerCase().includes(searchQuery.toLowerCase()) : false);
     return matchesCategory && matchesSearch;
   });
 
@@ -437,6 +402,56 @@ export default function HelpPage() {
         </div>
       </div>
 
+      {/* Legal & Compliance Section */}
+      <div className="help-faq-card" style={{ marginTop: '1.5rem' }}>
+        <h2 className="help-faq-title" style={{ marginBottom: '0.75rem' }}>Legal, Policies & Terms</h2>
+        <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '1.25rem' }}>
+          Review our service agreements, data protection policies, and refund guidelines.
+        </p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+          <Link
+            to="/privacy"
+            style={{
+              display: 'block', padding: '1rem', background: '#f9fafb', border: '1px solid #e5e7eb',
+              borderRadius: '8px', textDecoration: 'none', color: '#111827', transition: 'border-color 0.15s'
+            }}
+          >
+            <div style={{ fontWeight: 600, fontSize: '0.9rem', marginBottom: '0.25rem' }}>🔒 Privacy Policy</div>
+            <div style={{ fontSize: '0.8rem', color: '#6b7280' }}>DPDP Act & Data Protection terms</div>
+          </Link>
+          <Link
+            to="/terms"
+            style={{
+              display: 'block', padding: '1rem', background: '#f9fafb', border: '1px solid #e5e7eb',
+              borderRadius: '8px', textDecoration: 'none', color: '#111827', transition: 'border-color 0.15s'
+            }}
+          >
+            <div style={{ fontWeight: 600, fontSize: '0.9rem', marginBottom: '0.25rem' }}>📜 Terms of Service</div>
+            <div style={{ fontSize: '0.8rem', color: '#6b7280' }}>SaaS usage & acceptable use</div>
+          </Link>
+          <Link
+            to="/refund"
+            style={{
+              display: 'block', padding: '1rem', background: '#f9fafb', border: '1px solid #e5e7eb',
+              borderRadius: '8px', textDecoration: 'none', color: '#111827', transition: 'border-color 0.15s'
+            }}
+          >
+            <div style={{ fontWeight: 600, fontSize: '0.9rem', marginBottom: '0.25rem' }}>💳 Refund Policy</div>
+            <div style={{ fontSize: '0.8rem', color: '#6b7280' }}>7-day guarantee & cancellation</div>
+          </Link>
+          <Link
+            to="/contact"
+            style={{
+              display: 'block', padding: '1rem', background: '#f9fafb', border: '1px solid #e5e7eb',
+              borderRadius: '8px', textDecoration: 'none', color: '#111827', transition: 'border-color 0.15s'
+            }}
+          >
+            <div style={{ fontWeight: 600, fontSize: '0.9rem', marginBottom: '0.25rem' }}>💬 Contact & Support</div>
+            <div style={{ fontSize: '0.8rem', color: '#6b7280' }}>Direct support desk & SLAs</div>
+          </Link>
+        </div>
+      </div>
+
       {/* Feature Request Modal */}
       {showModal && (
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
@@ -525,8 +540,8 @@ export default function HelpPage() {
                 >
                   Cancel
                 </button>
-                <button type="submit" className="btn-primary-green" disabled={submitting}>
-                  {submitting ? 'Submitting...' : 'Submit Request'}
+                <button type="submit" className="btn-primary-green" disabled={createMutation.isPending}>
+                  {createMutation.isPending ? 'Submitting...' : 'Submit Request'}
                 </button>
               </div>
             </form>

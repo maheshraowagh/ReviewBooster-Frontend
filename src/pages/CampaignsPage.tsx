@@ -941,12 +941,10 @@ export default function CampaignsPage() {
   const recipientTotal = recipientsData?.total || 0;
 
   const { data: whatsappData, isLoading: whatsappChecking } = useWhatsappStatusRaw();
-  const whatsappStatus =
-    whatsappData?.liveStatus?.instance?.state ||
-    whatsappData?.liveStatus?.state ||
-    whatsappData?.status ||
-    "disconnected";
-  const isWhatsappConnected = whatsappStatus === "open" || whatsappStatus === "connected";
+  const dbStatus = whatsappData?.status || whatsappData?.instance?.status || "disconnected";
+  const liveState = whatsappData?.liveStatus?.instance?.state || whatsappData?.liveStatus?.state;
+  const isWhatsappConnected = dbStatus === "connected" && (liveState ? liveState === "open" : true);
+  const whatsappStatus = isWhatsappConnected ? "connected" : "disconnected";
 
   const campaignActionMut = useCampaignAction();
   const deleteCampaignMut = useDeleteCampaign();
@@ -2063,8 +2061,8 @@ function formatTime(value: string | null) {
 function formatRecipientError(raw: string) {
   if (!raw) return "";
   const lower = raw.toLowerCase();
-  if (raw.includes("[object Object]")) return "Send failed - invalid phone format";
-  if (raw.toLowerCase().includes("phone") && raw.includes("400")) return "Invalid phone number - include country code";
+  if (lower.includes("[object object]")) return "Send failed - invalid phone format";
+  if (lower.includes("phone") && lower.includes("400")) return "Invalid phone number - include country code";
   return raw;
 }
 

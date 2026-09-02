@@ -68,5 +68,18 @@ export const queryKeys = {
     all: ['gbp-audit'] as const,
     current: () => ['gbp-audit', 'current'] as const,
     history: () => ['gbp-audit', 'history'] as const,
+    toneProfile: () => ['gbp-audit', 'tone-profile'] as const,
+  },
+
+  // ---- Google Auth ----
+  googleAuth: {
+    all: ['google-auth'] as const,
+    status: () => ['google-auth', 'status'] as const,
+  },
+
+  // ---- Feature Requests ----
+  featureRequests: {
+    all: ['feature-requests'] as const,
+    mine: () => ['feature-requests', 'mine'] as const,
   },
 } as const;

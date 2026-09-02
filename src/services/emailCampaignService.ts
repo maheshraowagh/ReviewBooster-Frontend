@@ -24,6 +24,7 @@ export interface EmailCampaign {
   templateConfig?: { templateKey: string; greeting?: string; customMessage?: string; buttonText?: string };
   createdAt: string;
   completedAt?: string;
+  pauseReason?: string;
 }
 
 export interface DetailRecipient {

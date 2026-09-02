@@ -34,7 +34,6 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState("");
-  const [gmailConnected, setGmailConnected] = useState(false);
   const [contactEmail, setContactEmail] = useState("");
   const [contactEmailSaving, setContactEmailSaving] = useState(false);
 
@@ -47,7 +46,6 @@ export default function SettingsPage() {
   useEffect(() => {
     if (business) {
       setMenuItems(business.menuItems || []);
-      setGmailConnected(!!business.gmailConnected);
       setContactEmail(business.contactEmail || "");
     }
   }, [business]);
@@ -60,6 +58,7 @@ export default function SettingsPage() {
       setSuccessMsg("Gmail account connected successfully!");
       setTimeout(() => setSuccessMsg(""), 5000);
       queryClient.invalidateQueries({ queryKey: queryKeys.business.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.googleAuth.all });
       window.history.replaceState({}, "", "/settings");
     } else if (gmailStatus === "error") {
       setSubmitError(
@@ -339,14 +338,7 @@ export default function SettingsPage() {
             </div>
 
             <div style={{ padding: "24px" }}>
-              <GmailConnectCard
-                onStatusChange={(s) => {
-                  setGmailConnected(s.connected);
-                  queryClient.invalidateQueries({
-                    queryKey: queryKeys.business.all,
-                  });
-                }}
-              />
+              <GmailConnectCard />
             </div>
 
             {/* Reply-To Email Address section (always visible) */}
