@@ -123,8 +123,8 @@ export function PremiumTrendChart({ data }: { data: TrendPoint[] }) {
       >
         <defs>
           <linearGradient id="chartAreaGradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#3f7d45" stopOpacity="0.22" />
-            <stop offset="100%" stopColor="#3f7d45" stopOpacity="0.00" />
+            <stop offset="0%" stopColor="#1A1A1A" stopOpacity="0.12" />
+            <stop offset="100%" stopColor="#1A1A1A" stopOpacity="0.00" />
           </linearGradient>
           <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
             <feGaussianBlur stdDeviation="3" result="blur" />
@@ -142,17 +142,17 @@ export function PremiumTrendChart({ data }: { data: TrendPoint[] }) {
                 y1={y}
                 x2={width - padR}
                 y2={y}
-                stroke="#E3E1D9"
-                strokeWidth="1"
-                strokeDasharray="4 4"
+                stroke={val === 0 ? "#1A1A1A" : "#C8C8C0"}
+                strokeWidth={val === 0 ? "2" : "1.5"}
+                strokeDasharray={val === 0 ? undefined : "6 4"}
               />
               <text
                 x={padL - 8}
                 y={y + 3}
                 textAnchor="end"
                 fontSize="10"
-                fontWeight="600"
-                fill="#8A8A80"
+                fontWeight="700"
+                fill="#1A1A1A"
               >
                 {val}★
               </text>
@@ -170,7 +170,7 @@ export function PremiumTrendChart({ data }: { data: TrendPoint[] }) {
           <path
             d={linePath}
             fill="none"
-            stroke="#3f7d45"
+            stroke="#1A1A1A"
             strokeWidth="3"
             strokeLinecap="round"
           />
@@ -212,11 +212,10 @@ export function PremiumTrendChart({ data }: { data: TrendPoint[] }) {
               key={i}
               cx={pt.x}
               cy={pt.y}
-              r={isActive ? 6.5 : 4.5}
-              fill={isActive ? "#3f7d45" : "#ffffff"}
-              stroke="#3f7d45"
+              r={isActive ? 7 : 5}
+              fill={isActive ? "#1A1A1A" : "#ffffff"}
+              stroke="#1A1A1A"
               strokeWidth={isActive ? 3 : 2.5}
-              filter={isActive ? "url(#glow)" : undefined}
               style={{ transition: 'r 0.1s, stroke-width 0.1s' }}
             />
           );
@@ -237,10 +236,10 @@ export function PremiumTrendChart({ data }: { data: TrendPoint[] }) {
             background: '#1A1A1A',
             color: '#ffffff',
             padding: '6px 10px',
-            borderRadius: '6px',
+            borderRadius: '2px',
             fontSize: '0.7rem',
-            boxShadow: '0 4px 10px rgba(0,0,0,0.15)',
-            border: '1px solid #3F7D45',
+            boxShadow: '3px 3px 0px #1A1A1A',
+            border: '2px solid #1A1A1A',
             display: 'flex',
             flexDirection: 'column',
             gap: '1px',
@@ -275,7 +274,7 @@ export function RadialConversionRate({ scans, clicks }: { scans: number; clicks:
             cy={size / 2}
             r={radius}
             fill="none"
-            stroke="#3F7D45"
+            stroke="#1A1A1A"
             strokeWidth={strokeW}
             strokeDasharray={circ}
             strokeDashoffset={strokeOffset}

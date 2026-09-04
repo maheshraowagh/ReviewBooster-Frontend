@@ -16,12 +16,6 @@ const SORT_OPTIONS: { key: SortOption; label: string }[] = [
   { key: "rating_low", label: "Rating: Low → High" },
 ];
 
-const STATUS_OPTIONS = [
-  { key: "draft", label: "Draft" },
-  { key: "copied_to_google", label: "Copied to Google" },
-  { key: "resolved", label: "Resolved" },
-];
-
 // ---- Helpers --------------------------------------------------------------
 
 function formatDate(iso: string): string {
@@ -62,57 +56,102 @@ const statusLabel = (s: string) => {
 
 // ---- Sub-components -------------------------------------------------------
 
-function RadialConversionRate({ scans, clicks }: { scans: number; clicks: number }) {
-  const rate = scans > 0 ? Math.round((clicks / scans) * 100) : 0;
-  
-  // SVG Donut params
-  const radius = 30;
-  const stroke = 5.5;
-  const normalizedRadius = radius - stroke * 2;
-  const circumference = normalizedRadius * 2 * Math.PI;
-  const strokeDashoffset = circumference - (rate / 100) * circumference;
+function ResolutionHealthCard({
+  resolved,
+  total,
+  unresolved,
+  rate,
+}: {
+  resolved: number;
+  total: number;
+  unresolved: number;
+  rate: number;
+}) {
+  const getHealthStatus = () => {
+    if (rate >= 80) return { label: 'Optimal Health', variant: 'good', text: 'Excellent turnaround on reviews.' };
+    if (rate >= 50) return { label: 'Needs Attention', variant: 'warn', text: 'Several reviews pending resolution.' };
+    return { label: 'Critical Action', variant: 'alert', text: 'High volume of unresolved complaints.' };
+  };
+
+  const status = getHealthStatus();
+
+  // Circle progress calculation
+  const circSize = 88;
+  const strokeW = 8;
+  const radius = (circSize - strokeW) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset = circumference - (Math.min(100, Math.max(0, rate)) / 100) * circumference;
 
   return (
-    <div className="inbox-analytics-card">
-      <div style={{ position: 'relative', width: '60px', height: '60px', flexShrink: 0 }}>
-        <svg height="60" width="60" style={{ transform: 'rotate(-90deg)' }}>
-          <circle
-            stroke="#f2f0ea"
-            fill="transparent"
-            strokeWidth={stroke}
-            r={normalizedRadius}
-            cx="30"
-            cy="30"
-          />
-          <circle
-            stroke="var(--color-brand)"
-            fill="transparent"
-            strokeWidth={stroke}
-            strokeDasharray={circumference + ' ' + circumference}
-            style={{ strokeDashoffset, transition: 'stroke-dashoffset 0.5s ease-in-out' }}
-            strokeLinecap="round"
-            r={normalizedRadius}
-            cx="30"
-            cy="30"
-          />
-        </svg>
-        <div style={{
-          position: 'absolute',
-          inset: 0,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center'
-        }}>
-          <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--color-text-primary)' }}>{rate}%</span>
+    <div className="db-card inbox-health-card">
+      <div className="inbox-health-header">
+        <div>
+          <h3 className="db-card-title" style={{ margin: '0 0 2px 0' }}>Resolution Health</h3>
+          <p style={{ margin: 0, fontSize: '0.75rem', color: '#6B6B63', fontWeight: 500 }}>
+            Operational response & triage efficiency
+          </p>
         </div>
+        <span className={`inbox-gauge-badge inbox-gauge-badge--${status.variant}`}>
+          {status.label}
+        </span>
       </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <h3 style={{ margin: '0 0 0.15rem 0', fontSize: '0.8125rem', fontWeight: 700, color: 'var(--color-text-primary)' }}>
-          Google Redirection Rate
-        </h3>
-        <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--color-text-secondary)', lineHeight: 1.35 }}>
-          {clicks} redirections out of {scans} total scans.
-        </p>
+
+      <div className="inbox-health-content">
+        {/* Left: Mini Efficiency Ring */}
+        <div className="inbox-health-ring-wrap">
+          <svg width={circSize} height={circSize} viewBox={`0 0 ${circSize} ${circSize}`} style={{ transform: 'rotate(-90deg)' }}>
+            <circle
+              cx={circSize / 2}
+              cy={circSize / 2}
+              r={radius}
+              fill="none"
+              stroke="var(--brutal-cream, #F5F3ED)"
+              strokeWidth={strokeW}
+            />
+            <circle
+              cx={circSize / 2}
+              cy={circSize / 2}
+              r={radius}
+              fill="none"
+              stroke="var(--brutal-border, #1A1A1A)"
+              strokeWidth={strokeW}
+              strokeDasharray={circumference}
+              strokeDashoffset={strokeDashoffset}
+              strokeLinecap="round"
+              style={{ transition: 'stroke-dashoffset 0.8s cubic-bezier(0.4, 0, 0.2, 1)' }}
+            />
+          </svg>
+          <div className="inbox-health-ring-inner">
+            <span className="inbox-health-rate-num">{rate}%</span>
+            <span className="inbox-health-rate-sub">RESOLVED</span>
+          </div>
+        </div>
+
+        {/* Right: Operational Health Details */}
+        <div className="inbox-health-details">
+          <div className="inbox-health-meter-bar">
+            <div className="inbox-health-meter-fill" style={{ width: `${Math.min(100, Math.max(0, rate))}%` }} />
+          </div>
+
+          <p className="inbox-health-desc-text">
+            {status.text}
+          </p>
+
+          <div className="inbox-health-stats-row">
+            <div className="inbox-health-stat">
+              <span className="label">Resolved</span>
+              <strong className="val val--resolved">{resolved}</strong>
+            </div>
+            <div className="inbox-health-stat">
+              <span className="label">Pending</span>
+              <strong className="val val--pending">{unresolved}</strong>
+            </div>
+            <div className="inbox-health-stat">
+              <span className="label">Total Feedback</span>
+              <strong className="val">{total}</strong>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -461,7 +500,7 @@ export default function InboxPage() {
 
   const { data: inboxData, isLoading: loading, error: queryError, refetch } = useInbox(queryParams);
   const error = queryError ? queryError.message : null;
-  const { data: statsData } = useDashboardOverview('year');
+  const { data: fallbackStats } = useDashboardOverview('year');
 
   const resolveMutation = useResolveInboxItem();
   const bulkResolveMutation = useBulkResolveInboxItems();
@@ -469,6 +508,17 @@ export default function InboxPage() {
   const items = inboxData?.items || [];
   const total = inboxData?.total || 0;
   const totalPages = inboxData?.totalPages || 1;
+
+  // Extract or synthesize operational inbox stats
+  const inboxStats = inboxData?.stats ?? (fallbackStats ? {
+    totalFeedback: total || Object.values(fallbackStats.ratingDistribution || {}).reduce((a: any, b: any) => a + b, 0) as number,
+    unresolvedCount: inboxData?.atRiskCount ?? 0,
+    resolvedCount: Math.max(0, (total || 0) - (inboxData?.atRiskCount ?? 0)),
+    atRiskCount: fallbackStats.atRiskCount ?? inboxData?.atRiskCount ?? 0,
+    resolutionRate: total > 0 ? Math.round((Math.max(0, total - (inboxData?.atRiskCount ?? 0)) / total) * 100) : 100,
+    avgRating: fallbackStats.avgRating ? Number(fallbackStats.avgRating) : 0,
+    ratingDistribution: fallbackStats.ratingDistribution || { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+  } : null);
 
   // Reset page when filters change
   useEffect(() => {
@@ -518,20 +568,6 @@ export default function InboxPage() {
     }
   };
 
-  // Rating filter toggle
-  const toggleRating = (r: number) => {
-    setRatingFilter((prev) =>
-      prev.includes(r) ? prev.filter((x) => x !== r) : [...prev, r],
-    );
-  };
-
-  // Status filter toggle
-  const toggleStatus = (s: string) => {
-    setStatusFilter((prev) =>
-      prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s],
-    );
-  };
-
   // Clear all filters
   const clearFilters = () => {
     setSearch("");
@@ -572,44 +608,118 @@ export default function InboxPage() {
         </div>
       </div>
 
-      {/* ---- Analytics Summary Cards ---- */}
-      {statsData && (
-        <div className="inbox-analytics-panel">
-          <RadialConversionRate scans={statsData.scans || 0} clicks={statsData.googleClicks || 0} />
-          
-          <div className="inbox-analytics-card">
-            <div className="inbox-dist-bars">
-              {[5, 4, 3, 2, 1].map((star) => {
-                const count = statsData.ratingDistribution?.[star] || 0;
-                const totalScans = Object.values(statsData.ratingDistribution || {}).reduce((a: any, b: any) => a + b, 0) as number;
-                const pct = totalScans > 0 ? Math.round((count / totalScans) * 100) : 0;
-                return (
-                  <div className="inbox-dist-row" key={star}>
-                    <span className="inbox-dist-label">{star}★</span>
-                    <div className="inbox-dist-track">
-                      <div className="inbox-dist-fill" style={{ width: `${pct}%`, background: starColor(star) }} />
+      {/* ---- Operational Inbox KPI Cards ---- */}
+      {inboxStats && (
+        <div className="inbox-analytics-wrapper">
+          {/* Top Operational KPI Stat Cards Grid */}
+          <div className="inbox-stats-grid">
+            <div className="stat-card stat-card--amber" title="Feedback not yet marked resolved">
+              <div className="stat-card-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width="22" height="22">
+                  <circle cx="12" cy="12" r="10" />
+                  <polyline points="12 6 12 12 16 14" />
+                </svg>
+              </div>
+              <div className="stat-card-body">
+                <p className="stat-card-label">Action Needed</p>
+                <p className="stat-card-value">{inboxStats.unresolvedCount}</p>
+                <p className="stat-card-sub">pending / unresolved</p>
+              </div>
+            </div>
+
+            <div className="stat-card stat-card--rose" title="Critical ratings 1 or 2 stars needing damage control">
+              <div className="stat-card-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width="22" height="22">
+                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                  <line x1="12" y1="9" x2="12" y2="13" />
+                  <line x1="12" y1="17" x2="12.01" y2="17" />
+                </svg>
+              </div>
+              <div className="stat-card-body">
+                <p className="stat-card-label">At-Risk Feedback</p>
+                <p className="stat-card-value">{inboxStats.atRiskCount}</p>
+                <p className="stat-card-sub">rating ≤ 2 stars</p>
+              </div>
+            </div>
+
+            <div className="stat-card stat-card--brand" title="Percentage of received feedback marked resolved">
+              <div className="stat-card-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width="22" height="22">
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                  <polyline points="22 4 12 14.01 9 11.01" />
+                </svg>
+              </div>
+              <div className="stat-card-body">
+                <p className="stat-card-label">Resolution Rate</p>
+                <p className="stat-card-value">{inboxStats.resolutionRate}%</p>
+                <p className="stat-card-sub">{inboxStats.resolvedCount} of {inboxStats.totalFeedback} resolved</p>
+              </div>
+            </div>
+
+            <div className="stat-card stat-card--cyan" title="Average sentiment score across all customer feedback">
+              <div className="stat-card-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width="22" height="22">
+                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                </svg>
+              </div>
+              <div className="stat-card-body">
+                <p className="stat-card-label">Customer Sentiment</p>
+                <p className="stat-card-value">{inboxStats.avgRating > 0 ? `${inboxStats.avgRating} ★` : '—'}</p>
+                <p className="stat-card-sub">from {inboxStats.totalFeedback} responses</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Secondary 50%-50% Breakdown Row: Rating Dist + Speedometer Resolution Gauge */}
+          <div className="inbox-breakdown-row">
+            {/* Left 50%: Rating Distribution Detail Card */}
+            <div className="db-card inbox-breakdown-card">
+              <div className="inbox-breakdown-header">
+                <div>
+                  <h3 className="db-card-title" style={{ margin: '0 0 2px 0' }}>Rating Breakdown</h3>
+                  <p style={{ margin: 0, fontSize: '0.75rem', color: '#6B6B63', fontWeight: 500 }}>
+                    Distribution of incoming customer feedback
+                  </p>
+                </div>
+                <div className="inbox-score-hero">
+                  <span className="inbox-score-val">{inboxStats.avgRating > 0 ? inboxStats.avgRating.toFixed(1) : '0.0'}</span>
+                  <span className="inbox-score-stars" style={{ color: starColor(Math.round(inboxStats.avgRating || 5)) }}>
+                    {renderStars(Math.round(inboxStats.avgRating || 5))}
+                  </span>
+                  <span className="inbox-score-caption">{inboxStats.totalFeedback} reviews</span>
+                </div>
+              </div>
+
+              <div className="inbox-dist-bars" style={{ marginTop: '1.25rem' }}>
+                {[5, 4, 3, 2, 1].map((star) => {
+                  const count = inboxStats.ratingDistribution[star] || 0;
+                  const pct = inboxStats.totalFeedback > 0 ? Math.round((count / inboxStats.totalFeedback) * 100) : 0;
+                  return (
+                    <div className="inbox-dist-row" key={star}>
+                      <span className="inbox-dist-label">{star}★</span>
+                      <div className="inbox-dist-track">
+                        <div className="inbox-dist-fill" style={{ width: `${pct}%`, background: starColor(star) }} />
+                      </div>
+                      <span className="inbox-dist-pct">{pct}%</span>
+                      <span className="inbox-dist-count">({count})</span>
                     </div>
-                    <span className="inbox-dist-count">{count}</span>
-                  </div>
-                );
-              })}
-            </div>
-            <div style={{ flexShrink: 0, textAlign: 'center', minWidth: '90px', borderLeft: '1px solid var(--color-border-subtle)', paddingLeft: '1.25rem' }}>
-              <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--color-text-primary)', lineHeight: 1.1 }}>
-                {statsData.avgRating ? Number(statsData.avgRating).toFixed(1) : '0.0'}
-              </div>
-              <div style={{ fontSize: '0.75rem', color: starColor(Math.round(statsData.avgRating || 5)), letterSpacing: '0.5px', margin: '0.25rem 0' }}>
-                {renderStars(Math.round(statsData.avgRating || 5))}
-              </div>
-              <div style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)', fontWeight: 500 }}>
-                Avg Rating
+                  );
+                })}
               </div>
             </div>
+
+            {/* Right 50%: Resolution Health & Operational Efficiency Card */}
+            <ResolutionHealthCard
+              resolved={inboxStats.resolvedCount}
+              total={inboxStats.totalFeedback}
+              unresolved={inboxStats.unresolvedCount}
+              rate={inboxStats.resolutionRate}
+            />
           </div>
         </div>
       )}
 
-      {/* ---- Search & Filters ---- */}
+      {/* ---- Row 1: Search & Sort ---- */}
       <div className="inbox-toolbar">
         <div className="inbox-search-wrap">
           <svg
@@ -658,10 +768,10 @@ export default function InboxPage() {
           )}
         </div>
 
-        <div className="inbox-sort-wrap">
+        <div className="inbox-select-wrap">
           <select
             id="inbox-sort"
-            className="inbox-sort"
+            className="inbox-filter-select"
             value={sort}
             onChange={(e) => setSort(e.target.value as SortOption)}
           >
@@ -674,61 +784,79 @@ export default function InboxPage() {
         </div>
       </div>
 
-      {/* ---- Filter chips ---- */}
-      <div className="inbox-filters">
-        <div className="inbox-filter-group">
-          <span className="inbox-filter-label">Rating</span>
-          {[1, 2, 3, 4, 5].map((r) => (
-            <button
-              key={r}
-              className={`inbox-chip${ratingFilter.includes(r) ? " inbox-chip--active" : ""}`}
-              onClick={() => toggleRating(r)}
-              style={
-                ratingFilter.includes(r)
-                  ? { borderColor: starColor(r), color: starColor(r) }
-                  : {}
-              }
-            >
-              {r}★
-            </button>
-          ))}
+      {/* ---- Row 2: Filters (Rating, Status, Date) styled like Newest First ---- */}
+      <div className="inbox-filter-bar-row">
+        {/* Rating Filter Dropdown */}
+        <div className="inbox-select-wrap">
+          <select
+            id="inbox-rating-filter"
+            className={`inbox-filter-select${ratingFilter.length > 0 ? " inbox-filter-select--active" : ""}`}
+            value={ratingFilter.length > 0 ? ratingFilter.join(",") : ""}
+            onChange={(e) => {
+              const val = e.target.value;
+              if (!val) setRatingFilter([]);
+              else setRatingFilter(val.split(",").map(Number));
+            }}
+          >
+            <option value="">Rating: All</option>
+            <option value="5">5 Stars (★★★★★)</option>
+            <option value="4">4 Stars (★★★★☆)</option>
+            <option value="3">3 Stars (★★★☆☆)</option>
+            <option value="2">2 Stars (★★☆☆☆)</option>
+            <option value="1">1 Star (★☆☆☆☆)</option>
+            <option value="1,2">At-Risk (1-2★)</option>
+          </select>
         </div>
-        <div className="inbox-filter-group">
-          <span className="inbox-filter-label">Status</span>
-          {STATUS_OPTIONS.map((s) => (
-            <button
-              key={s.key}
-              className={`inbox-chip${statusFilter.includes(s.key) ? " inbox-chip--active" : ""}`}
-              onClick={() => toggleStatus(s.key)}
-            >
-              {s.label}
-            </button>
-          ))}
+
+        {/* Status Filter Dropdown */}
+        <div className="inbox-select-wrap">
+          <select
+            id="inbox-status-filter"
+            className={`inbox-filter-select${statusFilter.length > 0 ? " inbox-filter-select--active" : ""}`}
+            value={statusFilter.length > 0 ? statusFilter[0] : ""}
+            onChange={(e) => {
+              const val = e.target.value;
+              if (!val) setStatusFilter([]);
+              else setStatusFilter([val]);
+            }}
+          >
+            <option value="">Status: All</option>
+            <option value="draft">Draft</option>
+            <option value="copied_to_google">Copied to Google</option>
+            <option value="resolved">Resolved</option>
+          </select>
         </div>
-        <div className="inbox-filter-group">
-          <span className="inbox-filter-label">Date</span>
+
+        {/* Compact Date Box */}
+        <div className="inbox-date-range-box">
           <input
             type="date"
-            className="inbox-date"
+            className="inbox-date-input"
             value={dateFrom}
             onChange={(e) => setDateFrom(e.target.value)}
             aria-label="From date"
+            title="Filter from date"
           />
-          <span className="inbox-date-sep">—</span>
+          <span className="inbox-date-arrow">→</span>
           <input
             type="date"
-            className="inbox-date"
+            className="inbox-date-input"
             value={dateTo}
             onChange={(e) => setDateTo(e.target.value)}
             aria-label="To date"
+            title="Filter to date"
           />
         </div>
+
+        {/* Reset Filter Button */}
         {hasActiveFilters && (
           <button
-            className="inbox-chip inbox-chip--clear"
+            className="inbox-reset-filter-btn"
             onClick={clearFilters}
+            type="button"
+            title="Clear all active filters"
           >
-            ✕ Clear All
+            ✕ Reset Filters
           </button>
         )}
       </div>

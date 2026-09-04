@@ -44,12 +44,30 @@ export interface RatingBand {
   pct: number;
 }
 
+export interface PreviousPeriodData {
+  totalFeedback: number;
+  positiveRate: number;
+  averageRating: number;
+}
+
 export interface SentimentData {
   period: string;
   overallTrend: TrendPoint[];
   topicBreakdown: TopicItem[];
   byRatingBand: Record<string, RatingBand>;
   totalFeedback: number;
+}
+
+export interface SentimentCompareResponse {
+  current: SentimentData;
+  previous: PreviousPeriodData;
+}
+
+export interface ReviewVelocityData {
+  thisWeek: number;
+  lastWeek: number;
+  weeklyAvgLast30Days: number;
+  trend: 'up' | 'down' | 'stable';
 }
 
 export const insightsService = {
@@ -64,6 +82,26 @@ export const insightsService = {
       throw new Error(res.data.error?.message || "Failed to load sentiment data");
     }
     return res.data.data;
+  },
+
+  getSentimentCompare: async (period: Period, startDate?: string, endDate?: string): Promise<SentimentCompareResponse> => {
+    const params = new URLSearchParams({ period });
+    if (startDate) params.set('startDate', startDate);
+    if (endDate) params.set('endDate', endDate);
+
+    const res = await api.get<ApiResponse<SentimentCompareResponse>>(`/dashboard/sentiment-compare?${params.toString()}`);
+    if (!res.data.success || !res.data.data) {
+      throw new Error(res.data.error?.message || "Failed to load sentiment comparison data");
+    }
+    return res.data.data;
+  },
+
+  getReviewVelocity: async (): Promise<ReviewVelocityData> => {
+    const res = await api.get<ApiResponse<{ reviewVelocity: ReviewVelocityData }>>('/dashboard/overview?period=week');
+    if (!res.data.success || !res.data.data) {
+      throw new Error(res.data.error?.message || "Failed to load review velocity");
+    }
+    return res.data.data.reviewVelocity;
   },
 
   getAtRisk: async (): Promise<AtRiskData> => {

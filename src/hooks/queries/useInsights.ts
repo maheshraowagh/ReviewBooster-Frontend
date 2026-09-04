@@ -11,6 +11,21 @@ export function useSentimentData(period: Period, startDate?: string, endDate?: s
   });
 }
 
+export function useSentimentCompare(period: Period, startDate?: string, endDate?: string) {
+  return useQuery({
+    queryKey: queryKeys.insights.stats(`sentiment-compare-${period}`, startDate, endDate),
+    queryFn: () => insightsService.getSentimentCompare(period, startDate, endDate),
+    enabled: period !== 'custom' || (Boolean(startDate) && Boolean(endDate)),
+  });
+}
+
+export function useReviewVelocity() {
+  return useQuery({
+    queryKey: queryKeys.insights.stats('review-velocity'),
+    queryFn: () => insightsService.getReviewVelocity(),
+  });
+}
+
 export function useAtRiskData() {
   return useQuery({
     queryKey: queryKeys.insights.stats('at-risk'),

@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { NavLink } from "react-router-dom";
 import { useAuth, UserButton } from "@clerk/clerk-react";
 import { useAuthStore } from "../stores/authStore";
+import { HoverGifIcon } from "./HoverGifIcon";
 
 const NAV_ITEMS = [
   {
@@ -27,173 +28,55 @@ const NAV_ITEMS = [
     to: "/inbox",
     label: "Feedback Inbox",
     hasBadge: true,
-    icon: (
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.75"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-      </svg>
-    ),
+    icon: <HoverGifIcon src="/icons8-comments.gif" alt="Feedback Inbox" className="sidebar-gif-icon" />,
   },
   {
     to: "/insights",
     label: "Insights",
-    icon: (
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.75"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d="M21.21 15.89A10 10 0 1 1 8 2.83" />
-        <path d="M22 12A10 10 0 0 0 12 2v10z" />
-      </svg>
-    ),
+    icon: <HoverGifIcon src="/icons8-pie-chart.gif" alt="Feedback Inbox" className="sidebar-gif-icon" />,
+
   },
   {
     to: "/local-seo",
     label: "Business Health",
-    icon: (
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.75"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-      </svg>
-    ),
+    icon: <HoverGifIcon src="/icons8-health.gif" alt="Business Health" className="sidebar-gif-icon" />,
   },
   {
     to: "/qr-locations",
     label: "QR & Locations",
-    icon: (
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.75"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <rect x="3" y="3" width="7" height="7" rx="1" />
-        <rect x="14" y="3" width="7" height="7" rx="1" />
-        <rect x="14" y="14" width="7" height="7" rx="1" />
-        <rect x="3" y="14" width="7" height="7" rx="1" />
-      </svg>
-    ),
+    icon: <HoverGifIcon src="/icons8-qr-code.gif" alt="QR & Locations" className="sidebar-gif-icon" />,
   },
   {
     to: "/whatsapp",
     label: "WhatsApp",
-    icon: (
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.75"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z" />
-        <path d="M12 2C6.477 2 2 6.477 2 12c0 1.89.525 3.66 1.438 5.168L2 22l4.832-1.438A9.955 9.955 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2z" />
-      </svg>
-    ),
+    icon: <HoverGifIcon src="/icons8-whatsapp.gif" alt="WhatsApp" className="sidebar-gif-icon" />,
   },
   {
     to: "/campaigns",
     label: "WA Campaigns",
-    icon: (
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.75"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-        <polyline points="22,6 12,13 2,6" />
-      </svg>
-    ),
+    icon: <HoverGifIcon src="/icons8-letter.gif" alt="WhatsApp" className="sidebar-gif-icon" />,
+
   },
   {
     to: "/email-campaigns",
     label: "Email Campaigns",
-    icon: (
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.75"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d="M3 8l7.89 5.26a2 2 0 0 0 2.22 0L21 8M5 19h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2z" />
-      </svg>
-    ),
+    icon: <HoverGifIcon src="/icons8-mail.gif" alt="Email Campaigns" className="sidebar-gif-icon" />,
   },
 
   {
     to: "/settings",
     label: "Settings",
-    icon: (
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.75"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <circle cx="12" cy="12" r="3" />
-        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-      </svg>
-    ),
+    icon: <HoverGifIcon src="/icons8-settings.gif" alt="Settings" className="sidebar-gif-icon" />,
   },
   {
     to: "/billing",
     label: "Plan & Billing",
-    icon: (
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.75"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
-        <line x1="1" y1="10" x2="23" y2="10" />
-      </svg>
-    ),
+    icon: <HoverGifIcon src="/icons8-dollar-bag.gif" alt="Plan & Billing" className="sidebar-gif-icon" />,
   },
   {
     to: "/help",
     label: "Help",
-    icon: (
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.75"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <circle cx="12" cy="12" r="10" />
-        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-        <line x1="12" y1="17" x2="12.01" y2="17" />
-      </svg>
-    ),
+    icon: <HoverGifIcon src="/icons8-ask-question.gif" alt="Help" className="sidebar-gif-icon" />,
   },
 ];
 
@@ -266,6 +149,57 @@ export default function Sidebar({ businessName }: SidebarProps) {
     };
   }, [getToken]);
 
+  const isPopoverOpenRef = useRef(false);
+  const lastClosedAtRef = useRef(0);
+
+  useEffect(() => {
+    const handleCapturePointerDown = () => {
+      const popover = document.querySelector(
+        '.cl-userButtonPopoverCard, .cl-userButtonPopoverRoot, .cl-userButton-popover, .cl-popover, [class*="userButtonPopover"], [class*="cl-popover"]'
+      );
+      if (popover) {
+        isPopoverOpenRef.current = true;
+      }
+    };
+
+    const observer = new MutationObserver(() => {
+      const popover = document.querySelector(
+        '.cl-userButtonPopoverCard, .cl-userButtonPopoverRoot, .cl-userButton-popover, .cl-popover, [class*="userButtonPopover"], [class*="cl-popover"]'
+      );
+      const isOpen = !!popover;
+      if (isPopoverOpenRef.current && !isOpen) {
+        lastClosedAtRef.current = Date.now();
+      }
+      isPopoverOpenRef.current = isOpen;
+    });
+
+    window.addEventListener('pointerdown', handleCapturePointerDown, { capture: true });
+    window.addEventListener('mousedown', handleCapturePointerDown, { capture: true });
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    return () => {
+      window.removeEventListener('pointerdown', handleCapturePointerDown, { capture: true });
+      window.removeEventListener('mousedown', handleCapturePointerDown, { capture: true });
+      observer.disconnect();
+    };
+  }, []);
+
+  const handleUserMenuToggle = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const justClosed = Date.now() - lastClosedAtRef.current < 400;
+    if (isPopoverOpenRef.current || justClosed) {
+      isPopoverOpenRef.current = false;
+      return;
+    }
+
+    const btn = document.querySelector(
+      '.sidebar-user-card .cl-userButtonTrigger'
+    ) as HTMLElement;
+    btn?.click();
+  };
+
   return (
     <aside className="sidebar">
       {/* Brand */}
@@ -308,33 +242,35 @@ export default function Sidebar({ businessName }: SidebarProps) {
       {/* Navigation */}
       <nav className="sidebar-nav">
         <p className="sidebar-nav-label">Menu</p>
-        {NAV_ITEMS.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            end={item.to === "/dashboard"}
-            className={({ isActive }) =>
-              `sidebar-nav-item${isActive ? " active" : ""}`
-            }
-            onClick={(e) => {
-              // Prevent middle-click or ctrl+click from opening new tab
-              if (e.button === 1 || e.ctrlKey || e.metaKey) {
-                e.preventDefault();
+        <div className="sidebar-nav-links">
+          {NAV_ITEMS.map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.to === "/dashboard"}
+              className={({ isActive }) =>
+                `sidebar-nav-item${isActive ? " active" : ""}`
               }
-              // Clear audit badge when visiting health page
-              if (item.to === '/local-seo') setAuditReady(false);
-            }}
-          >
-            <span className="sidebar-nav-icon">{item.icon}</span>
-            <span className="sidebar-nav-text">{item.label}</span>
-            {item.hasBadge && atRiskCount > 0 && (
-              <span className="sidebar-alert-badge">{atRiskCount}</span>
-            )}
-            {item.to === '/local-seo' && auditReady && (
-              <span className="sidebar-audit-badge">New</span>
-            )}
-          </NavLink>
-        ))}
+              onClick={(e) => {
+                // Prevent middle-click or ctrl+click from opening new tab
+                if (e.button === 1 || e.ctrlKey || e.metaKey) {
+                  e.preventDefault();
+                }
+                // Clear audit badge when visiting health page
+                if (item.to === '/local-seo') setAuditReady(false);
+              }}
+            >
+              <span className="sidebar-nav-icon">{item.icon}</span>
+              <span className="sidebar-nav-text">{item.label}</span>
+              {item.hasBadge && atRiskCount > 0 && (
+                <span className="sidebar-alert-badge">{atRiskCount}</span>
+              )}
+              {item.to === '/local-seo' && auditReady && (
+                <span className="sidebar-audit-badge">New</span>
+              )}
+            </NavLink>
+          ))}
+        </div>
       </nav>
 
       {/* User Profile Footer */}
@@ -342,26 +278,37 @@ export default function Sidebar({ businessName }: SidebarProps) {
         {appUser?.role === 'admin' && (
           <NavLink
             to="/admin/dashboard"
-            style={{
-              display: "block",
-              marginBottom: "1rem",
-              color: "var(--color-brand)",
-              fontSize: "0.9rem",
-              fontWeight: 500,
-              textDecoration: "none"
-            }}
+            className="sidebar-admin-link"
           >
             🛡️ Go to Admin Panel
           </NavLink>
         )}
-        <div className="sidebar-user">
-          <UserButton afterSignOutUrl="/sign-in" />
-          <div className="sidebar-user-info">
-            <span className="sidebar-user-name">
-              {appUser?.name || appUser?.email?.split("@")[0] || "User"}
-            </span>
-            <span className="sidebar-user-role">{appUser?.role}</span>
+        <div className="sidebar-user-card">
+          <div className="sidebar-user-card-left">
+            <UserButton afterSignOutUrl="/sign-in" />
+            <div
+              className="sidebar-user-card-info"
+              style={{ cursor: "pointer" }}
+              onClick={handleUserMenuToggle}
+            >
+              <span className="sidebar-user-card-name">
+                {appUser?.name || appUser?.email?.split("@")[0] || "User"}
+              </span>
+              <span className="sidebar-user-card-email">
+                {appUser?.email || ""}
+              </span>
+            </div>
           </div>
+          <button
+            type="button"
+            className="sidebar-user-card-chevron"
+            aria-label="User menu"
+            onClick={handleUserMenuToggle}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="9 18 15 12 9 6" />
+            </svg>
+          </button>
         </div>
       </div>
     </aside>

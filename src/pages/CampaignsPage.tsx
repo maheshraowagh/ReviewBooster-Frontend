@@ -50,13 +50,13 @@ function statusLabel(status: string) {
 function StepBar({ current }: { current: number }) {
   const steps = ["Campaign Details", "Import Contacts", "Message & Tone", "Review & Send"];
   return (
-    <div className="ec-step-bar">
+    <div className="wa-step-bar">
       {steps.map((label, i) => {
         const idx = i + 1;
-        const cls = idx < current ? "done" : idx === current ? "active" : "";
+        const cls = idx < current ? "done" : idx === current ? "active" : "upcoming";
         return (
-          <div key={label} className={`ec-step-item ${cls}`}>
-            <div className="ec-step-dot">
+          <div key={label} className={`wa-step-item wa-step-item--${cls}`}>
+            <div className="wa-step-dot">
               {idx < current ? (
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="20 6 9 17 4 12" />
@@ -65,7 +65,7 @@ function StepBar({ current }: { current: number }) {
                 idx
               )}
             </div>
-            <span className="ec-step-label">{label}</span>
+            <span className="wa-step-label">{label}</span>
           </div>
         );
       })}
@@ -253,24 +253,31 @@ function WhatsAppCampaignWizard({
   const canGoNext2 = (validation?.valid ?? 0) > 0;
 
   return (
-    <div className="ec-wizard-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="ec-wizard" role="dialog" aria-modal="true" aria-label="New WhatsApp Campaign">
-        {/* Header */}
-        <div className="ec-wizard-header">
-          <h2 className="ec-wizard-title">New WhatsApp Campaign</h2>
-          <button className="ec-wizard-close" onClick={onClose} aria-label="Close wizard">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <div className="wa-wizard-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="wa-wizard-modal" role="dialog" aria-modal="true" aria-label="New WhatsApp Campaign">
+        {/* Fixed Header */}
+        <div className="wa-wizard-header">
+          <div className="wa-wizard-header__copy">
+            <h2 className="wa-wizard-title">New WhatsApp Campaign</h2>
+            <p className="wa-wizard-subtitle">
+              Step {step} of 4: {step === 1 ? "Campaign Details & Sender Channel" : step === 2 ? "Import & Validate Recipients" : step === 3 ? "Message Tone & Interactive Button" : "Review & Launch Campaign"}
+            </p>
+          </div>
+          <button className="wa-wizard-close" onClick={onClose} aria-label="Close wizard">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <line x1="18" y1="6" x2="6" y2="18" />
               <line x1="6" y1="6" x2="18" y2="18" />
             </svg>
           </button>
         </div>
 
-        {/* Step bar */}
-        <StepBar current={step} />
+        {/* Fixed Stepper (crystal clear, never clipped or scrolled away) */}
+        <div className="wa-wizard-stepper-wrap">
+          <StepBar current={step} />
+        </div>
 
-        {/* Wizard Body */}
-        <div className="ec-wizard-body">
+        {/* Wizard Body (Scrollable only inside here) */}
+        <div className="wa-wizard-body">
           {/* ── Step 1: Campaign Details & Channel ── */}
           {step === 1 && (
             <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
@@ -382,10 +389,11 @@ function WhatsAppCampaignWizard({
                   {uploadedFileName ? (
                     <div
                       style={{
-                        background: "#F9F8F5",
-                        border: "1px dashed #1A1A1A",
-                        borderRadius: "12px",
-                        padding: "20px",
+                        background: "var(--brutal-cream)",
+                        border: "2px dashed #1A1A1A",
+                        borderRadius: "10px",
+                        boxShadow: "var(--brutal-shadow-sm)",
+                        padding: "18px 20px",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "space-between",
@@ -397,9 +405,11 @@ function WhatsAppCampaignWizard({
                           style={{
                             width: "44px",
                             height: "44px",
-                            borderRadius: "10px",
-                            background: "#E8F5E9",
-                            color: "#2E7D32",
+                            borderRadius: "8px",
+                            background: "var(--brutal-mint)",
+                            border: "var(--brutal-border-thin)",
+                            boxShadow: "1.5px 1.5px 0px #1A1A1A",
+                            color: "#065F46",
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
@@ -410,22 +420,23 @@ function WhatsAppCampaignWizard({
                         </div>
                         <div>
                           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                            <span style={{ fontSize: "14px", fontWeight: 600, color: "#1A1A1A" }}>{uploadedFileName}</span>
+                            <span style={{ fontSize: "14px", fontWeight: 800, color: "#1A1A1A" }}>{uploadedFileName}</span>
                             <span
                               style={{
                                 fontSize: "11px",
-                                fontWeight: 600,
+                                fontWeight: 800,
                                 padding: "2px 8px",
-                                borderRadius: "12px",
-                                background: "#E8F5E9",
-                                color: "#2E7D32",
+                                borderRadius: "4px",
+                                background: "var(--brutal-mint)",
+                                border: "1px solid #1A1A1A",
+                                color: "#065F46",
                               }}
                             >
-                              Uploaded & Validated
+                              Validated
                             </span>
                           </div>
-                          <p style={{ margin: "4px 0 0", fontSize: "12px", color: "#6B6B63" }}>
-                            {validation ? `${validation.validRecords?.length || 0} valid recipient(s) ready` : "File uploaded successfully"}
+                          <p style={{ margin: "4px 0 0", fontSize: "12px", color: "#555", fontWeight: 600 }}>
+                            {validation ? `${validation.validRecords?.length || 0} valid recipient(s) ready to broadcast` : "File uploaded successfully"}
                           </p>
                         </div>
                       </div>
@@ -497,14 +508,14 @@ function WhatsAppCampaignWizard({
                   />
 
                   {/* Format Helper Card */}
-                  <div style={{ background: "#F9F8F5", border: "1px solid #E3E1D9", borderRadius: "10px", padding: "14px", marginTop: "14px" }}>
+                  <div style={{ background: "#FFFFFF", border: "var(--brutal-border-thin)", borderRadius: "8px", boxShadow: "var(--brutal-shadow-sm)", padding: "14px", marginTop: "14px" }}>
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px", flexWrap: "wrap", gap: "8px" }}>
-                      <span style={{ fontSize: "12px", fontWeight: 600, color: "#1A1A1A", display: "flex", alignItems: "center", gap: "6px" }}>
+                      <span style={{ fontSize: "12px", fontWeight: 800, color: "#1A1A1A", display: "flex", alignItems: "center", gap: "6px" }}>
                         💡 Expected CSV Format
                       </span>
                       <button
                         type="button"
-                        className="ec-btn ec-btn-ghost"
+                        className="ec-btn ec-btn-secondary"
                         onClick={() => {
                           const content = "name,phone\nMahesh Wagh,+12345678901\nAkash Singh,+19876543210\nJohn Doe,+15551234567";
                           const blob = new Blob([content], { type: "text/csv;charset=utf-8;" });
@@ -515,18 +526,18 @@ function WhatsAppCampaignWizard({
                           a.click();
                           URL.revokeObjectURL(url);
                         }}
-                        style={{ fontSize: "11px", padding: "4px 10px", color: "#1A1A1A", border: "1px solid #E3E1D9" }}
+                        style={{ fontSize: "11px", padding: "4px 10px" }}
                       >
                         📥 Download Sample CSV
                       </button>
                     </div>
-                    <p style={{ margin: "0 0 8px", fontSize: "12px", color: "#6B6B63", lineHeight: 1.4 }}>
+                    <p style={{ margin: "0 0 8px", fontSize: "12px", color: "#555", lineHeight: 1.4, fontWeight: 600 }}>
                       First row must contain column headers. Requires a <code>phone</code> (or <code>mobile</code>) column and optional <code>name</code> column.
                     </p>
-                    <div style={{ background: "#fff", border: "1px solid #E3E1D9", borderRadius: "6px", padding: "8px 12px", fontFamily: "monospace", fontSize: "11px", color: "#333" }}>
-                      <div style={{ fontWeight: 700, color: "#1A1A1A" }}>name, phone</div>
-                      <div style={{ color: "#6B6B63" }}>Mahesh Wagh, +12345678901</div>
-                      <div style={{ color: "#6B6B63" }}>Akash Singh, +19876543210</div>
+                    <div style={{ background: "var(--brutal-cream)", border: "var(--brutal-border-thin)", borderRadius: "6px", padding: "8px 12px", fontFamily: "monospace", fontSize: "11px", color: "#1A1A1A" }}>
+                      <div style={{ fontWeight: 800, color: "#1A1A1A" }}>name, phone</div>
+                      <div style={{ color: "#555" }}>Mahesh Wagh, +12345678901</div>
+                      <div style={{ color: "#555" }}>Akash Singh, +19876543210</div>
                     </div>
                   </div>
                 </>
@@ -554,25 +565,25 @@ function WhatsAppCampaignWizard({
                       disabled={loading || !sheetUrl.trim()}
                       style={{ flexShrink: 0 }}
                     >
-                      {loading ? "Fetching…" : "Fetch"}
+                      {loading ? "Fetching…" : "Fetch Sheet"}
                     </button>
                   </div>
                   
                   {/* Google Sheet Format Helper */}
-                  <div style={{ background: "#F9F8F5", border: "1px solid #E3E1D9", borderRadius: "10px", padding: "14px", marginTop: "14px" }}>
-                    <span style={{ fontSize: "12px", fontWeight: 600, color: "#1A1A1A", display: "block", marginBottom: "8px" }}>
+                  <div style={{ background: "#FFFFFF", border: "var(--brutal-border-thin)", borderRadius: "8px", boxShadow: "var(--brutal-shadow-sm)", padding: "14px", marginTop: "14px" }}>
+                    <span style={{ fontSize: "12px", fontWeight: 800, color: "#1A1A1A", display: "block", marginBottom: "8px" }}>
                       💡 How to format & share your Google Sheet:
                     </span>
-                    <ol style={{ margin: "0 0 10px", paddingLeft: "18px", fontSize: "12px", color: "#6B6B63", lineHeight: 1.6 }}>
+                    <ol style={{ margin: "0 0 10px", paddingLeft: "18px", fontSize: "12px", color: "#555", lineHeight: 1.6, fontWeight: 600 }}>
                       <li>Row 1 must be headers containing <code>phone</code> (or <code>mobile</code>) and optional <code>name</code>.</li>
                       <li>In Google Sheets, click the <strong>Share</strong> button (top right).</li>
                       <li>Under General Access, select <strong>"Anyone with the link can view"</strong>.</li>
-                      <li>Copy the sheet URL, paste it above, and click <strong>Fetch</strong>.</li>
+                      <li>Copy the sheet URL, paste it above, and click <strong>Fetch Sheet</strong>.</li>
                     </ol>
-                    <div style={{ background: "#fff", border: "1px solid #E3E1D9", borderRadius: "6px", padding: "8px 12px", fontFamily: "monospace", fontSize: "11px", color: "#333" }}>
-                      <div style={{ fontWeight: 700, color: "#1A1A1A" }}>name | phone</div>
-                      <div style={{ color: "#6B6B63" }}>Mahesh Wagh | +12345678901</div>
-                      <div style={{ color: "#6B6B63" }}>Akash Singh | +19876543210</div>
+                    <div style={{ background: "var(--brutal-cream)", border: "var(--brutal-border-thin)", borderRadius: "6px", padding: "8px 12px", fontFamily: "monospace", fontSize: "11px", color: "#1A1A1A" }}>
+                      <div style={{ fontWeight: 800, color: "#1A1A1A" }}>name | phone</div>
+                      <div style={{ color: "#555" }}>Mahesh Wagh | +12345678901</div>
+                      <div style={{ color: "#555" }}>Akash Singh | +19876543210</div>
                     </div>
                   </div>
                 </div>
@@ -601,8 +612,8 @@ function WhatsAppCampaignWizard({
                   </div>
 
                   {showBulkPaste && (
-                    <div style={{ background: "#F9F8F5", border: "1px solid #E3E1D9", borderRadius: "10px", padding: "14px" }}>
-                      <p style={{ fontSize: "12px", fontWeight: 600, color: "#1A1A1A", margin: "0 0 6px" }}>
+                    <div style={{ background: "#FFFFFF", border: "var(--brutal-border-thin)", borderRadius: "8px", boxShadow: "var(--brutal-shadow-sm)", padding: "14px" }}>
+                      <p style={{ fontSize: "12px", fontWeight: 800, color: "#1A1A1A", margin: "0 0 6px" }}>
                         Paste lines (Format: <code>phone, name</code> — e.g. <code>919876543210, John Doe</code>)
                       </p>
                       <textarea
@@ -626,10 +637,10 @@ function WhatsAppCampaignWizard({
                   )}
 
                   {/* Table Grid */}
-                  <div style={{ border: "1px solid #E3E1D9", borderRadius: "10px", overflow: "hidden", background: "#fff" }}>
+                  <div style={{ border: "var(--brutal-border-thin)", borderRadius: "8px", boxShadow: "var(--brutal-shadow-sm)", overflow: "hidden", background: "#fff" }}>
                     <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", textAlign: "left" }}>
                       <thead>
-                        <tr style={{ background: "#F9F8F5", borderBottom: "1px solid #E3E1D9", color: "#6B6B63", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                        <tr style={{ background: "#FFFDF8", borderBottom: "var(--brutal-border-thin)", color: "#1A1A1A", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px", fontWeight: 850 }}>
                           <th style={{ padding: "10px 14px", width: "36px" }}>#</th>
                           <th style={{ padding: "10px 14px" }}>Customer Name</th>
                           <th style={{ padding: "10px 14px" }}>WhatsApp Phone Number</th>
@@ -638,8 +649,8 @@ function WhatsAppCampaignWizard({
                       </thead>
                       <tbody>
                         {manualRows.map((row, idx) => (
-                          <tr key={row.id} style={{ borderBottom: idx === manualRows.length - 1 ? "none" : "1px solid #F3F2EE" }}>
-                            <td style={{ padding: "8px 14px", color: "#A3A39A", fontSize: "12px" }}>{idx + 1}</td>
+                          <tr key={row.id} style={{ borderBottom: idx === manualRows.length - 1 ? "none" : "1px solid rgba(26,26,26,0.1)" }}>
+                            <td style={{ padding: "8px 14px", color: "#666", fontSize: "12px", fontWeight: 700 }}>{idx + 1}</td>
                             <td style={{ padding: "6px 10px" }}>
                               <input
                                 type="text"
@@ -649,7 +660,7 @@ function WhatsAppCampaignWizard({
                                 style={{
                                   width: "100%",
                                   padding: "6px 10px",
-                                  border: "1px solid #E3E1D9",
+                                  border: "var(--brutal-border-thin)",
                                   borderRadius: "6px",
                                   fontSize: "13px",
                                   boxSizing: "border-box",
@@ -665,7 +676,7 @@ function WhatsAppCampaignWizard({
                                 style={{
                                   width: "100%",
                                   padding: "6px 10px",
-                                  border: "1px solid #E3E1D9",
+                                  border: "var(--brutal-border-thin)",
                                   borderRadius: "6px",
                                   fontSize: "13px",
                                   boxSizing: "border-box",
@@ -680,9 +691,10 @@ function WhatsAppCampaignWizard({
                                   style={{
                                     background: "none",
                                     border: "none",
-                                    color: "#A3A39A",
+                                    color: "#991B1B",
                                     cursor: "pointer",
                                     fontSize: "16px",
+                                    fontWeight: 900,
                                     padding: "2px 6px",
                                     borderRadius: "4px",
                                   }}
@@ -701,7 +713,7 @@ function WhatsAppCampaignWizard({
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                     <button
                       type="button"
-                      className="ec-btn ec-btn-ghost"
+                      className="ec-btn ec-btn-secondary"
                       onClick={handleAddRow}
                       style={{ fontSize: "12px", padding: "6px 14px" }}
                     >
@@ -804,53 +816,30 @@ function WhatsAppCampaignWizard({
               </div>
 
               {/* Summary Card */}
-              <div style={{ background: "#F9F8F5", border: "1px solid #E3E1D9", borderRadius: "12px", padding: "18px 20px" }}>
+              <div style={{ background: "var(--brutal-butter)", border: "var(--brutal-border)", borderRadius: "10px", boxShadow: "var(--brutal-shadow)", padding: "18px 20px" }}>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px", fontSize: "13px" }}>
                   <div>
-                    <span style={{ color: "#6B6B63", display: "block", fontSize: "11px", textTransform: "uppercase" }}>Campaign Name</span>
-                    <strong style={{ color: "#1A1A1A" }}>{campaignName}</strong>
+                    <span style={{ color: "#555", display: "block", fontSize: "11px", textTransform: "uppercase", fontWeight: 800 }}>Campaign Name</span>
+                    <strong style={{ color: "#1A1A1A", fontSize: "15px" }}>{campaignName}</strong>
                   </div>
                   <div>
-                    <span style={{ color: "#6B6B63", display: "block", fontSize: "11px", textTransform: "uppercase" }}>Channel</span>
-                    <strong style={{ color: "#1A1A1A" }}>WhatsApp Direct</strong>
+                    <span style={{ color: "#555", display: "block", fontSize: "11px", textTransform: "uppercase", fontWeight: 800 }}>Channel</span>
+                    <strong style={{ color: "#1A1A1A", fontSize: "15px" }}>📱 WhatsApp Direct</strong>
                   </div>
                   <div>
-                    <span style={{ color: "#6B6B63", display: "block", fontSize: "11px", textTransform: "uppercase" }}>Recipients</span>
-                    <strong style={{ color: "#3F7D45" }}>{validation?.valid || 0} customers</strong>
+                    <span style={{ color: "#555", display: "block", fontSize: "11px", textTransform: "uppercase", fontWeight: 800 }}>Recipients</span>
+                    <strong style={{ color: "#065F46", fontSize: "15px" }}>{validation?.valid || 0} customers</strong>
                   </div>
                   <div>
-                    <span style={{ color: "#6B6B63", display: "block", fontSize: "11px", textTransform: "uppercase" }}>Sender Number</span>
-                    <strong style={{ color: "#1A1A1A" }}>{connectedPhone ? `+${connectedPhone}` : "Connected Session"}</strong>
+                    <span style={{ color: "#555", display: "block", fontSize: "11px", textTransform: "uppercase", fontWeight: 800 }}>Sender Device</span>
+                    <strong style={{ color: "#1A1A1A", fontSize: "15px" }}>{connectedPhone ? `+${connectedPhone}` : "Connected Device"}</strong>
                   </div>
                 </div>
               </div>
 
-              {launched ? (
-                <div style={{ padding: "16px", borderRadius: "10px", background: "#E9F2E7", color: "#2D6030", textAlign: "center", fontSize: "14px", fontWeight: 600 }}>
+              {launched && (
+                <div style={{ padding: "16px", borderRadius: "8px", background: "var(--brutal-mint)", border: "var(--brutal-border-thin)", boxShadow: "var(--brutal-shadow-sm)", color: "#065F46", textAlign: "center", fontSize: "14px", fontWeight: 850 }}>
                   🚀 Campaign started successfully! Loading campaign dashboard...
-                </div>
-              ) : (
-                <div style={{ display: "flex", gap: "12px", marginTop: "10px" }}>
-                  <button
-                    type="button"
-                    className="ec-btn ec-btn-secondary"
-                    onClick={() => {
-                      onCreated(createdId || undefined);
-                      onClose();
-                    }}
-                    style={{ flex: 1, justifyContent: "center" }}
-                  >
-                    Save as Draft
-                  </button>
-                  <button
-                    type="button"
-                    className="ec-btn ec-btn-primary"
-                    onClick={launchCampaign}
-                    disabled={launching || !isWhatsappConnected}
-                    style={{ flex: 1.5, justifyContent: "center", background: "#25D366" }}
-                  >
-                    {launching ? "Starting Campaign..." : "🚀 Launch Campaign Now"}
-                  </button>
                 </div>
               )}
             </div>
@@ -863,36 +852,59 @@ function WhatsAppCampaignWizard({
           )}
         </div>
 
-        {/* Wizard Footer */}
-        {step < 4 && (
-          <div className="ec-wizard-footer">
-            {step > 1 ? (
-              <button className="ec-btn ec-btn-secondary" onClick={() => setStep(step - 1)}>
-                ← Back
-              </button>
-            ) : (
-              <div />
-            )}
+        {/* Fixed Wizard Footer (Pinned at bottom across all steps) */}
+        <div className="wa-wizard-footer">
+          {step > 1 && !launched ? (
+            <button className="campaign-btn campaign-btn--secondary" onClick={() => setStep(step - 1)}>
+              ← Back
+            </button>
+          ) : (
+            <div />
+          )}
 
+          <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
             {step === 1 && (
-              <button className="ec-btn ec-btn-primary" disabled={!canGoNext1} onClick={() => setStep(2)}>
+              <button className="campaign-btn campaign-btn--primary" disabled={!canGoNext1} onClick={() => setStep(2)}>
                 Next: Import Contacts →
               </button>
             )}
 
             {step === 2 && (
-              <button className="ec-btn ec-btn-primary" disabled={!canGoNext2} onClick={() => setStep(3)}>
+              <button className="campaign-btn campaign-btn--primary" disabled={!canGoNext2} onClick={() => setStep(3)}>
                 Next: Choose Template & Tone →
               </button>
             )}
 
             {step === 3 && (
-              <button className="ec-btn ec-btn-primary" disabled={loading} onClick={createCampaign}>
+              <button className="campaign-btn campaign-btn--primary" disabled={loading} onClick={createCampaign}>
                 {loading ? "Creating Campaign..." : "Review & Launch →"}
               </button>
             )}
+
+            {step === 4 && !launched && (
+              <>
+                <button
+                  type="button"
+                  className="campaign-btn campaign-btn--secondary"
+                  onClick={() => {
+                    onCreated(createdId || undefined);
+                    onClose();
+                  }}
+                >
+                  Save as Draft
+                </button>
+                <button
+                  type="button"
+                  className="campaign-btn campaign-btn--primary"
+                  onClick={launchCampaign}
+                  disabled={launching || !isWhatsappConnected}
+                >
+                  {launching ? "Starting Campaign..." : "🚀 Launch Campaign Now"}
+                </button>
+              </>
+            )}
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
@@ -1075,7 +1087,6 @@ export default function CampaignsPage() {
         view={view}
         onBack={() => setView("list")}
         onNewCampaign={() => setShowWizard(true)}
-        canCreate={isWhatsappConnected}
       />
 
       {toast && (
@@ -1118,7 +1129,6 @@ export default function CampaignsPage() {
             ) : campaigns.length === 0 && !search ? (
               <CampaignEmptyState
                 onCreate={() => setShowWizard(true)}
-                disabled={!isWhatsappConnected}
               />
             ) : visibleCampaigns.length === 0 ? (
               <CampaignSearchEmptyState onClear={clearFilters} />
@@ -1213,12 +1223,10 @@ export default function CampaignsPage() {
 
 function CampaignPageHeader({
   view,
-  canCreate,
   onBack,
   onNewCampaign,
 }: {
   view: ViewMode;
-  canCreate: boolean;
   onBack: () => void;
   onNewCampaign: () => void;
 }) {
@@ -1237,7 +1245,6 @@ function CampaignPageHeader({
         <button
           className="campaign-btn campaign-btn--primary"
           onClick={onNewCampaign}
-          disabled={!canCreate}
         >
           <PlusIcon /> New Campaign
         </button>
@@ -1274,29 +1281,30 @@ function WhatsAppConnectionCard({
           style={{
             width: "44px",
             height: "44px",
-            borderRadius: "12px",
-            background: connected ? "#25D366" : "#F3F2EE",
+            borderRadius: "10px",
+            background: connected ? "var(--brutal-mint)" : "var(--brutal-coral)",
+            border: "var(--brutal-border-thin)",
+            boxShadow: "var(--brutal-shadow-sm)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             flexShrink: 0,
-            boxShadow: connected ? "0 2px 8px rgba(37, 211, 102, 0.3)" : "none",
           }}
           aria-hidden="true"
         >
-          <WhatsAppBrandIcon size={26} color={connected ? "#FFFFFF" : "#6B6B63"} />
+          <WhatsAppBrandIcon size={26} color={connected ? "#065F46" : "#991B1B"} />
         </div>
         <div>
           <div className="campaign-connection__eyebrow">
             <span className="campaign-status-dot" />
-            WhatsApp Account
+            WhatsApp Gateway
           </div>
-          <h2>{label}</h2>
+          <h2>{connected ? `Session ${label} & Ready` : `WhatsApp Device ${label}`}</h2>
           <p>{body}</p>
         </div>
       </div>
-      <Link to="/whatsapp" className="campaign-btn campaign-btn--dark">
-        {connected ? "Manage connection" : "Connect WhatsApp"}
+      <Link to="/whatsapp" className={`campaign-btn ${connected ? "campaign-btn--secondary" : "campaign-btn--primary"}`}>
+        {connected ? "Manage Device →" : "Connect WhatsApp Now →"}
       </Link>
     </section>
   );
@@ -1598,27 +1606,44 @@ function CampaignActionsMenu({
   return (
     <div className="campaign-actions-menu">
       <button
-        className="campaign-icon-btn"
+        className={`campaign-icon-btn ${isOpen ? "campaign-icon-btn--active" : ""}`}
         type="button"
         aria-label={`Open actions for ${campaign.name}`}
         aria-expanded={isOpen}
-        onClick={onToggle}
+        onClick={(e) => {
+          e.stopPropagation();
+          onToggle();
+        }}
+        title="More options"
       >
         <MoreIcon />
       </button>
       {isOpen && (
-        <div className="campaign-menu" role="menu">
-          <button type="button" role="menuitem" onClick={onOpenDetail}>
-            View details
+        <div className="campaign-menu" role="menu" onClick={(e) => e.stopPropagation()}>
+          <button
+            type="button"
+            role="menuitem"
+            className="campaign-menu-item"
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpenDetail();
+            }}
+          >
+            <span className="campaign-menu-item__icon">👁️</span>
+            <span>View Details</span>
           </button>
           <button
             type="button"
             role="menuitem"
-            className="campaign-menu__danger"
+            className="campaign-menu-item campaign-menu-item--danger"
             disabled={loading}
-            onClick={onDelete}
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(e);
+            }}
           >
-            {loading ? "Deleting..." : "Delete campaign"}
+            <span className="campaign-menu-item__icon">🗑️</span>
+            <span>{loading ? "Deleting..." : "Delete Campaign"}</span>
           </button>
         </div>
       )}
@@ -1626,11 +1651,27 @@ function CampaignActionsMenu({
   );
 }
 
+function statusIcon(status: string) {
+  switch (status) {
+    case "running": return "🚀";
+    case "completed": return "✅";
+    case "paused": return "⏸️";
+    case "failed": return "⚠️";
+    case "cancelled": return "✕";
+    case "draft": return "📝";
+    case "delivered": return "✓✓";
+    case "read": return "👁️";
+    case "sent": return "📤";
+    case "pending": return "⏳";
+    default: return "•";
+  }
+}
+
 function CampaignStatusBadge({ status }: { status: string }) {
   return (
     <span className={`campaign-status-badge campaign-status-badge--${status}`}>
-      <span />
-      {statusLabel(status)}
+      <span style={{ fontSize: "0.75rem", lineHeight: 1 }}>{statusIcon(status)}</span>
+      <span>{statusLabel(status)}</span>
     </span>
   );
 }
@@ -1702,6 +1743,21 @@ function CampaignPagination({
       </div>
     </footer>
   );
+}
+
+const RECIPIENT_AVATAR_COLORS = [
+  "campaign-recipient-avatar--mint",
+  "campaign-recipient-avatar--butter",
+  "campaign-recipient-avatar--sky",
+  "campaign-recipient-avatar--coral",
+  "campaign-recipient-avatar--purple",
+];
+
+function getRecipientInitials(name?: string) {
+  if (!name || !name.trim()) return "?";
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
 function CampaignDetail({
@@ -1818,26 +1874,45 @@ function CampaignDetail({
                   </tr>
                 </thead>
                 <tbody>
-                  {recipients.map((recipient) => (
-                    <tr key={recipient._id}>
-                      <td>{recipient.customerId?.name || "-"}</td>
-                      <td className="campaign-mono">{recipient.phoneNormalized}</td>
-                      <td>
-                        <CampaignStatusBadge status={recipient.status} />
-                      </td>
-                      <td className="campaign-date">{recipient.sentAt ? formatTime(recipient.sentAt) : "-"}</td>
-                      <td className="campaign-date">
-                        {recipient.readAt
-                          ? `Read ${formatTime(recipient.readAt)}`
-                          : recipient.deliveredAt
-                          ? `Delivered ${formatTime(recipient.deliveredAt)}`
-                          : "-"}
-                      </td>
-                      <td className="campaign-error-text" style={{ color: "#C0392B", fontSize: "12px" }}>
-                        {formatRecipientError(recipient.lastError || recipient.skipReason || "")}
-                      </td>
-                    </tr>
-                  ))}
+                  {recipients.map((recipient, idx) => {
+                    const avatarColor = RECIPIENT_AVATAR_COLORS[idx % RECIPIENT_AVATAR_COLORS.length];
+                    const customerName = recipient.customerId?.name || "Customer";
+                    const initials = getRecipientInitials(recipient.customerId?.name);
+
+                    return (
+                      <tr key={recipient._id}>
+                        <td>
+                          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                            <div className={`campaign-recipient-avatar ${avatarColor}`}>
+                              {initials}
+                            </div>
+                            <span style={{ fontWeight: 750 }}>{customerName}</span>
+                          </div>
+                        </td>
+                        <td className="campaign-mono">{recipient.phoneNormalized}</td>
+                        <td>
+                          <CampaignStatusBadge status={recipient.status} />
+                        </td>
+                        <td className="campaign-date">{recipient.sentAt ? formatTime(recipient.sentAt) : "-"}</td>
+                        <td className="campaign-date">
+                          {recipient.readAt ? (
+                            <span style={{ color: "#065F46", fontWeight: 750 }}>
+                              👁️ Read {formatTime(recipient.readAt)}
+                            </span>
+                          ) : recipient.deliveredAt ? (
+                            <span style={{ color: "#0369A1", fontWeight: 750 }}>
+                              ✓✓ Delivered {formatTime(recipient.deliveredAt)}
+                            </span>
+                          ) : (
+                            "-"
+                          )}
+                        </td>
+                        <td className="campaign-error-text" style={{ color: "#991B1B", fontWeight: 700, fontSize: "12px" }}>
+                          {formatRecipientError(recipient.lastError || recipient.skipReason || "")}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -1923,7 +1998,7 @@ function CampaignTableSkeleton() {
   );
 }
 
-function CampaignEmptyState({ onCreate, disabled }: { onCreate: () => void; disabled: boolean }) {
+function CampaignEmptyState({ onCreate }: { onCreate: () => void }) {
   return (
     <div className="campaign-empty">
       <div className="campaign-empty__icon">
@@ -1931,7 +2006,7 @@ function CampaignEmptyState({ onCreate, disabled }: { onCreate: () => void; disa
       </div>
       <h2>No WhatsApp campaigns yet</h2>
       <p>Create your first campaign to start collecting customer reviews via WhatsApp.</p>
-      <button className="campaign-btn campaign-btn--primary" disabled={disabled} onClick={onCreate}>
+      <button className="campaign-btn campaign-btn--primary" onClick={onCreate}>
         <PlusIcon /> Create WhatsApp Campaign
       </button>
     </div>
@@ -2106,10 +2181,10 @@ function RefreshIcon({ className = "" }: { className?: string }) {
 
 function MoreIcon() {
   return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <circle cx="12" cy="12" r="1" />
-      <circle cx="19" cy="12" r="1" />
-      <circle cx="5" cy="12" r="1" />
+    <svg viewBox="0 0 24 24" aria-hidden="true" width="16" height="16" fill="currentColor">
+      <circle cx="5" cy="12" r="2" />
+      <circle cx="12" cy="12" r="2" />
+      <circle cx="19" cy="12" r="2" />
     </svg>
   );
 }

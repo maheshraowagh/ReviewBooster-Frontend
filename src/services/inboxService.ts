@@ -12,12 +12,23 @@ export interface FeedbackItem {
   sessionId: string;
 }
 
+export interface InboxStats {
+  totalFeedback: number;
+  unresolvedCount: number;
+  resolvedCount: number;
+  atRiskCount: number;
+  resolutionRate: number;
+  avgRating: number;
+  ratingDistribution: Record<number, number>;
+}
+
 export interface InboxResponse {
   items: FeedbackItem[];
   total: number;
   page: number;
   totalPages: number;
   atRiskCount: number;
+  stats?: InboxStats;
 }
 
 export interface InboxQueryParams {

@@ -34,17 +34,19 @@ function successRate(c: EmailCampaign) {
 // ── Sub-components ────────────────────────────────────────────────────────────
 
 function StepBar({ current }: { current: number }) {
-  const steps = ["Campaign Details", "Import Contacts", "Email Design", "Review & Send"];
+  const steps = ["1. Campaign Details", "2. Import Contacts", "3. Email Design", "4. Review & Send"];
   return (
     <div className="ec-step-bar">
       {steps.map((label, i) => {
         const idx = i + 1;
-        const cls = idx < current ? "done" : idx === current ? "active" : "";
+        const isDone = idx < current;
+        const isActive = idx === current;
+        const cls = isDone ? "ec-step-item--done" : isActive ? "ec-step-item--active" : "";
         return (
           <div key={label} className={`ec-step-item ${cls}`}>
             <div className="ec-step-dot">
-              {idx < current ? (
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+              {isDone ? (
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="20 6 9 17 4 12" />
                 </svg>
               ) : idx}
@@ -260,20 +262,30 @@ function EmailCampaignWizard({ onClose, onCreated }: WizardProps) {
 
   return (
     <div className="ec-wizard-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="ec-wizard" role="dialog" aria-modal="true" aria-label="New Email Campaign">
+      <div className="ec-wizard-modal" role="dialog" aria-modal="true" aria-label="New Email Campaign">
 
         {/* Header */}
         <div className="ec-wizard-header">
-          <h2 className="ec-wizard-title">New Email Campaign</h2>
+          <div>
+            <h2 className="ec-wizard-title">New Email Campaign</h2>
+            <p className="ec-wizard-subtitle">
+              {step === 1 && "Step 1 of 4: Setup details & sending provider"}
+              {step === 2 && "Step 2 of 4: Import customer contacts"}
+              {step === 3 && "Step 3 of 4: Select message tone or customize body"}
+              {step === 4 && "Step 4 of 4: Review and send campaign"}
+            </p>
+          </div>
           <button className="ec-wizard-close" onClick={onClose} aria-label="Close wizard">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
             </svg>
           </button>
         </div>
 
-        {/* Step bar */}
-        <StepBar current={step} />
+        {/* Stepper bar */}
+        <div className="ec-wizard-stepper-wrap">
+          <StepBar current={step} />
+        </div>
 
         {/* Body */}
         <div className="ec-wizard-body">
@@ -289,26 +301,21 @@ function EmailCampaignWizard({ onClose, onCreated }: WizardProps) {
                   value={campaignName} onChange={(e) => setCampaignName(e.target.value)} maxLength={120} />
               </div>
 
-              {/* Provider Selection — professional cards */}
+              {/* Provider Selection — Neo-Brutalist cards */}
               <div className="ec-field" style={{ marginBottom: 0 }}>
                 <label className="ec-label">Send Emails Via</label>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '14px', marginTop: '8px' }}>
                   {/* Gmail Card */}
                   <div
+                    className={`ec-provider-card ${selectedProvider === 'gmail' ? 'ec-provider-card--active' : ''}`}
                     onClick={() => { if (business?.gmailConnected) setSelectedProvider('gmail'); }}
                     style={{
-                      padding: '18px',
-                      borderRadius: '12px',
-                      border: selectedProvider === 'gmail' ? '2px solid #1A1A1A' : '1px solid #E3E1D9',
-                      background: selectedProvider === 'gmail' ? '#F9F8F5' : '#fff',
                       cursor: business?.gmailConnected ? 'pointer' : 'default',
-                      opacity: business?.gmailConnected ? 1 : 0.65,
-                      transition: 'all 0.15s ease',
-                      boxShadow: selectedProvider === 'gmail' ? '0 2px 8px rgba(0,0,0,0.04)' : 'none',
+                      opacity: business?.gmailConnected ? 1 : 0.7,
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                      <span style={{ fontSize: '14px', fontWeight: 600, color: '#1A1A1A', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '14px', fontWeight: 800, color: 'var(--brutal-dark)', display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <svg width="20" height="16" viewBox="0 0 75 56" xmlns="http://www.w3.org/2000/svg">
                           <path d="M7.5 0h7.8L37.5 22.1 59.7 0h7.8c4.1 0 7.5 3.4 7.5 7.5v41c0 4.1-3.4 7.5-7.5 7.5h-7.5V14L37.5 36.2 15 14v42H7.5C3.4 56 0 52.6 0 48.5v-41C0 3.4 3.4 0 7.5 0z" fill="#EA4335"/>
                           <path d="M0 7.5C0 3.4 3.4 0 7.5 0h7.8L37.5 22.1V56H7.5C3.4 56 0 52.6 0 48.5V7.5z" fill="#4285F4" opacity="0"/>
@@ -330,7 +337,7 @@ function EmailCampaignWizard({ onClose, onCreated }: WizardProps) {
                         <span className="ec-status-badge draft" style={{ fontSize: '10px' }}>Not Connected</span>
                       )}
                     </div>
-                    <p style={{ fontSize: '12px', color: '#6B6B63', margin: 0, lineHeight: 1.5 }}>
+                    <p style={{ fontSize: '12px', color: '#555', margin: 0, lineHeight: 1.5, fontWeight: 600 }}>
                       {business?.gmailConnected
                         ? `Sends directly from ${business.gmailEmail}. Customer replies land in your Gmail inbox.`
                         : 'Connect your Gmail account to send emails directly from your personal or business email.'}
@@ -339,10 +346,8 @@ function EmailCampaignWizard({ onClose, onCreated }: WizardProps) {
                       <button type="button" onClick={async (e) => {
                         e.stopPropagation();
                         try { const url = await getGoogleAuthUrl(); window.location.href = url; } catch { }
-                      }} style={{
-                        marginTop: '12px', fontSize: '12px', fontWeight: 600, color: '#1A1A1A',
-                        background: '#fff', border: '1px solid #E3E1D9', borderRadius: '8px',
-                        padding: '6px 14px', cursor: 'pointer', fontFamily: 'inherit',
+                      }} className="ec-btn ec-btn-ghost" style={{
+                        marginTop: '12px', fontSize: '11px', padding: '5px 12px',
                       }}>
                         Connect Gmail →
                       </button>
@@ -351,19 +356,11 @@ function EmailCampaignWizard({ onClose, onCreated }: WizardProps) {
 
                   {/* Default Server Card */}
                   <div
+                    className={`ec-provider-card ${selectedProvider === 'platform' ? 'ec-provider-card--active' : ''}`}
                     onClick={() => setSelectedProvider('platform')}
-                    style={{
-                      padding: '18px',
-                      borderRadius: '12px',
-                      border: selectedProvider === 'platform' ? '2px solid #1A1A1A' : '1px solid #E3E1D9',
-                      background: selectedProvider === 'platform' ? '#F9F8F5' : '#fff',
-                      cursor: 'pointer',
-                      transition: 'all 0.15s ease',
-                      boxShadow: selectedProvider === 'platform' ? '0 2px 8px rgba(0,0,0,0.04)' : 'none',
-                    }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                      <span style={{ fontSize: '14px', fontWeight: 600, color: '#1A1A1A', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '14px', fontWeight: 800, color: 'var(--brutal-dark)', display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                           <defs>
                             <linearGradient id="rb-grad" x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse">
@@ -377,9 +374,9 @@ function EmailCampaignWizard({ onClose, onCreated }: WizardProps) {
                         </svg>
                         ReviewBooster Mail
                       </span>
-                      <span style={{ fontSize: '10px', fontWeight: 600, padding: '2px 8px', borderRadius: '99px', background: '#EEF2FF', color: '#6366F1' }}>Built-in</span>
+                      <span style={{ fontSize: '10px', fontWeight: 800, padding: '2px 8px', borderRadius: '99px', background: 'var(--brutal-lavender)', color: '#4338CA', border: '1.5px solid var(--brutal-dark)' }}>Built-in</span>
                     </div>
-                    <p style={{ fontSize: '12px', color: '#6B6B63', margin: 0, lineHeight: 1.5 }}>
+                    <p style={{ fontSize: '12px', color: '#555', margin: 0, lineHeight: 1.5, fontWeight: 600 }}>
                       Sends as "{business?.name || 'Your Business'}" with your logo. Customer replies go to {business?.contactEmail || 'your email'}.
                     </p>
                   </div>
@@ -1073,11 +1070,34 @@ function CampaignDetailPanel({
 export default function EmailCampaignsPage() {
   const [showWizard, setShowWizard] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+
+  const actionMut = useEmailCampaignAction();
+
+  useEffect(() => {
+    const handleDocClick = () => setOpenMenuId(null);
+    document.addEventListener("click", handleDocClick);
+    return () => document.removeEventListener("click", handleDocClick);
+  }, []);
+
+  const handleQuickAction = async (c: EmailCampaign, action: "start" | "pause", event?: React.MouseEvent) => {
+    event?.stopPropagation();
+    setActionLoading(`${action}-${c._id}`);
+    try {
+      await actionMut.mutateAsync({ id: c._id, action });
+      refetch();
+    } catch (err: any) {
+      alert(err.message || `Failed to ${action} campaign`);
+    }
+    setActionLoading(null);
+    setOpenMenuId(null);
+  };
 
   const { data: campaignsData, isLoading: loading, refetch } = useEmailCampaigns({
     page,
@@ -1254,8 +1274,10 @@ export default function EmailCampaignsPage() {
                   <tr>
                     <th>Campaign</th>
                     <th>Status</th>
+                    <th>Recipients</th>
                     <th>Progress</th>
                     <th>Created At</th>
+                    <th className="ec-table__actions">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1270,6 +1292,11 @@ export default function EmailCampaignsPage() {
                         </td>
                         <td>
                           <StatusBadge status={c.status} />
+                        </td>
+                        <td>
+                          <span style={{ fontWeight: 800, color: "var(--brutal-dark)" }}>
+                            {c.totalRecipients?.toLocaleString() || 0}
+                          </span>
                         </td>
                         <td>
                           <div className="ec-delivery">
@@ -1288,6 +1315,75 @@ export default function EmailCampaignsPage() {
                           <span className="ec-table__date">
                             {new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(new Date(c.createdAt))}
                           </span>
+                        </td>
+                        <td className="ec-table__actions" onClick={(e) => e.stopPropagation()}>
+                          <div className="ec-row-actions">
+                            <button
+                              type="button"
+                              className="ec-btn ec-btn-secondary"
+                              onClick={() => setSelectedId(c._id)}
+                            >
+                              View
+                            </button>
+                            <div className="ec-actions-menu">
+                              <button
+                                type="button"
+                                className={`ec-icon-btn ${openMenuId === c._id ? "ec-icon-btn--active" : ""}`}
+                                aria-label={`Actions for ${c.name}`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOpenMenuId(openMenuId === c._id ? null : c._id);
+                                }}
+                                title="More options"
+                              >
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+                                  <circle cx="12" cy="5" r="2" />
+                                  <circle cx="12" cy="12" r="2" />
+                                  <circle cx="12" cy="19" r="2" />
+                                </svg>
+                              </button>
+                              {openMenuId === c._id && (
+                                <div className="ec-menu" role="menu" onClick={(e) => e.stopPropagation()}>
+                                  <button
+                                    type="button"
+                                    role="menuitem"
+                                    className="ec-menu-item"
+                                    onClick={() => {
+                                      setSelectedId(c._id);
+                                      setOpenMenuId(null);
+                                    }}
+                                  >
+                                    <span className="ec-menu-item__icon">👁️</span>
+                                    <span>View Details</span>
+                                  </button>
+                                  {c.status === "running" && (
+                                    <button
+                                      type="button"
+                                      role="menuitem"
+                                      className="ec-menu-item"
+                                      disabled={actionLoading === `pause-${c._id}`}
+                                      onClick={(e) => handleQuickAction(c, "pause", e)}
+                                    >
+                                      <span className="ec-menu-item__icon">⏸️</span>
+                                      <span>{actionLoading === `pause-${c._id}` ? "Pausing..." : "Pause Campaign"}</span>
+                                    </button>
+                                  )}
+                                  {(c.status === "paused" || c.status === "draft") && (
+                                    <button
+                                      type="button"
+                                      role="menuitem"
+                                      className="ec-menu-item"
+                                      disabled={actionLoading === `start-${c._id}`}
+                                      onClick={(e) => handleQuickAction(c, "start", e)}
+                                    >
+                                      <span className="ec-menu-item__icon">▶️</span>
+                                      <span>{actionLoading === `start-${c._id}` ? "Starting..." : "Resume Campaign"}</span>
+                                    </button>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
                         </td>
                       </tr>
                     );
